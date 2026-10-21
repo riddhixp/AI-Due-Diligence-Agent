@@ -1,0 +1,39 @@
+
+# API credentials and secrets
+.env
+.env.*
+!.env.example
+
+# Python environment and cache
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local reports and uploaded documents
+saved_reports/
+company_report.pdf
+microsoft_report.pdf
+*.pdf
+
+# Mac files
+.DS_Store
+
+# Temporary files and backups
+*_backup.py
+*_before_*.py
+
+
+# Saved analyses and backup folders
+*.json
+saved_reports*/
+tests_*_backup/
+
+# Working copies and experimental versions
+*_working.py
+*_upgraded.py
+*_layout_v*.py
+*.textClipping
+
+# Local generated output
+due_diligence_report.md
