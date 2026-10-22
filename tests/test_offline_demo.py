@@ -10,6 +10,8 @@ class OfflineDemoTests(unittest.TestCase):
             ["\n".join(PAGE_ONE), "\n".join(PAGE_TWO)]
         )
         self.assertEqual(data["revenue_current"], 120)
+        self.assertTrue(validation)
+        self.assertTrue(all(item["status"] == "PASS" for item in validation.values()))
         self.assertEqual(evaluation["initial_review_status"], "NEEDS_REVIEW")
         self.assertEqual(evaluation["evaluation"], "PRELIMINARY_PASS")
         self.assertTrue(evaluation["simulation"])
