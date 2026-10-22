@@ -3,6 +3,7 @@ import os
 import re
 from agent_financial_review import review_financial_evidence
 from optional_financial_validation import validate_optional_financial_data
+from investigation_control import submission_block_reason
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -157,6 +158,7 @@ def run_due_diligence(pages):
     financial_submission = {}
 
     submission_attempts = {"count": 0}
+    review_state = {"reviewed_count": 0, "status": None}
 
     @function_tool
     def submit_financial_data(
@@ -287,13 +289,15 @@ def run_due_diligence(pages):
                 return f"Invalid PDF page for {metric}: {page}"
 
 
-        if submission_attempts["count"] >= 2:
-            return (
-                "SUBMISSION_LIMIT_REACHED: Maximum of two "
-                "financial submissions permitted: one initial "
-                "submission and one evidence-supported correction."
-            )
+        refusal = submission_block_reason(
+            submission_attempts["count"],
+            review_state["reviewed_count"],
+            review_state["status"],
+        )
+        if refusal:
+            return refusal
 
+        previous_submission = financial_submission.copy()
         financial_submission.clear()
         financial_submission.update({
             "company": company,
@@ -355,12 +359,14 @@ def run_due_diligence(pages):
 
         if optional_issues:
             financial_submission.clear()
+            financial_submission.update(previous_submission)
             return (
                 "Financial submission rejected: "
                 + "; ".join(optional_issues)
             )
 
         submission_attempts["count"] += 1
+        review_state["status"] = None
 
         return (
             "Financial data received for validation. "
@@ -436,6 +442,8 @@ def run_due_diligence(pages):
             pages,
             financial_submission,
         )
+        review_state["reviewed_count"] = submission_attempts["count"]
+        review_state["status"] = result["status"]
 
         return json.dumps(result, default=str)
 
