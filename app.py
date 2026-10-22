@@ -17,6 +17,7 @@ from correction_changes import financial_correction_changes
 from revenue_narrative_check import find_reversed_revenue_arrows
 from fault_injection import inject_first_submission_error
 from interrupted_report import interrupted_report
+from resume_transcript import extract_resume_input, inspect_resume_input
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
 from pdf_report import generate_pdf_report
@@ -961,6 +962,8 @@ or fabricate values merely to submit the data.
             raise
         from types import SimpleNamespace
         interrupted = True
+        resume_inspection = inspect_resume_input(extract_resume_input(error))
+        print("Resume transcript inspection:", resume_inspection["reason"])
         print("Agent reached turn limit; preserving validated tool state.")
         result = SimpleNamespace(
             new_items=[],
@@ -1027,6 +1030,7 @@ or fabricate values merely to submit the data.
     )
     if interrupted:
         evaluation["evaluation"] = "INTERRUPTED_TURN_LIMIT"
+        evaluation["resume_inspection"] = resume_inspection
         evaluation["issues"] = list(dict.fromkeys(
             evaluation["issues"] + ["AGENT_MAX_TURNS_EXCEEDED"]
         ))
