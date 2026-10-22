@@ -17,6 +17,11 @@ def prepare_tool_state(checkpoint, pdf_bytes):
         raise ValueError("REVIEW_WITHOUT_SUBMISSION")
 
     events = state["observed_tool_calls"]
+    # Do not rebuild privileged financial counters from an inconsistent trace.
+    if events.count("submit_financial_data") != submissions:
+        raise ValueError("SUBMISSION_TRACE_COUNT_MISMATCH")
+    if events.count("review_submitted_financials") != reviewed:
+        raise ValueError("REVIEW_TRACE_COUNT_MISMATCH")
     review_positions = [i for i, name in enumerate(events)
                         if name == "review_submitted_financials"]
     last_review = review_positions[-1] if review_positions else -1
