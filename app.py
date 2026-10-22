@@ -1,6 +1,7 @@
 
 import os
 import re
+from agent_financial_review import review_financial_evidence
 from optional_financial_validation import validate_optional_financial_data
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
@@ -155,6 +156,8 @@ def run_due_diligence(pages):
 
     financial_submission = {}
 
+    submission_attempts = {"count": 0}
+
     @function_tool
     def submit_financial_data(
         company: str,
@@ -284,6 +287,13 @@ def run_due_diligence(pages):
                 return f"Invalid PDF page for {metric}: {page}"
 
 
+        if submission_attempts["count"] >= 2:
+            return (
+                "SUBMISSION_LIMIT_REACHED: Maximum of two "
+                "financial submissions permitted: one initial "
+                "submission and one evidence-supported correction."
+            )
+
         financial_submission.clear()
         financial_submission.update({
             "company": company,
@@ -350,8 +360,13 @@ def run_due_diligence(pages):
                 + "; ".join(optional_issues)
             )
 
-        return "Financial data received for validation."
+        submission_attempts["count"] += 1
 
+        return (
+            "Financial data received for validation. "
+            f"Successful submission {submission_attempts['count']} of 2. "
+            "Call review_submitted_financials before finalising."
+        )
 
     @function_tool
     def search_report(query: str) -> str:
@@ -410,6 +425,20 @@ def run_due_diligence(pages):
         growth = (current - previous) / abs(previous) * 100
         return f"{growth:.2f}%"
 
+
+
+    @function_tool
+    def review_submitted_financials() -> str:
+        """Review submitted figures and return validation feedback."""
+        import json
+
+        result = review_financial_evidence(
+            pages,
+            financial_submission,
+        )
+
+        return json.dumps(result, default=str)
+
     agent = Agent(
         name="AI Due Diligence Analyst",
         model="gpt-5-mini",
@@ -419,8 +448,10 @@ def run_due_diligence(pages):
             calculate_percentage,
             calculate_growth,
             submit_financial_data,
-    ],
+            review_submitted_financials,
+        ],
         instructions="""
+
 
 You are a senior financial and technology due diligence analyst
 preparing a preliminary report for an investment or consulting team.
@@ -685,9 +716,68 @@ FINAL REVIEW BEFORE RESPONDING
 
 Check that the six required headings appear exactly once and in order; the executive findings are three numbered titles with paragraph support; the body is primarily prose; every material conclusion is appropriately evidenced or qualified; numerical claims are reconciled; and no sections or labels repeat unnecessarily. Never present arithmetic agreement as independent source verification.
 
-After retrieving and reading the financial statement
-pages, call submit_financial_data exactly once if
-all required financial inputs are available.
+
+FINANCIAL VERIFICATION WORKFLOW
+
+After locating and reading the supporting financial
+statement pages, submit the structured financial data
+using submit_financial_data.
+
+Then call review_submitted_financials before producing
+the final due diligence report.
+
+
+INVESTIGATION DECISION RULES
+
+The financial review tool returns an overall status,
+arithmetic checks, source checks, statement checks,
+and financial metadata issues.
+
+If the overall status is PRELIMINARY_CHECKS_PASSED:
+- Continue the due diligence assessment.
+- Do not treat this status as independent proof
+  of accounting accuracy or earnings quality.
+
+If the overall status is NEEDS_REVIEW:
+- Identify the specific failed or uncertain checks.
+- Determine whether the issue is a calculation error,
+  wrong financial statement row, incorrect fiscal year,
+  unsupported source, or missing financial metadata.
+- Use search_report or read_page to investigate
+  evidence that could resolve the issue.
+- Correct submitted financial data only when supported
+  by the original document.
+- You may resubmit financial data once and run the
+  financial review again.
+- If evidence remains unavailable or ambiguous,
+  preserve the original uncertainty and explain it
+  in the final report.
+
+Never invent missing information or change a value
+merely to make validation pass.
+
+Do not repeatedly investigate the same unresolved
+issue. Prioritise material discrepancies and finish
+with a clear statement of remaining limitations.
+
+
+Inspect all arithmetic failures and source warnings.
+
+If a discrepancy is found, use read_page to revisit
+the relevant financial statement and investigate it.
+
+If you find reliable evidence supporting a correction,
+you may resubmit financial data once and run the review
+again.
+
+Never change figures simply to make a test pass.
+
+If the discrepancy cannot be resolved, clearly identify
+the affected figure as unverified in the final report.
+
+Arithmetic agreement is not proof of source accuracy.
+Finding a number on a PDF page does not prove the
+correct metric, fiscal year or monetary units.
 
 
 OPTIONAL FINANCIAL EXTRACTION
@@ -813,6 +903,42 @@ or fabricate values merely to submit the data.
 
         max_turns=20,
     )
+
+
+
+    # Record the agent's tool calls without logging
+    # document contents or tool arguments.
+    tool_calls = []
+
+    for item in result.new_items:
+        if item.type == "tool_call_item":
+            raw_item = item.raw_item
+
+            tool_name = getattr(raw_item, "name", None)
+
+            if not tool_name:
+                function = getattr(raw_item, "function", None)
+                tool_name = getattr(function, "name", None)
+
+            if not tool_name:
+                tool_name = "unknown_tool"
+
+            tool_calls.append(str(tool_name))
+
+    print("\nAI INVESTIGATION AUDIT")
+    print("Tool calls:", len(tool_calls))
+
+    for index, tool_name in enumerate(tool_calls, 1):
+        print(f"{index}. {tool_name}")
+
+    required_tools = [
+        "submit_financial_data",
+        "review_submitted_financials",
+    ]
+
+    for tool_name in required_tools:
+        status = "CALLED" if tool_name in tool_calls else "NOT CALLED"
+        print(f"{tool_name}: {status}")
 
     
     report = str(result.final_output)
