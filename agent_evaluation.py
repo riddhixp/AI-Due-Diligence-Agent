@@ -33,6 +33,8 @@ def evaluate_agent_run(pages, financial_data, tool_calls, submissions,
         issues.extend(sequence["issues"])
     if evidence["status"] != "PRELIMINARY_CHECKS_PASSED":
         issues.append("FINANCIAL_EVIDENCE_REQUIRES_REVIEW")
+    if latest_reviewed and review_status != evidence["status"]:
+        issues.append("REVIEW_STATUS_EVIDENCE_MISMATCH")
 
     return {
         "evaluation": "PRELIMINARY_PASS" if not issues and evidence_passed
