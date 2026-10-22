@@ -23,6 +23,7 @@ from sdk_pause_capture import capture_approval_pause, pause_public_status
 from tool_state_rebinding import prepare_tool_state
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
+from offline_approval_demo import start_offline_approval, finish_offline_approval
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -1157,6 +1158,7 @@ if uploaded_file is not None:
         st.session_state.pop("validation", None)
         st.session_state.pop("financial_data", None)
         st.session_state.pop("agent_evaluation", None)
+        st.session_state.pop("offline_approval_queue", None)
 
     # Reload previously saved analysis
     if "report" not in st.session_state:
@@ -1249,6 +1251,27 @@ if uploaded_file is not None:
             "Uses paid API credits when analysis runs."
         ),
     )
+
+    st.subheader("FREE approval interface demo")
+    st.caption(
+        "Synthetic decision queue only. No AI, no API credits, "
+        "and no resumed investigation."
+    )
+    if st.button("Start FREE approval demo"):
+        st.session_state["offline_approval_queue"] = start_offline_approval(pdf_bytes)
+    demo_queue = st.session_state.get("offline_approval_queue")
+    if demo_queue is not None:
+        from approval_queue import approval_public_status
+        public_approval = approval_public_status(demo_queue)
+        st.write("Approval status:", public_approval["approvals"][0])
+        if public_approval["approvals"][0] == "PENDING":
+            approve_col, reject_col = st.columns(2)
+            if approve_col.button("Approve demo submission"):
+                finish_offline_approval(demo_queue, pdf_bytes, True)
+                st.success("Synthetic approval recorded. No tool or model was run.")
+            if reject_col.button("Reject demo submission"):
+                finish_offline_approval(demo_queue, pdf_bytes, False)
+                st.info("Synthetic rejection recorded. No tool or model was run.")
 
     if st.button("Run FREE interruption demo"):
         try:
