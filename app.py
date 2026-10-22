@@ -10,6 +10,7 @@ from tool_sequence_audit import assess_tool_sequence
 from verification_notice import final_verification_notice
 from report_verification import finalise_dd_report
 from audit_appendix import append_audit_appendix
+from agent_evaluation import evaluate_agent_run
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -969,6 +970,14 @@ or fabricate values merely to submit the data.
     if sequence_audit["issues"]:
         print("Sequence issues:", ", ".join(sequence_audit["issues"]))
     print("Investigation outcome:", audit["outcome"])
+    evaluation = evaluate_agent_run(
+        pages, financial_submission, tool_calls,
+        submission_attempts["count"], review_state["reviewed_count"],
+        review_state["status"],
+    )
+    print("Agent evaluation:", evaluation["evaluation"])
+    if evaluation["issues"]:
+        print("Evaluation issues:", ", ".join(evaluation["issues"]))
     print("Latest submission reviewed:", audit["latest_submission_reviewed"])
 
     
