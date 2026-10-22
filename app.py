@@ -12,6 +12,7 @@ from report_verification import finalise_dd_report
 from audit_appendix import append_audit_appendix
 from agent_evaluation import evaluate_agent_run
 from run_limits import permitted_turn_limit
+from cache_policy import should_cache_report
 from correction_changes import financial_correction_changes
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
@@ -1169,7 +1170,7 @@ if uploaded_file is not None:
                     st.session_state["validation"] = validation
                     st.session_state["financial_data"] = financial_data
                     st.session_state["agent_evaluation"] = agent_evaluation
-                    if not st.session_state.get("smoke_test_mode"):
+                    if should_cache_report(bool(st.session_state.get("smoke_test_mode"))):
                         save_report(
                             pdf_bytes,
                             report,
