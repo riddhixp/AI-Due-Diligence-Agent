@@ -18,6 +18,7 @@ from revenue_narrative_check import find_reversed_revenue_arrows
 from fault_injection import inject_first_submission_error
 from interrupted_report import interrupted_report
 from resume_transcript import extract_resume_input, inspect_replay_boundary
+from tool_state_rebinding import prepare_tool_state
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
 from pdf_report import generate_pdf_report
@@ -169,7 +170,21 @@ def find_evidence(pages, query, limit=5):
 # AI agent
 # -----------------------------
 
-def run_due_diligence(pages, max_turns=None, inject_test_error=False):
+def run_due_diligence(
+    pages, max_turns=None, inject_test_error=False,
+    restored_checkpoint=None, resume_pdf_bytes=None,
+):
+    # Restored Python state is not equivalent to a restored SDK conversation.
+    # Fail before creating an agent or making any paid model call.
+    if restored_checkpoint is not None:
+        if resume_pdf_bytes is None:
+            raise ValueError("RESUME_REQUIRES_ORIGINAL_PDF")
+        prepared = prepare_tool_state(restored_checkpoint, resume_pdf_bytes)
+        raise RuntimeError(
+            "LIVE_RESUME_DISABLED: financial tool state validated "
+            "but SDK conversation replay remains unverified. "
+            f"Preserved submissions: {prepared['submission_attempts']['count']}."
+        )
 
     financial_submission = {}
     observed_tool_calls = []
