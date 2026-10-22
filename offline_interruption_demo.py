@@ -1,5 +1,6 @@
 """Free deterministic reproduction of an interrupted financial investigation."""
 from interrupted_report import interrupted_report
+from investigation_checkpoint import create_checkpoint, document_fingerprint, inspect_checkpoint
 from agent_evaluation import evaluate_agent_run
 from tests.test_investigation_scenarios import supported_submission
 
@@ -21,6 +22,16 @@ def simulate_turn_limit(pages):
     evaluation["simulation"] = True
     evaluation["api_calls"] = 0
     evaluation["can_resume"] = False
+    # Demo fingerprint derives from page text; this is not a model transcript.
+    demo_bytes = "\\n".join(pages).encode("utf-8")
+    checkpoint = create_checkpoint(
+        document_fingerprint(demo_bytes), submitted, 1, 0, None, events
+    )
+    evaluation["checkpoint"] = {
+        "compatible": inspect_checkpoint(checkpoint, demo_bytes)["compatible"],
+        "resume_ready": False,
+        "saved_submissions": checkpoint["submission_count"],
+    }
     report = interrupted_report(submitted, 0, 1, None)
     report += (
         "\n\n**Scripted interruption demonstration only.** "
