@@ -18,6 +18,7 @@ from revenue_narrative_check import find_reversed_revenue_arrows
 from fault_injection import inject_first_submission_error
 from interrupted_report import interrupted_report
 from offline_demo import simulate_conflict_correction
+from offline_interruption_demo import simulate_turn_limit
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -1203,6 +1204,22 @@ if uploaded_file is not None:
         ),
     )
 
+    if st.button("Run FREE interruption demo"):
+        try:
+            report, validation, financial_data, agent_evaluation = (
+                simulate_turn_limit(pages)
+            )
+            st.session_state["report"] = report
+            st.session_state["validation"] = validation
+            st.session_state["financial_data"] = financial_data
+            st.session_state["agent_evaluation"] = agent_evaluation
+            st.info(
+                "Interruption with an unreviewed financial submission "
+                "simulated. No OpenAI API credits used."
+            )
+        except ValueError as error:
+            st.error(str(error))
+
     if st.button("Run FREE offline correction demo"):
         try:
             report, validation, financial_data, agent_evaluation = (
@@ -1279,7 +1296,12 @@ if uploaded_file is not None:
             )
         if agent_evaluation:
             st.subheader("Agent investigation evaluation")
-            if agent_evaluation["evaluation"] == "PRELIMINARY_PASS":
+            if agent_evaluation["evaluation"] == "INTERRUPTED_TURN_LIMIT":
+                st.error(
+                    "Investigation interrupted before a final AI report. "
+                    "Submitted numbers may be unverified; this is not a pass."
+                )
+            elif agent_evaluation["evaluation"] == "PRELIMINARY_PASS":
                 st.success(
                     "Financial evidence and tool sequencing passed "
                     "preliminary automated checks. Human validation "
