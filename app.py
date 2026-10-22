@@ -1028,7 +1028,7 @@ or fabricate values merely to submit the data.
             submitted["reported"],
         )
 
-    return report, validation_results, financial_submission.copy()
+    return report, validation_results, financial_submission.copy(), evaluation
 
 
 
@@ -1062,6 +1062,7 @@ if uploaded_file is not None:
         st.session_state.pop("report", None)
         st.session_state.pop("validation", None)
         st.session_state.pop("financial_data", None)
+        st.session_state.pop("agent_evaluation", None)
 
     # Reload previously saved analysis
     if "report" not in st.session_state:
@@ -1160,13 +1161,14 @@ if uploaded_file is not None:
                 
 
                 try:
-                    report, validation, financial_data = run_due_diligence(
+                    report, validation, financial_data, agent_evaluation = run_due_diligence(
                         pages,
                         max_turns=8 if st.session_state.get('smoke_test_mode') else None,
                     )
                     st.session_state["report"] = report
                     st.session_state["validation"] = validation
                     st.session_state["financial_data"] = financial_data
+                    st.session_state["agent_evaluation"] = agent_evaluation
                     save_report(
                         pdf_bytes,
                         report,
@@ -1187,6 +1189,34 @@ if uploaded_file is not None:
 
 
         st.subheader("4. Due diligence findings")
+        agent_evaluation = st.session_state.get("agent_evaluation")
+        if agent_evaluation:
+            st.subheader("Agent investigation evaluation")
+            if agent_evaluation["evaluation"] == "PRELIMINARY_PASS":
+                st.success(
+                    "Financial evidence and tool sequencing passed "
+                    "preliminary automated checks. Human validation "
+                    "is still required."
+                )
+            else:
+                st.warning(
+                    "Outstanding investigation checks require review "
+                    "before relying on the findings."
+                )
+            st.json(agent_evaluation)
+            import json
+            st.download_button(
+                "Download investigation evaluation (JSON)",
+                data=json.dumps(agent_evaluation, indent=2),
+                file_name="agent_investigation_evaluation.json",
+                mime="application/json",
+            )
+        else:
+            st.caption(
+                "No live tool-use evaluation is stored for this report. "
+                "Cached analyses do not establish which tools were called."
+            )
+
         current_financials = st.session_state.get("financial_data")
         current_review = (
             review_financial_evidence(pages, current_financials)
