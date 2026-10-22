@@ -13,6 +13,7 @@ from agents.usage import Usage
 
 
 class ScriptedOfflineModel(Model):
+    is_offline_scripted_model = True
     def __init__(self):
         self.responses = [
             [ResponseFunctionToolCall(
