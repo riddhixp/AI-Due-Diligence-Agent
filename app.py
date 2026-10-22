@@ -5,6 +5,7 @@ from agent_financial_review import review_financial_evidence
 from optional_financial_validation import validate_optional_financial_data
 from investigation_control import submission_block_reason
 from investigation_outcome import investigation_outcome
+from verification_notice import final_verification_notice
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -1131,6 +1132,18 @@ if uploaded_file is not None:
 
 
         st.subheader("4. Due diligence findings")
+        current_financials = st.session_state.get("financial_data")
+        current_review = (
+            review_financial_evidence(pages, current_financials)
+            if current_financials else None
+        )
+        notice_level, notice_message = final_verification_notice(
+            current_financials, current_review
+        )
+        if notice_level == "warning":
+            st.warning(notice_message)
+        else:
+            st.info(notice_message)
         st.markdown(st.session_state["report"])
 
     
