@@ -38,6 +38,24 @@ class RestoredContinuationTests(unittest.TestCase):
                 self.cp, self.pdf, PAGES, deepcopy(self.wrong)
             )
 
+    def test_forged_pass_status_is_rejected(self):
+        self.cp["reviewed_count"] = 1
+        self.cp["review_status"] = "PRELIMINARY_CHECKS_PASSED"
+        self.cp["tool_calls"].append("review_submitted_financials")
+        with self.assertRaisesRegex(ValueError, "CHECKPOINT_REVIEW_MISMATCH"):
+            simulate_restored_continuation(
+                self.cp, self.pdf, PAGES, supported_submission()
+            )
+
+    def test_existing_failed_review_can_continue(self):
+        self.cp["reviewed_count"] = 1
+        self.cp["review_status"] = "NEEDS_REVIEW"
+        self.cp["tool_calls"].append("review_submitted_financials")
+        result = simulate_restored_continuation(
+            self.cp, self.pdf, PAGES, supported_submission()
+        )
+        self.assertEqual(result["evaluation"], "PRELIMINARY_PASS")
+
     def test_checkpoint_remains_unchanged(self):
         simulate_restored_continuation(
             self.cp, self.pdf, PAGES, supported_submission()
