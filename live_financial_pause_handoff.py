@@ -3,6 +3,7 @@
 No file writes, no SDK resume, and no model calls in this module.
 """
 from investigation_checkpoint import create_checkpoint, document_fingerprint
+from tool_state_rebinding import prepare_tool_state
 
 
 class SDKFinancialApprovalPaused(RuntimeError):
@@ -27,6 +28,11 @@ def make_financial_pause_handoff(
         document_fingerprint(pdf_bytes), financial_data, submission_count,
         reviewed_count, review_status, tool_calls,
     )
+    restored = prepare_tool_state(checkpoint, pdf_bytes)
+    counters = restored["review_state"]
+    if (counters["page_reads"] != page_reads
+            or counters["reads_at_review"] != reads_at_review):
+        raise ValueError("PAUSE_READ_COUNTER_MISMATCH")
     return {
         "sdk_state": capture["state"],
         "checkpoint": checkpoint,
