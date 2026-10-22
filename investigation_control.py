@@ -1,7 +1,7 @@
 """Enforce evidence-review sequencing for financial submissions."""
 
 
-def submission_block_reason(count, reviewed_count, review_status):
+def submission_block_reason(count, reviewed_count, review_status, pages_read_since_review=0):
     """Return a refusal message or None if a submission is permitted.
 
     Only one corrected submission is allowed, and only after the latest
@@ -20,6 +20,11 @@ def submission_block_reason(count, reviewed_count, review_status):
             return (
                 "CORRECTION_NOT_PERMITTED: The previous submission "
                 "was not marked NEEDS_REVIEW."
+            )
+        if pages_read_since_review < 1:
+            return (
+                "SOURCE_RECHECK_REQUIRED: Read a relevant PDF page after "
+                "the failed review before submitting a correction."
             )
 
     return None
