@@ -8,6 +8,7 @@ from investigation_outcome import investigation_outcome
 from investigation_guidance import investigation_next_actions
 from tool_sequence_audit import assess_tool_sequence
 from verification_notice import final_verification_notice
+from report_verification import finalise_dd_report
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -971,6 +972,11 @@ or fabricate values merely to submit the data.
 
     
     report = str(result.final_output)
+    final_review = (
+        review_financial_evidence(pages, financial_submission)
+        if financial_submission else None
+    )
+    report = finalise_dd_report(report, financial_submission, final_review)
 
     validation_results = None
 
