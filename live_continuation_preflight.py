@@ -19,6 +19,11 @@ def preflight_live_continuation(handoff, pdf_bytes):
     if sdk_state is None or not callable(getattr(sdk_state, "get_interruptions", None)):
         raise ValueError("INVALID_SDK_RUN_STATE")
     restored = prepare_tool_state(checkpoint, pdf_bytes)
+    if "page_reads" in handoff or "reads_at_review" in handoff:
+        review = restored["review_state"]
+        if (handoff.get("page_reads") != review["page_reads"]
+                or handoff.get("reads_at_review") != review["reads_at_review"]):
+            raise ValueError("PAUSE_READ_COUNTER_MISMATCH")
     return {
         "status": "APPROVED_PREFLIGHT_ONLY",
         "submission_count": restored["submission_attempts"]["count"],
