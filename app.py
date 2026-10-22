@@ -1174,6 +1174,7 @@ if uploaded_file is not None:
         st.session_state.pop("sdk_offline_approval", None)
         st.session_state.pop("financial_resume_demo", None)
         st.session_state.pop("financial_resume_result", None)
+        st.session_state.pop("live_financial_pause", None)
 
     # Reload previously saved analysis
     if "report" not in st.session_state:
@@ -1266,6 +1267,28 @@ if uploaded_file is not None:
             "Uses paid API credits when analysis runs."
         ),
     )
+
+    st.checkbox(
+        "Pause paid investigation for financial submission approval (experimental)",
+        key="real_financial_approval_mode",
+        help=(
+            "Requires a paid AI analysis run. Captures genuine SDK approval and "
+            "financial checkpoint in this session; real paid resumption is disabled."
+        ),
+    )
+
+    live_handoff = st.session_state.get("live_financial_pause")
+    if live_handoff is not None:
+        from live_financial_pause_handoff import public_financial_pause_status
+        public_pause = public_financial_pause_status(live_handoff)
+        st.warning(
+            "Real investigation paused for financial approval. "
+            "No completed report was produced. Paid resume is disabled."
+        )
+        st.write("Pending approval checkpoint:", public_pause)
+        if st.button("Discard paused investigation"):
+            st.session_state.pop("live_financial_pause", None)
+            st.rerun()
 
     st.subheader("FREE approval interface demo")
     st.caption(
@@ -1406,6 +1429,8 @@ if uploaded_file is not None:
                         pages,
                         max_turns=8 if st.session_state.get('smoke_test_mode') else None,
                         inject_test_error=bool(st.session_state.get("inject_test_error")),
+                        financial_approval_required=bool(st.session_state.get("real_financial_approval_mode")),
+                        pause_pdf_bytes=pdf_bytes,
                     )
                     st.session_state["report"] = report
                     st.session_state["validation"] = validation
@@ -1424,6 +1449,13 @@ if uploaded_file is not None:
                             "Smoke-test result is session-only. "
                             "It has not replaced the cached full report."
                         )
+                except SDKFinancialApprovalPaused as paused:
+                    st.session_state["live_financial_pause"] = paused.handoff
+                    st.warning(
+                        "Actual SDK approval pause captured. Financial progress "
+                        "was preserved in this session. Paid resume is disabled. "
+                        "No finished due diligence report was created."
+                    )
                 except Exception as error:
                     st.error(
                         "Analysis failed: "
