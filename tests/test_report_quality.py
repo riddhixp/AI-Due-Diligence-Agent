@@ -33,6 +33,26 @@ class TestReportQuality(unittest.TestCase):
             issues,
         )
 
+    def test_narrative_page_citation_is_recognised(self):
+        report = "\n\n".join(
+            f"# {section}\nRevenue rose to $120 million (page 1)."
+            for section in REQUIRED_SECTIONS
+        )
+        issues = check_report_quality(report)
+        self.assertFalse(
+            any("numerical passage" in issue for issue in issues)
+        )
+
+    def test_uncited_numeric_claim_still_warns(self):
+        report = "\n\n".join(
+            f"# {section}\nRevenue rose to $120 million."
+            for section in REQUIRED_SECTIONS
+        )
+        issues = check_report_quality(report)
+        self.assertTrue(
+            any("numerical passage" in issue for issue in issues)
+        )
+
     def test_clean_report(self):
         report = "\n\n".join(
             f"# {section}\n"
