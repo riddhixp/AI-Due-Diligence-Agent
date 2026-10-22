@@ -13,10 +13,13 @@ from tests.test_real_sdk_offline_pause_resume import ScriptedOfflineModel
 def start_sdk_offline_approval(pdf_bytes):
     model = ScriptedOfflineModel()
 
+    executed = []
+
     @function_tool(needs_approval=True)
     def submit_approved_financials(revenue: float) -> str:
         """Submit synthetic financial revenue for approval testing."""
-        raise AssertionError("Offline approval demo must not execute financial tools")
+        executed.append(revenue)
+        return "Synthetic financial submission accepted"
 
     agent = Agent(
         name="Offline SDK approval interface demo", model=model,
@@ -27,6 +30,8 @@ def start_sdk_offline_approval(pdf_bytes):
     if not queue["ready"] or len(queue["pending"]) != 1:
         raise ValueError("SDK_OFFLINE_APPROVAL_PAUSE_FAILED")
     queue["offline_sdk_demo"] = True
+    queue["_offline_agent"] = agent
+    queue["_offline_executed"] = executed
     return queue
 
 
@@ -41,4 +46,26 @@ def decide_sdk_offline_approval(queue, pdf_bytes, approved):
         "sdk_decision_applied": applied["decisions_applied"],
         "model_resumed": False,
         "api_calls": 0,
+    }
+
+
+def resume_sdk_offline_approval(queue, pdf_bytes):
+    """Resume the actual SDK with its scripted offline model only."""
+    if not queue.get("offline_sdk_demo") or not queue.get("decisions_applied"):
+        raise ValueError("SDK_APPROVAL_NOT_APPLIED")
+    if queue.get("document_sha256") != document_fingerprint(pdf_bytes):
+        raise ValueError("DOCUMENT_MISMATCH")
+    if queue.get("offline_resumed"):
+        raise ValueError("SDK_DEMO_ALREADY_RESUMED")
+    agent = queue.get("_offline_agent")
+    if agent is None or not isinstance(agent.model, ScriptedOfflineModel):
+        raise ValueError("OFFLINE_MODEL_REQUIRED")
+    queue["offline_resumed"] = True
+    completed = Runner.run_sync(agent, queue["state"])
+    return {
+        "finished": bool(completed.final_output),
+        "executed_submissions": list(queue["_offline_executed"]),
+        "model_resumed": True,
+        "external_api_calls": 0,
+        "scripted_model": True,
     }
