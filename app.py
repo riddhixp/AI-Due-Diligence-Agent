@@ -16,6 +16,7 @@ from cache_policy import should_cache_report
 from correction_changes import financial_correction_changes
 from revenue_narrative_check import find_reversed_revenue_arrows
 from fault_injection import inject_first_submission_error
+from offline_demo import simulate_conflict_correction
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -1173,6 +1174,22 @@ if uploaded_file is not None:
         ),
     )
 
+    if st.button("Run FREE offline correction demo"):
+        try:
+            report, validation, financial_data, agent_evaluation = (
+                simulate_conflict_correction(pages)
+            )
+            st.session_state["report"] = report
+            st.session_state["validation"] = validation
+            st.session_state["financial_data"] = financial_data
+            st.session_state["agent_evaluation"] = agent_evaluation
+            st.success(
+                "Scripted offline correction completed. No OpenAI API "
+                "credits were used. This does not test autonomous AI."
+            )
+        except ValueError as error:
+            st.error(str(error))
+
     if st.button(
         "Analyse Company",
         type="primary",
@@ -1225,6 +1242,11 @@ if uploaded_file is not None:
 
         st.subheader("4. Due diligence findings")
         agent_evaluation = st.session_state.get("agent_evaluation")
+        if agent_evaluation and agent_evaluation.get("simulation"):
+            st.info(
+                "OFFLINE SIMULATION — predetermined tool steps, "
+                "not a real AI model run. No API calls made."
+            )
         if agent_evaluation:
             st.subheader("Agent investigation evaluation")
             if agent_evaluation["evaluation"] == "PRELIMINARY_PASS":
