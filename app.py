@@ -19,6 +19,7 @@ from fault_injection import inject_first_submission_error
 from interrupted_report import interrupted_report
 from resume_transcript import extract_resume_input, inspect_replay_boundary
 from sdk_resume_policy import classify_run_boundary
+from sdk_pause_capture import capture_approval_pause, pause_public_status
 from tool_state_rebinding import prepare_tool_state
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
@@ -991,6 +992,9 @@ or fabricate values merely to submit the data.
 
 
 
+    # Approval-pause snapshots remain in memory and are not persisted.
+    sdk_pause_capture = capture_approval_pause(result) if not interrupted else None
+
     # Record the agent's tool calls without logging
     # document contents or tool arguments.
     tool_calls = []
@@ -1044,6 +1048,12 @@ or fabricate values merely to submit the data.
         submission_attempts["count"], review_state["reviewed_count"],
         review_state["status"],
     )
+    if sdk_pause_capture is not None and sdk_pause_capture["paused"]:
+        evaluation["evaluation"] = "SDK_PAUSED_APPROVAL_PENDING"
+        evaluation["sdk_pause"] = pause_public_status(sdk_pause_capture)
+        evaluation["issues"] = list(dict.fromkeys(
+            evaluation["issues"] + ["APPROVAL_PENDING_RESUME_DISABLED"]
+        ))
     if interrupted:
         evaluation["evaluation"] = "INTERRUPTED_TURN_LIMIT"
         evaluation["resume_inspection"] = resume_inspection
