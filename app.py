@@ -12,6 +12,7 @@ from report_verification import finalise_dd_report
 from audit_appendix import append_audit_appendix
 from agent_evaluation import evaluate_agent_run
 from run_limits import permitted_turn_limit
+from correction_changes import financial_correction_changes
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -372,6 +373,17 @@ def run_due_diligence(pages, max_turns=None):
             return (
                 "Financial submission rejected: "
                 + "; ".join(optional_issues)
+            )
+
+        if previous_submission and not financial_correction_changes(
+            previous_submission, financial_submission
+        ):
+            financial_submission.clear()
+            financial_submission.update(previous_submission)
+            return (
+                "NO_CORRECTION_MADE: The revised submission does not "
+                "change financial figures, periods, source pages, or units. "
+                "Preserve the original review and report unresolved issues."
             )
 
         submission_attempts["count"] += 1
