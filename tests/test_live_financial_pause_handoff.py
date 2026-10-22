@@ -11,7 +11,7 @@ class LiveFinancialPauseHandoffTests(unittest.TestCase):
         pause = {"paused": True, "state": sdk_state}
         result = make_financial_pause_handoff(
             pause, b"%PDF-synthetic", {"revenue_current": 130},
-            1, 0, None, ["read_page", "submit_financial_data"], 2, 1,
+            1, 0, None, ["read_page", "submit_financial_data", "read_page"], 2, 0,
         )
         self.assertIs(result["sdk_state"], sdk_state)
         self.assertEqual(result["checkpoint"]["submission_count"], 1)
@@ -25,6 +25,14 @@ class LiveFinancialPauseHandoffTests(unittest.TestCase):
         error = SDKFinancialApprovalPaused(result)
         self.assertIs(error.handoff["sdk_state"], sdk_state)
         self.assertNotIn("revenue_current", str(error))
+
+    def test_mismatched_trace_read_counters_refused(self):
+        with self.assertRaisesRegex(ValueError, "PAUSE_READ_COUNTER_MISMATCH"):
+            make_financial_pause_handoff(
+                {"paused": True, "state": object()}, b"pdf",
+                {"revenue_current": 130}, 1, 0, None,
+                ["submit_financial_data"], 1, 0,
+            )
 
     def test_missing_pdf_refused(self):
         with self.assertRaisesRegex(ValueError, "ORIGINAL_PDF_REQUIRED"):
