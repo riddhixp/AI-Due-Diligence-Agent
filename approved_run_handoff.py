@@ -12,6 +12,8 @@ def prepare_approved_run_handoff(queue, document_sha256, checkpoint, pdf_bytes):
         raise ValueError("SDK_DECISIONS_NOT_APPLIED")
     if queue.get("document_sha256") != document_sha256:
         raise ValueError("DOCUMENT_MISMATCH")
+    if any(item.get("decision") != "APPROVED" for item in queue.get("pending", [])):
+        raise ValueError("REJECTED_OR_MISSING_APPROVAL_BLOCKS_RUN_HANDOFF")
     state = queue.get("state")
     if state is None:
         raise ValueError("MISSING_SDK_RUN_STATE")
