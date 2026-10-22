@@ -30,6 +30,12 @@ class ContinuationPreflightTests(unittest.TestCase):
         self.assertFalse(result["ready_for_paid_resume"])
         self.assertFalse(result["model_resumed"])
 
+    def test_inconsistent_saved_read_counters(self):
+        self.handoff["page_reads"] = 2
+        self.handoff["reads_at_review"] = 0
+        with self.assertRaisesRegex(ValueError, "PAUSE_READ_COUNTER_MISMATCH"):
+            preflight_live_continuation(self.handoff, self.pdf)
+
     def test_wrong_document(self):
         with self.assertRaisesRegex(ValueError, "DOCUMENT_MISMATCH"):
             preflight_live_continuation(self.handoff, b"other")
