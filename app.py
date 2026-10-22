@@ -1678,10 +1678,16 @@ if uploaded_file is not None:
                 else:
                     st.warning(f"{metric}: MISSING")
         else:
-            st.warning(
-                "Structured financial data was not "
-                "submitted. Validation unavailable."
-            )
+            if agent_evaluation and agent_evaluation["evaluation"] == "INTERRUPTED_TURN_LIMIT":
+                st.warning(
+                    "The investigation stopped before arithmetic validation "
+                    "was completed. Submitted figures remain unverified."
+                )
+            else:
+                st.warning(
+                    "Structured financial data was not "
+                    "submitted. Validation unavailable."
+                )
 
         st.caption(
             "PASS confirms arithmetic agreement only. "
@@ -1689,13 +1695,20 @@ if uploaded_file is not None:
             "underlying figures or PDF citations."
         )
         # Check the report's writing quality before download.
-        quality_issues = check_report_quality(
-            st.session_state["report"]
+        quality_issues = (
+            []
+            if agent_evaluation and agent_evaluation["evaluation"] == "INTERRUPTED_TURN_LIMIT"
+            else check_report_quality(st.session_state["report"])
         )
 
         st.subheader("Report Quality Review")
 
-        if quality_issues:
+        if agent_evaluation and agent_evaluation["evaluation"] == "INTERRUPTED_TURN_LIMIT":
+            st.info(
+                "Full-report quality checks are skipped for an interrupted "
+                "investigation. This is a progress summary, not a final report."
+            )
+        elif quality_issues:
             st.warning(
                 f"{len(quality_issues)} potential report quality "
                 "issue(s) detected. Review these before using "
