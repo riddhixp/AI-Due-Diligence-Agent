@@ -14,6 +14,7 @@ from agent_evaluation import evaluate_agent_run
 from run_limits import permitted_turn_limit
 from cache_policy import should_cache_report
 from correction_changes import financial_correction_changes
+from revenue_narrative_check import find_reversed_revenue_arrows
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -1007,6 +1008,12 @@ or fabricate values merely to submit the data.
     )
     report = finalise_dd_report(report, financial_submission, final_review)
     report = append_audit_appendix(report, audit, sequence_audit)
+    narrative_issues = find_reversed_revenue_arrows(report, financial_submission)
+    if narrative_issues:
+        print("Narrative chronology warning:", "; ".join(narrative_issues))
+        report += ("\n\n### Automated chronology warning\n\n"
+                   + "\n\n".join(narrative_issues)
+                   + "\n\nReview the narrative against the cited financial statements.")
 
     validation_results = None
 
