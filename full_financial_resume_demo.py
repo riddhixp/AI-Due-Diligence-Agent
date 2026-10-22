@@ -1,4 +1,6 @@
 """Real SDK, scripted zero-network, financial correction UI demonstration."""
+from io import BytesIO
+from pypdf import PdfReader
 from agents import Agent, Runner, function_tool
 from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
 from investigation_checkpoint import create_checkpoint, document_fingerprint
@@ -10,7 +12,16 @@ from tests.test_real_sdk_offline_pause_resume import ScriptedOfflineModel
 
 
 def start_financial_resume_demo(pdf_bytes):
-    if b"SYNTHETIC CONFLICT TEST" not in pdf_bytes:
+    try:
+        pages = [(page.extract_text() or "") for page in PdfReader(BytesIO(pdf_bytes)).pages]
+    except Exception as exc:
+        raise ValueError("VALID_SYNTHETIC_CONFLICT_PDF_REQUIRED") from exc
+    if (
+        len(pages) != 2
+        or "SYNTHETIC CONFLICT TEST - NOT A REAL COMPANY" not in pages[0]
+        or "Total revenue 120 100 90" not in pages[1]
+        or "The authoritative FY2025 total revenue figure is 120" not in pages[1]
+    ):
         raise ValueError("SYNTHETIC_CONFLICT_PDF_REQUIRED")
     wrong = supported_submission()
     wrong["revenue_current"] = 130
