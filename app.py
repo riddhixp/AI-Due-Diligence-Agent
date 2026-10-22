@@ -177,23 +177,29 @@ def run_due_diligence(
     restored_checkpoint=None, resume_pdf_bytes=None,
     financial_approval_required=False,
 ):
-    # Restored Python state is not equivalent to a restored SDK conversation.
-    # Fail before creating an agent or making any paid model call.
+    # Restore closure variables safely, but do not allow a model call yet.
+    # This blocks unsupported conversation replay even with a valid checkpoint.
     if restored_checkpoint is not None:
         if resume_pdf_bytes is None:
             raise ValueError("RESUME_REQUIRES_ORIGINAL_PDF")
         prepared = prepare_tool_state(restored_checkpoint, resume_pdf_bytes)
+        financial_submission = prepared["financial_submission"]
+        observed_tool_calls = prepared["observed_tool_calls"]
+        submission_attempts = prepared["submission_attempts"]
+        review_state = prepared["review_state"]
         raise RuntimeError(
-            "LIVE_RESUME_DISABLED: financial tool state validated "
-            "but SDK conversation replay remains unverified. "
-            f"Preserved submissions: {prepared['submission_attempts']['count']}."
+            "LIVE_RESUME_DISABLED: financial tool closures restored "
+            "but SDK conversation continuation has not been validated. "
+            f"Preserved submissions: {submission_attempts['count']}."
         )
-
-    financial_submission = {}
-    observed_tool_calls = []
-
-    submission_attempts = {"count": 0}
-    review_state = {"reviewed_count": 0, "status": None, "page_reads": 0, "reads_at_review": 0}
+    else:
+        financial_submission = {}
+        observed_tool_calls = []
+        submission_attempts = {"count": 0}
+        review_state = {
+            "reviewed_count": 0, "status": None,
+            "page_reads": 0, "reads_at_review": 0,
+        }
 
     @function_tool(needs_approval=financial_approval_required)
     def submit_financial_data(
