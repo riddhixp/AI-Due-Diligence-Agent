@@ -23,6 +23,7 @@ from sdk_pause_capture import capture_approval_pause, pause_public_status
 from tool_state_rebinding import prepare_tool_state
 from sdk_resume_gate import checked_resume_mode
 from live_financial_pause_handoff import make_financial_pause_handoff, SDKFinancialApprovalPaused
+from live_financial_approval_decision import decide_live_financial_pause
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
 from offline_approval_demo import start_offline_approval, finish_offline_approval
@@ -1286,6 +1287,29 @@ if uploaded_file is not None:
             "No completed report was produced. Paid resume is disabled."
         )
         st.write("Pending approval checkpoint:", public_pause)
+        if live_handoff.get("status") == "AWAITING_APPROVAL":
+            st.caption(
+                "This decision will be applied to the paused SDK state. "
+                "It will not resume the AI model or use additional API credits."
+            )
+            approve_live, reject_live = st.columns(2)
+            if approve_live.button("Approve paused financial submission"):
+                try:
+                    decide_live_financial_pause(live_handoff, pdf_bytes, True)
+                    st.rerun()
+                except ValueError as error:
+                    st.error(str(error))
+            if reject_live.button("Reject paused financial submission"):
+                try:
+                    decide_live_financial_pause(live_handoff, pdf_bytes, False)
+                    st.rerun()
+                except ValueError as error:
+                    st.error(str(error))
+        else:
+            st.info(
+                "Financial submission decision recorded: "
+                f"{live_handoff['status']}. The model has not resumed."
+            )
         if st.button("Discard paused investigation"):
             st.session_state.pop("live_financial_pause", None)
             st.rerun()
