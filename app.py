@@ -24,7 +24,7 @@ from tool_state_rebinding import prepare_tool_state
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
 from offline_approval_demo import start_offline_approval, finish_offline_approval
-from sdk_offline_approval_demo import start_sdk_offline_approval, decide_sdk_offline_approval
+from sdk_offline_approval_demo import start_sdk_offline_approval, decide_sdk_offline_approval, resume_sdk_offline_approval
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -1287,6 +1287,21 @@ if uploaded_file is not None:
     if sdk_demo is not None:
         from approval_queue import approval_public_status
         sdk_public = approval_public_status(sdk_demo)
+        if sdk_demo.get("decisions_applied") and not sdk_demo.get("offline_resumed"):
+            if st.button("Resume FREE scripted SDK demo"):
+                result = resume_sdk_offline_approval(sdk_demo, pdf_bytes)
+                st.success(
+                    "Real SDK continuation completed using a scripted offline model. "
+                    f"Executed synthetic submissions: {len(result['executed_submissions'])}. "
+                    "No external API calls."
+                )
+                st.rerun()
+        elif sdk_demo.get("offline_resumed"):
+            st.success(
+                "FREE scripted SDK resume completed. "
+                f"Synthetic submissions executed: {len(sdk_demo['_offline_executed'])}. "
+                "External API calls: 0."
+            )
         if sdk_public["approvals"][0] == "PENDING":
             sdk_yes, sdk_no = st.columns(2)
             if sdk_yes.button("Approve SDK demo"):
