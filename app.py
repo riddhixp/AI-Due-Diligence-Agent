@@ -11,6 +11,7 @@ from verification_notice import final_verification_notice
 from report_verification import finalise_dd_report
 from audit_appendix import append_audit_appendix
 from agent_evaluation import evaluate_agent_run
+from run_limits import permitted_turn_limit
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -160,7 +161,7 @@ def find_evidence(pages, query, limit=5):
 # AI agent
 # -----------------------------
 
-def run_due_diligence(pages):
+def run_due_diligence(pages, max_turns=None):
 
     financial_submission = {}
 
@@ -920,7 +921,7 @@ or fabricate values merely to submit the data.
     "search, page-reading and calculator tools."
 ),
 
-        max_turns=20,
+        max_turns=permitted_turn_limit(max_turns),
     )
 
 
@@ -1137,7 +1138,10 @@ if uploaded_file is not None:
                 
 
                 try:
-                    report, validation, financial_data = run_due_diligence(pages)
+                    report, validation, financial_data = run_due_diligence(
+                        pages,
+                        max_turns=8 if st.session_state.get('smoke_test_mode') else None,
+                    )
                     st.session_state["report"] = report
                     st.session_state["validation"] = validation
                     st.session_state["financial_data"] = financial_data
