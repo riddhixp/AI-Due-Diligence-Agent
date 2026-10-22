@@ -34,6 +34,16 @@ class ToolStateRebindingTests(unittest.TestCase):
         review = prepare_tool_state(self.checkpoint, self.pdf)["review_state"]
         self.assertEqual(review["page_reads"] - review["reads_at_review"], 1)
 
+    def test_submission_counter_cannot_disagree_with_trace(self):
+        self.checkpoint["tool_calls"] = ["read_page", "review_submitted_financials"]
+        with self.assertRaisesRegex(ValueError, "SUBMISSION_TRACE_COUNT_MISMATCH"):
+            prepare_tool_state(self.checkpoint, self.pdf)
+
+    def test_review_counter_cannot_disagree_with_trace(self):
+        self.checkpoint["tool_calls"] = ["submit_financial_data"]
+        with self.assertRaisesRegex(ValueError, "REVIEW_TRACE_COUNT_MISMATCH"):
+            prepare_tool_state(self.checkpoint, self.pdf)
+
     def test_mismatched_pdf_rejected(self):
         with self.assertRaisesRegex(ValueError, "DOCUMENT_MISMATCH"):
             prepare_tool_state(self.checkpoint, b"other pdf")
