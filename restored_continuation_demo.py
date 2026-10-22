@@ -22,6 +22,10 @@ def simulate_restored_continuation(checkpoint, pdf_bytes, pages, corrected_submi
         review_status = first["status"]
         reviewed_count = 1
         trace.append("review_submitted_financials")
+    # Never trust a stored review label without recomputing it from this PDF.
+    verified_first = review_financial_evidence(pages, initial)["status"]
+    if reviewed_count == 1 and review_status != verified_first:
+        raise ValueError("CHECKPOINT_REVIEW_MISMATCH")
     if review_status != "NEEDS_REVIEW":
         raise ValueError("CORRECTION_NOT_REQUIRED")
 
