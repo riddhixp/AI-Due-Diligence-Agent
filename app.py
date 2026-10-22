@@ -175,6 +175,7 @@ def find_evidence(pages, query, limit=5):
 def run_due_diligence(
     pages, max_turns=None, inject_test_error=False,
     restored_checkpoint=None, resume_pdf_bytes=None,
+    financial_approval_required=False,
 ):
     # Restored Python state is not equivalent to a restored SDK conversation.
     # Fail before creating an agent or making any paid model call.
@@ -194,7 +195,7 @@ def run_due_diligence(
     submission_attempts = {"count": 0}
     review_state = {"reviewed_count": 0, "status": None, "page_reads": 0, "reads_at_review": 0}
 
-    @function_tool
+    @function_tool(needs_approval=financial_approval_required)
     def submit_financial_data(
         company: str,
         fiscal_year: int,
@@ -994,6 +995,14 @@ or fabricate values merely to submit the data.
 
     # Approval-pause snapshots remain in memory and are not persisted.
     sdk_pause_capture = capture_approval_pause(result) if not interrupted else None
+    if sdk_pause_capture is not None and sdk_pause_capture["paused"]:
+        # An approval pause is not a completed financial investigation.
+        # Do not export it as a finished report or cache its partial output.
+        # Full approval/resume UI remains intentionally disabled.
+        raise RuntimeError(
+            "SDK_APPROVAL_PAUSED: pending financial submission approval. "
+            "Live approval and RunState continuation are not enabled."
+        )
 
     # Record the agent's tool calls without logging
     # document contents or tool arguments.
