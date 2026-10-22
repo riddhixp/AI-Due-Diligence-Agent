@@ -927,6 +927,7 @@ or fabricate values merely to submit the data.
 """
     )
 
+    interrupted = False
     try:
         result = Runner.run_sync(
             agent,
@@ -958,6 +959,7 @@ or fabricate values merely to submit the data.
         if not isinstance(error, MaxTurnsExceeded):
             raise
         from types import SimpleNamespace
+        interrupted = True
         print("Agent reached turn limit; preserving validated tool state.")
         result = SimpleNamespace(
             new_items=[],
@@ -1022,6 +1024,11 @@ or fabricate values merely to submit the data.
         submission_attempts["count"], review_state["reviewed_count"],
         review_state["status"],
     )
+    if interrupted:
+        evaluation["evaluation"] = "INTERRUPTED_TURN_LIMIT"
+        evaluation["issues"] = list(dict.fromkeys(
+            evaluation["issues"] + ["AGENT_MAX_TURNS_EXCEEDED"]
+        ))
     print("Agent evaluation:", evaluation["evaluation"])
     if evaluation["issues"]:
         print("Evaluation issues:", ", ".join(evaluation["issues"]))
@@ -1237,7 +1244,8 @@ if uploaded_file is not None:
                     st.session_state["validation"] = validation
                     st.session_state["financial_data"] = financial_data
                     st.session_state["agent_evaluation"] = agent_evaluation
-                    if should_cache_report(bool(st.session_state.get("smoke_test_mode"))):
+                    if (should_cache_report(bool(st.session_state.get("smoke_test_mode")))
+                            and agent_evaluation["evaluation"] != "INTERRUPTED_TURN_LIMIT"):
                         save_report(
                             pdf_bytes,
                             report,
