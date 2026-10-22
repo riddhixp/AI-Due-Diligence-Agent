@@ -24,6 +24,7 @@ from tool_state_rebinding import prepare_tool_state
 from sdk_resume_gate import checked_resume_mode
 from live_financial_pause_handoff import make_financial_pause_handoff, SDKFinancialApprovalPaused
 from live_financial_approval_decision import decide_live_financial_pause
+from live_continuation_preflight import preflight_live_continuation
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
 from offline_approval_demo import start_offline_approval, finish_offline_approval
@@ -1176,6 +1177,7 @@ if uploaded_file is not None:
         st.session_state.pop("financial_resume_demo", None)
         st.session_state.pop("financial_resume_result", None)
         st.session_state.pop("live_financial_pause", None)
+        st.session_state.pop("live_continuation_preflight", None)
 
     # Reload previously saved analysis
     if "report" not in st.session_state:
@@ -1310,6 +1312,18 @@ if uploaded_file is not None:
                 "Financial submission decision recorded: "
                 f"{live_handoff['status']}. The model has not resumed."
             )
+            if live_handoff["status"] == "APPROVED":
+                if st.button("Check financial continuation readiness (FREE)"):
+                    try:
+                        st.session_state["live_continuation_preflight"] = (
+                            preflight_live_continuation(live_handoff, pdf_bytes)
+                        )
+                    except ValueError as error:
+                        st.error(str(error))
+                ready = st.session_state.get("live_continuation_preflight")
+                if ready is not None:
+                    st.write("Continuation checks:", ready)
+                    st.caption("No AI model resumed; paid continuation remains disabled.")
         if st.button("Discard paused investigation"):
             st.session_state.pop("live_financial_pause", None)
             st.rerun()
