@@ -21,6 +21,7 @@ from resume_transcript import extract_resume_input, inspect_replay_boundary
 from sdk_resume_policy import classify_run_boundary
 from sdk_pause_capture import capture_approval_pause, pause_public_status
 from tool_state_rebinding import prepare_tool_state
+from sdk_resume_gate import checked_resume_mode
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
 from offline_approval_demo import start_offline_approval, finish_offline_approval
@@ -178,9 +179,13 @@ def run_due_diligence(
     pages, max_turns=None, inject_test_error=False,
     restored_checkpoint=None, resume_pdf_bytes=None,
     financial_approval_required=False,
+    sdk_resume_state=None, offline_scripted_model=None,
 ):
-    # Restore closure variables safely, but do not allow a model call yet.
-    # This blocks unsupported conversation replay even with a valid checkpoint.
+    # Validate before any model call. Real paid SDK resumption is disabled.
+    resume_mode = checked_resume_mode(
+        restored_checkpoint, resume_pdf_bytes,
+        sdk_resume_state, offline_scripted_model,
+    )
     if restored_checkpoint is not None:
         if resume_pdf_bytes is None:
             raise ValueError("RESUME_REQUIRES_ORIGINAL_PDF")
@@ -189,11 +194,7 @@ def run_due_diligence(
         observed_tool_calls = prepared["observed_tool_calls"]
         submission_attempts = prepared["submission_attempts"]
         review_state = prepared["review_state"]
-        raise RuntimeError(
-            "LIVE_RESUME_DISABLED: financial tool closures restored "
-            "but SDK conversation continuation has not been validated. "
-            f"Preserved submissions: {submission_attempts['count']}."
-        )
+
     else:
         financial_submission = {}
         observed_tool_calls = []
@@ -518,7 +519,7 @@ def run_due_diligence(
 
     agent = Agent(
         name="AI Due Diligence Analyst",
-        model="gpt-5-mini",
+        model=offline_scripted_model if resume_mode == "OFFLINE_SDK_RESUME" else "gpt-5-mini",
         tools=[
             search_report,
             read_page,
@@ -959,8 +960,7 @@ or fabricate values merely to submit the data.
     try:
         result = Runner.run_sync(
             agent,
-
-(
+            sdk_resume_state if resume_mode == "OFFLINE_SDK_RESUME" else (
     "Prepare a comprehensive, evidence-led "
     "preliminary Private Equity and M&A "
     "due diligence assessment of the uploaded "
