@@ -24,6 +24,7 @@ from tool_state_rebinding import prepare_tool_state
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
 from offline_approval_demo import start_offline_approval, finish_offline_approval
+from sdk_offline_approval_demo import start_sdk_offline_approval, decide_sdk_offline_approval
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -1159,6 +1160,7 @@ if uploaded_file is not None:
         st.session_state.pop("financial_data", None)
         st.session_state.pop("agent_evaluation", None)
         st.session_state.pop("offline_approval_queue", None)
+        st.session_state.pop("sdk_offline_approval", None)
 
     # Reload previously saved analysis
     if "report" not in st.session_state:
@@ -1272,6 +1274,28 @@ if uploaded_file is not None:
             if reject_col.button("Reject demo submission"):
                 finish_offline_approval(demo_queue, pdf_bytes, False)
                 st.info("Synthetic rejection recorded. No tool or model was run.")
+
+    st.subheader("FREE real-SDK approval demo")
+    st.caption(
+        "A scripted local model creates a real SDK pause. "
+        "Approval/rejection is applied to RunState, but the model is NOT resumed."
+    )
+    if st.button("Create FREE SDK approval pause"):
+        st.session_state["sdk_offline_approval"] = start_sdk_offline_approval(pdf_bytes)
+        st.success("SDK RunState paused. No external model calls.")
+    sdk_demo = st.session_state.get("sdk_offline_approval")
+    if sdk_demo is not None:
+        from approval_queue import approval_public_status
+        sdk_public = approval_public_status(sdk_demo)
+        st.write("SDK financial submission approval:", sdk_public["approvals"][0])
+        if sdk_public["approvals"][0] == "PENDING":
+            sdk_yes, sdk_no = st.columns(2)
+            if sdk_yes.button("Approve SDK demo"):
+                decide_sdk_offline_approval(sdk_demo, pdf_bytes, True)
+                st.success("Approved in SDK state. No model resumed or API call made.")
+            if sdk_no.button("Reject SDK demo"):
+                decide_sdk_offline_approval(sdk_demo, pdf_bytes, False)
+                st.info("Rejected in SDK state. No financial tool executed.")
 
     if st.button("Run FREE interruption demo"):
         try:
