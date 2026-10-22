@@ -4,6 +4,7 @@ import re
 from agent_financial_review import review_financial_evidence
 from optional_financial_validation import validate_optional_financial_data
 from investigation_control import submission_block_reason
+from investigation_outcome import investigation_outcome
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -950,6 +951,15 @@ or fabricate values merely to submit the data.
     for tool_name in required_tools:
         status = "CALLED" if tool_name in tool_calls else "NOT CALLED"
         print(f"{tool_name}: {status}")
+
+    audit = investigation_outcome(
+        submission_attempts["count"],
+        review_state["reviewed_count"],
+        review_state["status"],
+        tool_calls,
+    )
+    print("Investigation outcome:", audit["outcome"])
+    print("Latest submission reviewed:", audit["latest_submission_reviewed"])
 
     
     report = str(result.final_output)
