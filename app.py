@@ -158,7 +158,7 @@ def run_due_diligence(pages):
     financial_submission = {}
 
     submission_attempts = {"count": 0}
-    review_state = {"reviewed_count": 0, "status": None}
+    review_state = {"reviewed_count": 0, "status": None, "page_reads": 0, "reads_at_review": 0}
 
     @function_tool
     def submit_financial_data(
@@ -293,6 +293,7 @@ def run_due_diligence(pages):
             submission_attempts["count"],
             review_state["reviewed_count"],
             review_state["status"],
+            review_state["page_reads"] - review_state["reads_at_review"],
         )
         if refusal:
             return refusal
@@ -397,6 +398,7 @@ def run_due_diligence(pages):
         if not 1 <= page_number <= len(pages):
             return "Invalid page number."
 
+        review_state["page_reads"] += 1
         return (
             f"PDF page {page_number}\n"
             + pages[page_number - 1][:12000]
@@ -444,6 +446,7 @@ def run_due_diligence(pages):
         )
         review_state["reviewed_count"] = submission_attempts["count"]
         review_state["status"] = result["status"]
+        review_state["reads_at_review"] = review_state["page_reads"]
 
         return json.dumps(result, default=str)
 
