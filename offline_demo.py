@@ -63,4 +63,15 @@ def simulate_conflict_correction(pages):
         "**This is a scripted offline demonstration.** It does not "
         "demonstrate an AI agent reasoning or correcting autonomously."
     )
-    return report, None, corrected, evaluation
+    financials = FinancialData(
+        company=corrected["company"],
+        fiscal_year=corrected["fiscal_year"],
+        currency=corrected["currency"],
+        units=corrected["units"],
+        revenue_current=corrected["revenue_current"],
+        revenue_previous=corrected["revenue_previous"],
+        gross_profit=corrected["gross_profit"],
+        net_income=corrected["net_income"],
+    )
+    validation = validate_financials(financials, corrected["reported"])
+    return report, validation, corrected, evaluation
