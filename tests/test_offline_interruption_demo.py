@@ -16,6 +16,20 @@ class OfflineInterruptionTests(unittest.TestCase):
         self.assertEqual(evaluation["api_calls"], 0)
         self.assertIsNone(validation)
 
+    def test_checkpoint_round_trip_preserves_unreviewed_state(self):
+        from investigation_checkpoint import create_checkpoint, document_fingerprint
+        from financial_state_restore import restore_financial_state
+        pdf = b"fixed fixture"
+        checkpoint = create_checkpoint(
+            document_fingerprint(pdf),
+            {"revenue_current": 130, "revenue_previous": 100},
+            1, 0, None, ["read_page", "submit_financial_data"]
+        )
+        restored = restore_financial_state(checkpoint, pdf)
+        self.assertEqual(restored["reviewed_count"], 0)
+        self.assertIsNone(restored["review_status"])
+        self.assertEqual(restored["observed_tool_calls"][-1], "submit_financial_data")
+
     def test_reject_real_reports(self):
         with self.assertRaises(ValueError):
             simulate_turn_limit(["Real company annual report"])
