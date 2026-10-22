@@ -5,6 +5,7 @@ from agent_financial_review import review_financial_evidence
 from optional_financial_validation import validate_optional_financial_data
 from investigation_control import submission_block_reason
 from investigation_outcome import investigation_outcome
+from investigation_guidance import investigation_next_actions
 from verification_notice import final_verification_notice
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
@@ -449,6 +450,7 @@ def run_due_diligence(pages):
         review_state["reviewed_count"] = submission_attempts["count"]
         review_state["status"] = result["status"]
         review_state["reads_at_review"] = review_state["page_reads"]
+        result["next_actions"] = investigation_next_actions(result)
 
         return json.dumps(result, default=str)
 
