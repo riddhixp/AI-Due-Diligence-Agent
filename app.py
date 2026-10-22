@@ -6,6 +6,7 @@ from optional_financial_validation import validate_optional_financial_data
 from investigation_control import submission_block_reason
 from investigation_outcome import investigation_outcome
 from investigation_guidance import investigation_next_actions
+from tool_sequence_audit import assess_tool_sequence
 from verification_notice import final_verification_notice
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
@@ -961,6 +962,10 @@ or fabricate values merely to submit the data.
         review_state["status"],
         tool_calls,
     )
+    sequence_audit = assess_tool_sequence(tool_calls)
+    print("Tool sequence valid:", sequence_audit["sequence_ok"])
+    if sequence_audit["issues"]:
+        print("Sequence issues:", ", ".join(sequence_audit["issues"]))
     print("Investigation outcome:", audit["outcome"])
     print("Latest submission reviewed:", audit["latest_submission_reviewed"])
 
