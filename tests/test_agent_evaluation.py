@@ -45,6 +45,26 @@ class AgentEvaluationTests(unittest.TestCase):
         )
         self.assertIn("FINANCIAL_EVIDENCE_REQUIRES_REVIEW", result["issues"])
 
+    def test_stale_success_status_cannot_override_failed_evidence(self):
+        submission = copy.deepcopy(supported_submission())
+        submission["revenue_current"] = 100
+        result = evaluate_agent_run(
+            PAGES, submission,
+            ["submit_financial_data", "review_submitted_financials"],
+            1, 1, "PRELIMINARY_CHECKS_PASSED",
+        )
+        self.assertEqual(result["evaluation"], "NEEDS_HUMAN_REVIEW")
+        self.assertIn("REVIEW_STATUS_EVIDENCE_MISMATCH", result["issues"])
+
+    def test_stale_failure_status_cannot_pass_valid_evidence(self):
+        result = evaluate_agent_run(
+            PAGES, supported_submission(),
+            ["submit_financial_data", "review_submitted_financials"],
+            1, 1, "NEEDS_REVIEW",
+        )
+        self.assertEqual(result["evaluation"], "NEEDS_HUMAN_REVIEW")
+        self.assertIn("REVIEW_STATUS_EVIDENCE_MISMATCH", result["issues"])
+
     def test_corrected_but_unreviewed_data_is_not_passed(self):
         result = evaluate_agent_run(
             PAGES, supported_submission(),
