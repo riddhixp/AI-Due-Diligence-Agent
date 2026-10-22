@@ -15,6 +15,7 @@ from run_limits import permitted_turn_limit
 from cache_policy import should_cache_report
 from correction_changes import financial_correction_changes
 from revenue_narrative_check import find_reversed_revenue_arrows
+from fault_injection import inject_first_submission_error
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -164,7 +165,7 @@ def find_evidence(pages, query, limit=5):
 # AI agent
 # -----------------------------
 
-def run_due_diligence(pages, max_turns=None):
+def run_due_diligence(pages, max_turns=None, inject_test_error=False):
 
     financial_submission = {}
 
@@ -388,6 +389,14 @@ def run_due_diligence(pages, max_turns=None):
                 "Preserve the original review and report unresolved issues."
             )
 
+        updated, injected = inject_first_submission_error(
+            financial_submission, pages, enabled=inject_test_error,
+            accepted_count=submission_attempts["count"],
+        )
+        if injected:
+            financial_submission.clear()
+            financial_submission.update(updated)
+            print("SYNTHETIC TEST: intentionally injected wrong FY2025 revenue.")
         submission_attempts["count"] += 1
         review_state["status"] = None
 
@@ -1153,6 +1162,17 @@ if uploaded_file is not None:
         ),
     )
 
+    st.checkbox(
+        "Inject wrong first revenue submission (synthetic conflict PDF only)",
+        key="inject_test_error",
+        help=(
+            "Only works on synthetic_conflict_test.pdf. "
+            "The first accepted FY2025 revenue of 120 is changed to 130 "
+            "to test whether the agent finds and fixes the error. "
+            "Uses paid API credits when analysis runs."
+        ),
+    )
+
     if st.button(
         "Analyse Company",
         type="primary",
@@ -1172,6 +1192,7 @@ if uploaded_file is not None:
                     report, validation, financial_data, agent_evaluation = run_due_diligence(
                         pages,
                         max_turns=8 if st.session_state.get('smoke_test_mode') else None,
+                        inject_test_error=bool(st.session_state.get("inject_test_error")),
                     )
                     st.session_state["report"] = report
                     st.session_state["validation"] = validation
