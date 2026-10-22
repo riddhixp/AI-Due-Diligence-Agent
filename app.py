@@ -1122,6 +1122,16 @@ if uploaded_file is not None:
 
     st.subheader("3. Run AI analysis")
 
+    st.checkbox(
+        "Controlled smoke test (8 agent turns; still uses paid API credits)",
+        key="smoke_test_mode",
+        help=(
+            "Limits the agent's turns for a short evaluation. "
+            "This is not a monetary spending cap or a guarantee "
+            "that the diligence report will be complete."
+        ),
+    )
+
     if st.button(
         "Analyse Company",
         type="primary",
