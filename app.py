@@ -16,6 +16,7 @@ from cache_policy import should_cache_report
 from correction_changes import financial_correction_changes
 from revenue_narrative_check import find_reversed_revenue_arrows
 from fault_injection import inject_first_submission_error
+from interrupted_report import interrupted_report
 from offline_demo import simulate_conflict_correction
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
@@ -169,6 +170,7 @@ def find_evidence(pages, query, limit=5):
 def run_due_diligence(pages, max_turns=None, inject_test_error=False):
 
     financial_submission = {}
+    observed_tool_calls = []
 
     submission_attempts = {"count": 0}
     review_state = {"reviewed_count": 0, "status": None, "page_reads": 0, "reads_at_review": 0}
@@ -399,6 +401,7 @@ def run_due_diligence(pages, max_turns=None, inject_test_error=False):
             financial_submission.update(updated)
             print("SYNTHETIC TEST: intentionally injected wrong FY2025 revenue.")
         submission_attempts["count"] += 1
+        observed_tool_calls.append("submit_financial_data")
         review_state["status"] = None
 
         return (
@@ -430,6 +433,7 @@ def run_due_diligence(pages, max_turns=None, inject_test_error=False):
         if not 1 <= page_number <= len(pages):
             return "Invalid page number."
 
+        observed_tool_calls.append("read_page")
         review_state["page_reads"] += 1
         return (
             f"PDF page {page_number}\n"
@@ -476,6 +480,7 @@ def run_due_diligence(pages, max_turns=None, inject_test_error=False):
             pages,
             financial_submission,
         )
+        observed_tool_calls.append("review_submitted_financials")
         review_state["reviewed_count"] = submission_attempts["count"]
         review_state["status"] = result["status"]
         review_state["reads_at_review"] = review_state["page_reads"]
@@ -922,8 +927,9 @@ or fabricate values merely to submit the data.
 """
     )
 
-    result = Runner.run_sync(
-        agent,
+    try:
+        result = Runner.run_sync(
+            agent,
 
 (
     "Prepare a comprehensive, evidence-led "
@@ -946,7 +952,20 @@ or fabricate values merely to submit the data.
 ),
 
         max_turns=permitted_turn_limit(max_turns),
-    )
+        )
+    except Exception as error:
+        from agents.exceptions import MaxTurnsExceeded
+        if not isinstance(error, MaxTurnsExceeded):
+            raise
+        from types import SimpleNamespace
+        print("Agent reached turn limit; preserving validated tool state.")
+        result = SimpleNamespace(
+            new_items=[],
+            final_output=interrupted_report(
+                financial_submission, review_state["reviewed_count"],
+                submission_attempts["count"], review_state["status"],
+            ),
+        )
 
 
 
@@ -968,6 +987,9 @@ or fabricate values merely to submit the data.
                 tool_name = "unknown_tool"
 
             tool_calls.append(str(tool_name))
+
+    if not tool_calls:
+        tool_calls = observed_tool_calls.copy()
 
     print("\nAI INVESTIGATION AUDIT")
     print("Tool calls:", len(tool_calls))
