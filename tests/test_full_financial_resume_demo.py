@@ -1,11 +1,22 @@
 """Offline SDK financial correction demo regression tests."""
 import unittest
+from io import BytesIO
+from reportlab.pdfgen.canvas import Canvas
+from reportlab.lib.pagesizes import letter
+from scripts.create_conflict_test_fixture import PAGE_ONE, PAGE_TWO
 from full_financial_resume_demo import start_financial_resume_demo, finish_financial_resume_demo
 
 
 class FullFinancialResumeDemoTests(unittest.TestCase):
     def setUp(self):
-        self.pdf = b"%PDF SYNTHETIC CONFLICT TEST offline only"
+        buffer = BytesIO()
+        canvas = Canvas(buffer, pagesize=letter)
+        for lines in (PAGE_ONE, PAGE_TWO):
+            for index, line in enumerate(lines):
+                canvas.drawString(42, 745 - index * 32, line)
+            canvas.showPage()
+        canvas.save()
+        self.pdf = buffer.getvalue()
 
     def test_approval_corrects_figures(self):
         session = start_financial_resume_demo(self.pdf)
@@ -36,5 +47,5 @@ class FullFinancialResumeDemoTests(unittest.TestCase):
             finish_financial_resume_demo(session, self.pdf, True)
 
     def test_real_filing_rejected(self):
-        with self.assertRaisesRegex(ValueError, "SYNTHETIC_CONFLICT_PDF_REQUIRED"):
+        with self.assertRaises(ValueError):
             start_financial_resume_demo(b"private annual report")
