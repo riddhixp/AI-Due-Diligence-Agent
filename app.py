@@ -18,6 +18,7 @@ from revenue_narrative_check import find_reversed_revenue_arrows
 from fault_injection import inject_first_submission_error
 from interrupted_report import interrupted_report
 from resume_transcript import extract_resume_input, inspect_replay_boundary
+from sdk_resume_policy import classify_run_boundary
 from tool_state_rebinding import prepare_tool_state
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
@@ -979,7 +980,7 @@ or fabricate values merely to submit the data.
         interrupted = True
         resume_inspection = inspect_replay_boundary(extract_resume_input(error))
         print("Resume transcript inspection:", resume_inspection["reason"])
-        print("Agent reached turn limit; preserving validated tool state.")
+        print("Max turns is not a supported paused RunState; preserving tool progress only.")
         result = SimpleNamespace(
             new_items=[],
             final_output=interrupted_report(
@@ -1046,6 +1047,7 @@ or fabricate values merely to submit the data.
     if interrupted:
         evaluation["evaluation"] = "INTERRUPTED_TURN_LIMIT"
         evaluation["resume_inspection"] = resume_inspection
+        evaluation["sdk_resume_policy"] = classify_run_boundary(max_turns_error=True)
         evaluation["issues"] = list(dict.fromkeys(
             evaluation["issues"] + ["AGENT_MAX_TURNS_EXCEEDED"]
         ))
