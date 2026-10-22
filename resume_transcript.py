@@ -25,3 +25,20 @@ def inspect_resume_input(state):
                 "reason": "NO_SDK_TRANSCRIPT"}
     return {"transcript_present": True, "can_resume": False,
             "reason": "REPLAY_NOT_VALIDATED", "items": len(state)}
+
+
+def inspect_replay_boundary(state):
+    """Check transcript shape without exposing its content or claiming replay."""
+    from replay_boundary import validate_replay_boundary
+
+    initial = inspect_resume_input(state)
+    if not initial["transcript_present"]:
+        return initial
+    boundary = validate_replay_boundary(state)
+    return {
+        "transcript_present": True,
+        "can_resume": False,
+        "boundary_safe": boundary["safe_boundary"],
+        "reason": boundary["reason"],
+        "items": len(state),
+    }
