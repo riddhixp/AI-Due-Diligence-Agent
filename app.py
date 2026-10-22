@@ -1287,15 +1287,18 @@ if uploaded_file is not None:
     if sdk_demo is not None:
         from approval_queue import approval_public_status
         sdk_public = approval_public_status(sdk_demo)
-        st.write("SDK financial submission approval:", sdk_public["approvals"][0])
         if sdk_public["approvals"][0] == "PENDING":
             sdk_yes, sdk_no = st.columns(2)
             if sdk_yes.button("Approve SDK demo"):
                 decide_sdk_offline_approval(sdk_demo, pdf_bytes, True)
-                st.success("Approved in SDK state. No model resumed or API call made.")
+                st.rerun()
             if sdk_no.button("Reject SDK demo"):
                 decide_sdk_offline_approval(sdk_demo, pdf_bytes, False)
-                st.info("Rejected in SDK state. No financial tool executed.")
+                st.rerun()
+        elif sdk_public["approvals"][0] == "APPROVED":
+            st.success("SDK financial submission approval: APPROVED. No model resumed or API call made.")
+        elif sdk_public["approvals"][0] == "REJECTED":
+            st.info("SDK financial submission approval: REJECTED. No financial tool executed.")
 
     if st.button("Run FREE interruption demo"):
         try:
