@@ -22,6 +22,7 @@ from sdk_resume_policy import classify_run_boundary
 from sdk_pause_capture import capture_approval_pause, pause_public_status
 from tool_state_rebinding import prepare_tool_state
 from sdk_resume_gate import checked_resume_mode
+from live_financial_pause_handoff import make_financial_pause_handoff, SDKFinancialApprovalPaused
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
 from offline_approval_demo import start_offline_approval, finish_offline_approval
@@ -181,6 +182,7 @@ def run_due_diligence(
     restored_checkpoint=None, resume_pdf_bytes=None,
     financial_approval_required=False,
     sdk_resume_state=None, offline_scripted_model=None,
+    pause_pdf_bytes=None,
 ):
     # Validate before any model call. Real paid SDK resumption is disabled.
     resume_mode = checked_resume_mode(
@@ -1008,10 +1010,18 @@ or fabricate values merely to submit the data.
         # An approval pause is not a completed financial investigation.
         # Do not export it as a finished report or cache its partial output.
         # Full approval/resume UI remains intentionally disabled.
-        raise RuntimeError(
-            "SDK_APPROVAL_PAUSED: pending financial submission approval. "
-            "Live approval and RunState continuation are not enabled."
+        if pause_pdf_bytes is None:
+            raise RuntimeError(
+                "SDK_APPROVAL_PAUSED: original PDF bytes required to capture "
+                "a document-bound financial checkpoint; live resume disabled."
+            )
+        handoff = make_financial_pause_handoff(
+            sdk_pause_capture, pause_pdf_bytes, financial_submission,
+            submission_attempts["count"], review_state["reviewed_count"],
+            review_state["status"], observed_tool_calls,
+            review_state["page_reads"], review_state["reads_at_review"],
         )
+        raise SDKFinancialApprovalPaused(handoff)
 
     # Record the agent's tool calls without logging
     # document contents or tool arguments.
