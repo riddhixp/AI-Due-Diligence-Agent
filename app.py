@@ -26,6 +26,7 @@ from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
 from offline_approval_demo import start_offline_approval, finish_offline_approval
 from sdk_offline_approval_demo import start_sdk_offline_approval, decide_sdk_offline_approval, resume_sdk_offline_approval
+from full_financial_resume_demo import start_financial_resume_demo, finish_financial_resume_demo
 from pdf_report import generate_pdf_report
 from report_quality import check_report_quality
 from financial_metric_labels import verify_metric_automatically
@@ -1161,6 +1162,8 @@ if uploaded_file is not None:
         st.session_state.pop("agent_evaluation", None)
         st.session_state.pop("offline_approval_queue", None)
         st.session_state.pop("sdk_offline_approval", None)
+        st.session_state.pop("financial_resume_demo", None)
+        st.session_state.pop("financial_resume_result", None)
 
     # Reload previously saved analysis
     if "report" not in st.session_state:
@@ -1314,6 +1317,32 @@ if uploaded_file is not None:
             st.success("SDK financial submission approval: APPROVED. No model resumed or API call made.")
         elif sdk_public["approvals"][0] == "REJECTED":
             st.info("SDK financial submission approval: REJECTED. No financial tool executed.")
+
+    st.subheader("FREE complete financial correction demo")
+    st.caption("Actual SDK with scripted offline model. No external API calls.")
+    if st.button("Start FREE financial resume test"):
+        try:
+            st.session_state["financial_resume_demo"] = start_financial_resume_demo(pdf_bytes)
+            st.session_state.pop("financial_resume_result", None)
+        except ValueError as error:
+            st.error(str(error))
+    test_session = st.session_state.get("financial_resume_demo")
+    if test_session is not None:
+        test_result = st.session_state.get("financial_resume_result")
+        if test_result is None:
+            st.warning("Pending correction approval: revenue 130 to 120")
+            approve_col, reject_col = st.columns(2)
+            if approve_col.button("Approve financial correction demo"):
+                st.session_state["financial_resume_result"] = finish_financial_resume_demo(test_session, pdf_bytes, True)
+                st.rerun()
+            if reject_col.button("Reject financial correction demo"):
+                st.session_state["financial_resume_result"] = finish_financial_resume_demo(test_session, pdf_bytes, False)
+                st.rerun()
+        else:
+            st.success("Offline SDK workflow completed. External API calls: 0.")
+            st.write("Decision:", test_result["decision"])
+            st.write("Final revenue:", test_result["corrected_revenue"])
+            st.write("Financial review status:", test_result["review_status"])
 
     if st.button("Run FREE interruption demo"):
         try:
