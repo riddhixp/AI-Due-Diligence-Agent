@@ -1169,12 +1169,18 @@ if uploaded_file is not None:
                     st.session_state["validation"] = validation
                     st.session_state["financial_data"] = financial_data
                     st.session_state["agent_evaluation"] = agent_evaluation
-                    save_report(
-                        pdf_bytes,
-                        report,
-                        validation,
-                        financial_data,
-                    )
+                    if not st.session_state.get("smoke_test_mode"):
+                        save_report(
+                            pdf_bytes,
+                            report,
+                            validation,
+                            financial_data,
+                        )
+                    else:
+                        st.info(
+                            "Smoke-test result is session-only. "
+                            "It has not replaced the cached full report."
+                        )
                 except Exception as error:
                     st.error(
                         "Analysis failed: "
