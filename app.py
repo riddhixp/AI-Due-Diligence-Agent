@@ -974,7 +974,12 @@ or fabricate values merely to submit the data.
     report = str(result.final_output)
     final_review = (
         review_financial_evidence(pages, financial_submission)
-        if financial_submission else None
+        if (
+            financial_submission
+            and review_state["reviewed_count"] == submission_attempts["count"]
+            and review_state["status"] is not None
+        )
+        else None
     )
     report = finalise_dd_report(report, financial_submission, final_review)
 
