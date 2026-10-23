@@ -233,3 +233,11 @@ an approval pause, and the most recent review sets the source-reread boundary.
 A review requested before any accepted submission remains diagnostic only and
 cannot establish verified financial state. Restoring a trace with a review before
 its submission, or a false claim that the latest submission was reviewed, fails.
+
+The offline approval interface previews the actual pending SDK financial request,
+including proposed amounts, earlier accepted amounts, currency, fiscal year, and
+PDF page references. A fingerprint covers the call identity and all arguments.
+If a request changes after it was shown, the current click is rejected before any
+SDK decision; the refreshed proposal requires a new decision. Financial approvals
+reject unexpected tools, duplicate argument keys, malformed JSON and non-finite
+values. This binding does not provide cross-process persistence or authentication.

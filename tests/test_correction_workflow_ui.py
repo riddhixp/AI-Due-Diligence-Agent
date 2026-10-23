@@ -69,3 +69,38 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertEqual(result['financial'], {})
         self.assertFalse(result['evaluation']['final_eligible'])
         self.assertFalse(any(button.key == 'app_workflow_approve' for button in self.app.button))
+
+    def test_changed_request_requires_reviewing_refreshed_preview(self):
+        import json
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        from agents import Agent, Runner, function_tool
+        from scripted_offline_model import ScriptedOfflineModel
+        from openai.types.responses import ResponseFunctionToolCall
+        raw = session['handoff']['sdk_state'].get_interruptions()[0].raw_item
+        fields = json.loads(raw.arguments)
+        fields['revenue_current'] = 131
+        replacement = ScriptedOfflineModel()
+        replacement.responses = [[ResponseFunctionToolCall(
+            id='replacement_f', call_id='replacement_c', type='function_call',
+            name='submit_financial_data', arguments=json.dumps(fields), status='completed')]] + session['model'].responses
+
+        @function_tool(needs_approval=True)
+        def submit_financial_data() -> str:
+            """Create an alternate genuine pause to exercise stale preview detection."""
+            raise AssertionError('Old closure must never execute')
+
+        paused = Runner.run_sync(Agent(name='AI Due Diligence Analyst', model=replacement,
+                                 tools=[submit_financial_data]), 'Changed proposal')
+        session['handoff']['sdk_state'] = paused.to_state()
+        session['model'] = replacement
+        self.app.button(key='app_workflow_approve').click().run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(any('REQUEST_CHANGED' in error.value for error in self.app.error))
+        self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(session['model'].calls, 1)
+        frame = self.app.dataframe[0].value
+        row = frame[frame['Metric'] == 'Revenue current'].iloc[0]
+        self.assertEqual(row['Proposed'], 131)
+        self.click('app_workflow_approve')
+        self.assertEqual(session['handoff']['checkpoint']['financial_data']['revenue_current'], 131)

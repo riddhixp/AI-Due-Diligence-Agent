@@ -2,6 +2,7 @@
 from investigation_checkpoint import document_fingerprint
 from offline_correction_workflow import start_offline_correction_workflow
 from financial_approval_resume import decide_and_resume_offline
+from financial_approval_preview import financial_approval_preview
 
 SESSION_KEY = 'offline_application_workflow'
 
@@ -35,12 +36,17 @@ def render_correction_workflow(st, pdf_bytes):
         st.write('Completion checks passed:', result['evaluation'].get('final_eligible', False))
         st.caption('This scripted result is not a final due diligence report.')
     elif handoff['status'] == 'AWAITING_APPROVAL':
-        checkpoint = handoff['checkpoint']
-        if checkpoint['submission_count']:
-            st.warning('Revenue 130 failed source review. The next scripted request proposes 120.')
-            st.write('Previous review:', checkpoint['review_status'])
-        else:
-            st.warning('Initial synthetic submission awaiting approval. The fixture deliberately requests revenue 130.')
+        try:
+            preview = financial_approval_preview(handoff)
+        except ValueError as error:
+            st.error(str(error))
+            return
+        shown_fingerprint = session.get('displayed_request_sha256', preview['request_sha256'])
+        st.warning('Financial submission awaiting your decision. Compare the proposed figures with the PDF.')
+        st.write('Submission:', preview['metadata'])
+        st.dataframe(preview['metrics'], hide_index=True)
+        if handoff['checkpoint']['submission_count']:
+            st.write('Previous review:', handoff['checkpoint']['review_status'])
         st.caption('Approving or rejecting continues only the local scripted model. '
                    'Rejecting ends the rehearsal; approving may pause at the next financial request.')
         yes, no = st.columns(2)
@@ -48,13 +54,18 @@ def render_correction_workflow(st, pdf_bytes):
         rejected = no.button('Reject and end FREE workflow', key='app_workflow_reject')
         if approved or rejected:
             try:
+                if shown_fingerprint != preview['request_sha256']:
+                    raise ValueError("FINANCIAL_APPROVAL_REQUEST_CHANGED")
                 if rejected:
                     # End this fixed demonstration script after a declined request.
                     # The SDK still records rejection and skips the pending tool.
                     session['model'].responses = session['model'].responses[-1:]
-                resumed = decide_and_resume_offline(handoff, pdf_bytes, approved, session['model'])
+                resumed = decide_and_resume_offline(
+                    handoff, pdf_bytes, approved, session['model'],
+                    expected_request_sha256=shown_fingerprint)
                 if resumed['status'] == 'AWAITING_APPROVAL':
                     session['handoff'] = resumed['handoff']
+                    session.pop('displayed_request_sha256', None)
                 else:
                     session['result'] = resumed
                 st.rerun()
@@ -62,6 +73,7 @@ def render_correction_workflow(st, pdf_bytes):
                 st.error(str(error))
             except Exception:
                 st.error('Offline continuation failed. Start a new rehearsal to continue.')
+        session['displayed_request_sha256'] = preview['request_sha256']
     else:
         st.error('This rehearsal cannot be resumed again. Start a new rehearsal to continue.')
     if st.button('Discard FREE application workflow', key='app_workflow_discard'):

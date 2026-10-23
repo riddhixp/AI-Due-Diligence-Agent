@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 from live_financial_approval_decision import decide_live_financial_pause
 from investigation_checkpoint import document_fingerprint, create_checkpoint
 
@@ -9,7 +10,9 @@ class FakeState:
         self.rejected = 0
 
     def get_interruptions(self):
-        return [object()]
+        return [SimpleNamespace(raw_item=SimpleNamespace(
+            type="function_call", name="submit_financial_data", call_id="test_call",
+            arguments='{"revenue_current":120}'))]
 
     def approve(self, item, always_approve=False):
         self.approved += 1

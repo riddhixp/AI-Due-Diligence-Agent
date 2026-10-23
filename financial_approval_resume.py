@@ -15,7 +15,7 @@ from tool_state_rebinding import prepare_tool_state
 _claim_lock = threading.Lock()
 
 
-def decide_and_resume_offline(handoff, pdf_bytes, approved, model):
+def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_request_sha256=None):
     """Apply one explicit decision and dispatch the genuine app SDK resume path.
 
     Consume the handoff before SDK mutation. Failures require manual inspection;
@@ -43,7 +43,12 @@ def decide_and_resume_offline(handoff, pdf_bytes, approved, model):
         if handoff.get("status") != "AWAITING_APPROVAL":
             raise ValueError("APPROVAL_RESUME_ALREADY_CLAIMED")
         try:
-            decide_live_financial_pause(handoff, pdf_bytes, approved)
+            decide_live_financial_pause(
+                handoff, pdf_bytes, approved, expected_request_sha256=expected_request_sha256)
+        except ValueError as error:
+            if str(error) != "FINANCIAL_APPROVAL_REQUEST_CHANGED":
+                handoff["status"] = "FAILED"
+            raise
         except Exception:
             handoff["status"] = "FAILED"
             raise
