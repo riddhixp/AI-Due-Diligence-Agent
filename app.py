@@ -22,6 +22,7 @@ from sdk_resume_policy import classify_run_boundary
 from sdk_pause_capture import capture_approval_pause, pause_public_status
 from tool_state_rebinding import prepare_tool_state
 from sdk_resume_gate import checked_resume_mode
+from sdk_resume_once import consume_sdk_resume_state
 from live_financial_pause_handoff import make_financial_pause_handoff, SDKFinancialApprovalPaused
 from live_financial_approval_decision import decide_live_financial_pause
 from live_continuation_preflight import preflight_live_continuation
@@ -965,6 +966,8 @@ or fabricate values merely to submit the data.
     )
 
     interrupted = False
+    if resume_mode == "OFFLINE_SDK_RESUME":
+        consume_sdk_resume_state(sdk_resume_state)
     try:
         result = Runner.run_sync(
             agent,
