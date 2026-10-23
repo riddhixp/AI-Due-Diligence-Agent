@@ -7,8 +7,8 @@ from investigation_checkpoint import create_checkpoint, document_fingerprint
 from tool_state_rebinding import prepare_tool_state
 from investigation_control import submission_block_reason
 from agent_financial_review import review_financial_evidence
-from tests.test_investigation_scenarios import PAGES, supported_submission
-from tests.test_real_sdk_offline_pause_resume import ScriptedOfflineModel
+from synthetic_financial_fixture import PAGES, supported_submission
+from scripted_offline_model import ScriptedOfflineModel
 
 
 def start_financial_resume_demo(pdf_bytes):

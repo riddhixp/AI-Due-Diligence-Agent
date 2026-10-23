@@ -1,6 +1,6 @@
 import unittest
 from types import SimpleNamespace
-from tests.test_real_sdk_offline_pause_resume import ScriptedOfflineModel
+from scripted_offline_model import ScriptedOfflineModel
 from sdk_resume_gate import checked_resume_mode
 
 

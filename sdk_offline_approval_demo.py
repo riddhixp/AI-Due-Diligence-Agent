@@ -7,7 +7,7 @@ from agents import Agent, Runner, function_tool
 from investigation_checkpoint import document_fingerprint
 from approval_queue import prepare_approval_queue, decide_approval, approval_public_status
 from sdk_approval_decisions import apply_approval_decisions
-from tests.test_real_sdk_offline_pause_resume import ScriptedOfflineModel
+from scripted_offline_model import ScriptedOfflineModel
 
 
 def start_sdk_offline_approval(pdf_bytes):

@@ -6,7 +6,7 @@ investigation evaluation functions with a scripted correction.
 from agent_financial_review import review_financial_evidence
 from agent_evaluation import evaluate_agent_run
 from financial_validator import FinancialData, validate_financials
-from tests.test_investigation_scenarios import supported_submission
+from synthetic_financial_fixture import supported_submission
 
 
 def simulate_conflict_correction(pages):

@@ -2,7 +2,7 @@
 import unittest
 from agents import Agent, Runner, function_tool, set_tracing_disabled
 from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
-from tests.test_real_sdk_offline_pause_resume import ScriptedOfflineModel
+from scripted_offline_model import ScriptedOfflineModel
 from investigation_checkpoint import create_checkpoint, document_fingerprint
 
 

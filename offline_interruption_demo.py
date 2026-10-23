@@ -2,7 +2,7 @@
 from interrupted_report import interrupted_report
 from investigation_checkpoint import create_checkpoint, document_fingerprint, inspect_checkpoint
 from agent_evaluation import evaluate_agent_run
-from tests.test_investigation_scenarios import supported_submission
+from synthetic_financial_fixture import supported_submission
 
 
 def simulate_turn_limit(pages):

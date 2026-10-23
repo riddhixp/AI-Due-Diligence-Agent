@@ -14,7 +14,7 @@ def checked_resume_mode(checkpoint, pdf_bytes, sdk_state, model):
         raise ValueError("RESUME_REQUIRES_ORIGINAL_PDF")
     if sdk_state is None:
         raise ValueError("SDK_RUN_STATE_REQUIRED")
-    from tests.test_real_sdk_offline_pause_resume import ScriptedOfflineModel
+    from scripted_offline_model import ScriptedOfflineModel
     if type(model) is not ScriptedOfflineModel:
         raise ValueError("LIVE_RESUME_DISABLED")
     if not callable(getattr(model, "get_response", None)):
