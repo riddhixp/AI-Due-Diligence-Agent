@@ -117,7 +117,7 @@ def run_due_diligence(
     restored_checkpoint=None, resume_pdf_bytes=None,
     financial_approval_required=False,
     sdk_resume_state=None, offline_scripted_model=None,
-    pause_pdf_bytes=None,
+    pause_pdf_bytes=None, decision_request_sha256=None,
 ):
     # Validate before any model call. Real paid SDK resumption is disabled.
     resume_mode = checked_resume_mode(
@@ -909,7 +909,8 @@ or fabricate values merely to submit the data.
     if resume_mode == "OFFLINE_SDK_RESUME":
         consume_sdk_resume_state(sdk_resume_state)
         from sdk_state_rebinding import rebind_offline_state
-        sdk_resume_state = rebind_offline_state(sdk_resume_state, agent)
+        sdk_resume_state = rebind_offline_state(
+            sdk_resume_state, agent, expected_request_sha256=decision_request_sha256)
     try:
         result = Runner.run_sync(
             agent,

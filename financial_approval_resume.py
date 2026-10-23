@@ -60,6 +60,7 @@ def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_r
             pages, restored_checkpoint=checkpoint, resume_pdf_bytes=pdf_bytes,
             sdk_resume_state=handoff["sdk_state"], offline_scripted_model=model,
             financial_approval_required=True, pause_pdf_bytes=pdf_bytes,
+            decision_request_sha256=handoff["decision_request_sha256"],
         )
     except SDKFinancialApprovalPaused as paused:
         handoff["status"] = "PAUSED_AGAIN"

@@ -70,6 +70,7 @@ def _decide_locked(handoff, pdf_bytes, approved, *, expected_request_sha256=None
     except BaseException:
         handoff["status"] = "FAILED"
         raise
+    handoff["decision_request_sha256"] = fingerprint
     handoff["status"] = "APPROVED" if approved else "REJECTED"
     return {
         "status": handoff["status"],

@@ -370,3 +370,12 @@ can apply only one decision. A failed or cancelled SDK decision remains consumed
 a changed preview fingerprint can still be reviewed again before any decision.
 Cancelled offline continuations become failed handoffs and cannot be retried.
 These safeguards do not provide persistence or coordination across servers.
+
+
+Offline continuations carry the decided request fingerprint through SDK state
+restoration. Both the original pending request and the detached restored request
+must match the call identity, tool name and canonical financial arguments recorded
+when the decision was applied. A changed request stops before financial tool
+execution or another scripted model response; its handoff is marked failed and
+cannot be retried. This applies to approvals and rejections and is limited to the
+trusted in-memory offline workflow; paid continuation remains disabled.

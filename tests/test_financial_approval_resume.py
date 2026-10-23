@@ -134,3 +134,51 @@ class ApprovalResumeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'ALREADY_CLAIMED'):
             decide_and_resume_offline(self.handoff, self.pdf, True, self.model)
         self.assertEqual(self.model.calls, 1)
+
+    def test_decision_receipt_matches_reviewed_request(self):
+        from financial_approval_preview import financial_approval_preview
+        fingerprint = financial_approval_preview(self.handoff)['request_sha256']
+        decide_and_resume_offline(self.handoff, self.pdf, True, self.model,
+                                 expected_request_sha256=fingerprint)
+        self.assertEqual(self.handoff['decision_request_sha256'], fingerprint)
+
+    def test_request_changed_after_decision_cannot_execute(self):
+        from unittest.mock import patch
+        from due_diligence_engine import run_due_diligence
+        def changed(*args, **kwargs):
+            # Deliberately alter SDK-owned state, not its detached public preview.
+            raw = kwargs['sdk_resume_state']._current_step.interruptions[0].raw_item
+            raw.arguments = json.dumps({**self.fields, 'revenue_current': 999})
+            return run_due_diligence(*args, **kwargs)
+        with patch('due_diligence_engine.run_due_diligence', side_effect=changed):
+            with self.assertRaisesRegex(ValueError, 'SDK_APPROVED_REQUEST_CHANGED'):
+                decide_and_resume_offline(self.handoff, self.pdf, True, self.model)
+        self.assertEqual(self.handoff['status'], 'FAILED')
+        self.assertEqual(self.model.calls, 1)
+
+    def test_changed_deserialized_request_cannot_execute(self):
+        from unittest.mock import patch
+        from agents import RunState
+        deserialize = RunState.from_json
+        async def changed(*args, **kwargs):
+            restored = await deserialize(*args, **kwargs)
+            restored._current_step.interruptions[0].raw_item.call_id = 'different_call'
+            return restored
+        with patch('sdk_state_rebinding.RunState.from_json', side_effect=changed):
+            with self.assertRaisesRegex(ValueError, 'SDK_APPROVED_REQUEST_CHANGED'):
+                decide_and_resume_offline(self.handoff, self.pdf, True, self.model)
+        self.assertEqual(self.handoff['status'], 'FAILED')
+        self.assertEqual(self.model.calls, 1)
+
+    def test_rejection_is_bound_to_declined_request(self):
+        from unittest.mock import patch
+        from due_diligence_engine import run_due_diligence
+        def changed(*args, **kwargs):
+            raw = kwargs['sdk_resume_state']._current_step.interruptions[0].raw_item
+            raw.arguments = json.dumps({**self.fields, 'net_income': 999})
+            return run_due_diligence(*args, **kwargs)
+        with patch('due_diligence_engine.run_due_diligence', side_effect=changed):
+            with self.assertRaisesRegex(ValueError, 'SDK_APPROVED_REQUEST_CHANGED'):
+                decide_and_resume_offline(self.handoff, self.pdf, False, self.model)
+        self.assertEqual(self.handoff['status'], 'FAILED')
+        self.assertEqual(self.model.calls, 1)
