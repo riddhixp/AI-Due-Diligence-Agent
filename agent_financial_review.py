@@ -130,20 +130,32 @@ def review_statement_evidence(pages, submitted):
                 "reason": "Missing or invalid figure, year or page.",
             }
         else:
-            result = verify_with_alternative_labels(
-                pages=pages,
-                value=value,
-                page_number=page,
-                labels=aliases,
-                fiscal_year=year,
-                column_index=column,
-            )
+            spend_metric = field.startswith("capital_expenditure") or field == "share_repurchases"
+            if spend_metric and value < 0:
+                result = {"status": "NEEDS_REVIEW", "reason": (
+                    "Cash-spend inputs must be non-negative. Reconcile the source outflow "
+                    "to a positive spending amount before calculating cash-flow diagnostics.")}
+            else:
+                result = verify_with_alternative_labels(
+                    pages=pages, value=value, page_number=page, labels=aliases,
+                    fiscal_year=year, column_index=column,
+                )
+                if spend_metric and value > 0 and result["status"] != "ROW_YEAR_MATCH":
+                    outflow = verify_with_alternative_labels(
+                        pages=pages, value=-value, page_number=page, labels=aliases,
+                        fiscal_year=year, column_index=column,
+                    )
+                    if outflow["status"] == "ROW_YEAR_MATCH":
+                        result = {**outflow, "normalization": "CASH_OUTFLOW_MAGNITUDE",
+                                  "reason": outflow["reason"] +
+                                  " Reconciled to a positive cash-spend amount."}
 
         results.append({
             "metric": label,
             "status": result["status"],
             "reason": result["reason"],
             "matched_label": result.get("matched_label"),
+            "normalization": result.get("normalization"),
         })
 
     return results

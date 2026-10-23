@@ -193,6 +193,11 @@ def run_due_diligence(
         percentages and the financial statement page.
         Only call when all fields have been located.
         All monetary values must use matching units.
+
+Preserve negative signs for income, operating cash flow and changes in balances.
+Capital expenditure and share repurchases represent non-negative cash spending.
+When a statement shows those spending outflows in parentheses or with a minus,
+reconcile their magnitudes explicitly; do not flip other metrics to positive.
         """
 
 

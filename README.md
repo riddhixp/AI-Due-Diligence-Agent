@@ -349,6 +349,13 @@ checks fabricated cash flow and cash flow copied from the gross-profit row.
 Monetary row matching rejects per-share or margin rows that merely start with an
 approved label, and rejects percentage rows as evidence for monetary amounts.
 Only text before the actual matched row can establish its fiscal-year heading.
+Accounting parentheses, currency-prefixed minus signs and Unicode minus signs
+preserve negative values in both source checks and evidence excerpts. Extra
+numeric note markers prevent automatic year-column alignment. Income and
+operating cash flow retain their signs. Capital expenditure and repurchases use
+non-negative spending amounts; a matching negative source outflow is explicitly
+reconciled and disclosed in the verification notice. Negative spending inputs
+require review and cannot inflate calculated free cash flow.
 
 Saved analyses are rechecked locally against the uploaded PDF with the current
 rules. A generated verification banner is refreshed when evidence changes, while

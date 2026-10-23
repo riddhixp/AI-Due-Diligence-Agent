@@ -27,8 +27,17 @@ def final_verification_notice(financial_data, review):
             "statement rows, years and citations." + suffix,
         )
 
+    reconciled = [item.get("metric", "Cash spending")
+                  for item in review.get("statement_checks", [])
+                  if item.get("normalization") == "CASH_OUTFLOW_MAGNITUDE"]
+    reconciliation_note = (
+        " Cash outflows for " + ", ".join(reconciled)
+        + " were reconciled as positive cash-spending amounts."
+        if reconciled else ""
+    )
     return (
         "info",
         "Preliminary arithmetic and statement-source checks passed. "
-        "This is not a full financial audit or proof of earnings quality.",
+        "This is not a full financial audit or proof of earnings quality."
+        + reconciliation_note,
     )

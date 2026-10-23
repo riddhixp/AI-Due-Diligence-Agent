@@ -71,6 +71,7 @@ def calculate_financial_insights(data):
     if (
         data.operating_cash_flow is not None
         and data.capital_expenditure is not None
+        and data.capital_expenditure >= 0
     ):
         insights["free_cash_flow"] = round(
             data.operating_cash_flow - data.capital_expenditure,
@@ -94,7 +95,7 @@ def calculate_financial_insights(data):
     ]:
         key = f"free_cash_flow_{label}"
 
-        if operating_cash_flow is not None and capex is not None:
+        if operating_cash_flow is not None and capex is not None and capex >= 0:
             insights[key] = round(operating_cash_flow - capex, 2)
         else:
             insights[key] = None
@@ -104,7 +105,7 @@ def calculate_financial_insights(data):
     repurchases = data.share_repurchases
     current_fcf = insights["free_cash_flow"]
 
-    if repurchases is not None and current_fcf is not None:
+    if repurchases is not None and repurchases >= 0 and current_fcf is not None:
         insights["repurchases_less_free_cash_flow"] = round(
             repurchases - current_fcf, 2
         )
