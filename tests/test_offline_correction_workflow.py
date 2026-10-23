@@ -41,7 +41,7 @@ class FullCorrectionWorkflowTests(unittest.TestCase):
         self.assertEqual(result['evaluation']['evaluation'], 'PRELIMINARY_PASS')
         self.assertTrue(result['evaluation']['final_eligible'])
         self.assertFalse(final_report_eligible(result['evaluation']))
-        self.assertEqual(self.session['model'].calls, 6)
+        self.assertEqual(self.session['model'].calls, 7)
 
     def test_declined_correction_keeps_original_unverified_figures(self):
         paused = self.approve_initial()

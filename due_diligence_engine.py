@@ -463,7 +463,7 @@ def run_due_diligence(
 
     agent = Agent(
         name="AI Due Diligence Analyst",
-        model=offline_scripted_model if resume_mode == "OFFLINE_SDK_RESUME" else "gpt-5-mini",
+        model=offline_scripted_model if resume_mode in ("OFFLINE_SDK_RESUME", "OFFLINE_FRESH_RUN") else "gpt-5-mini",
         tools=[
             search_report,
             read_page,
@@ -1074,7 +1074,8 @@ or fabricate values merely to submit the data.
             submitted["reported"],
         )
 
-    if resume_mode == "OFFLINE_SDK_RESUME":
+    if resume_mode in ("OFFLINE_SDK_RESUME", "OFFLINE_FRESH_RUN"):
+        evaluation["simulation"] = True
         completion = enforce_completion_boundary(
             report, financial_submission, submission_attempts["count"],
             review_state, evaluation,

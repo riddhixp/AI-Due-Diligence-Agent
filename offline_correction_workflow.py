@@ -6,10 +6,10 @@ restricted to the project's synthetic conflict PDF and never uses a provider.
 import json
 from io import BytesIO
 
-from agents import Agent, Runner, function_tool, set_tracing_disabled
+from agents import set_tracing_disabled
 from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
 from pypdf import PdfReader
-from live_financial_pause_handoff import make_financial_pause_handoff
+from live_financial_pause_handoff import SDKFinancialApprovalPaused
 from scripted_offline_model import ScriptedOfflineModel
 
 
@@ -40,6 +40,7 @@ def start_offline_correction_workflow(pdf_bytes):
 
     model = ScriptedOfflineModel()
     model.responses = [
+        call('read_page', {'page_number': 2}, 0),
         call('submit_financial_data', wrong, 1),
         call('review_submitted_financials', {}, 2),
         call('read_page', {'page_number': 2}, 3),
@@ -51,18 +52,14 @@ def start_offline_correction_workflow(pdf_bytes):
             annotations=[])])],
     ]
 
-    @function_tool(needs_approval=True)
-    def submit_financial_data() -> str:
-        """Create the initial pause; only rebuilt application tools may execute."""
-        raise AssertionError('BOOTSTRAP_TOOL_MUST_NOT_EXECUTE')
-
+    # Start in the same engine used by Streamlit. The page read, first
+    # submission request, checkpoint and SDK pause all come from real tools.
+    from due_diligence_engine import run_due_diligence
     set_tracing_disabled(True)
-    result = Runner.run_sync(Agent(name='AI Due Diligence Analyst', model=model,
-                             tools=[submit_financial_data]), 'Offline correction rehearsal')
-    if len(result.interruptions) != 1:
-        raise ValueError('EXPECTED_INITIAL_APPROVAL_PAUSE')
-    handoff = make_financial_pause_handoff(
-        {'paused': True, 'state': result.to_state()}, pdf_bytes, {}, 0, 0,
-        None, ['read_page'], 1, 0)
-    return {'handoff': handoff, 'model': model, 'scripted': True,
-            'external_api_calls': 0}
+    try:
+        run_due_diligence(pages, offline_scripted_model=model,
+                          financial_approval_required=True, pause_pdf_bytes=pdf_bytes)
+    except SDKFinancialApprovalPaused as paused:
+        return {'handoff': paused.handoff, 'model': model, 'scripted': True,
+                'external_api_calls': 0}
+    raise ValueError('EXPECTED_INITIAL_APPROVAL_PAUSE')

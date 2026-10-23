@@ -40,3 +40,19 @@ class SDKResumeGateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OfflineFreshGateTests(unittest.TestCase):
+    def test_exact_offline_model_can_start_without_saved_state(self):
+        self.assertEqual(checked_resume_mode(None, None, None, ScriptedOfflineModel()),
+                         'OFFLINE_FRESH_RUN')
+
+    def test_live_model_cannot_be_injected_as_offline_start(self):
+        with self.assertRaisesRegex(ValueError, 'OFFLINE_MODEL_REQUIRED'):
+            checked_resume_mode(None, None, None, 'gpt-5-mini')
+
+    def test_subclass_cannot_override_offline_start(self):
+        class Counterfeit(ScriptedOfflineModel):
+            pass
+        with self.assertRaisesRegex(ValueError, 'OFFLINE_MODEL_REQUIRED'):
+            checked_resume_mode(None, None, None, Counterfeit())

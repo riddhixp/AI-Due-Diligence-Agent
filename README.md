@@ -241,3 +241,18 @@ If a request changes after it was shown, the current click is rejected before an
 SDK decision; the refreshed proposal requires a new decision. Financial approvals
 reject unexpected tools, duplicate argument keys, malformed JSON and non-finite
 values. This binding does not provide cross-process persistence or authentication.
+
+## Full-engine evaluation checkpoint
+
+Run `python -m offline_evaluation` for a compact JSON summary and a nonzero exit
+code if a workflow check fails. CI runs this alongside the unit tests. It creates
+its own temporary synthetic PDF, starts in the actual application engine, reads
+the source through the app tool, pauses before the first submission, exercises
+both reviewer decisions, and checks the final result. There is no bootstrap
+agent or fabricated initial source-read history in this rehearsal.
+
+The JSON distinguishes `SCRIPTED_OFFLINE_FULL_ENGINE` from autonomous model
+validation, which remains `NOT_RUN`. Paid continuation remains disabled. The
+remaining live-test inputs are an explicitly approved public or synthetic test
+PDF and an agreed API spending limit; a turn cap alone is not a monetary cap.
+No real-model investigation or paid continuation is launched by this command.

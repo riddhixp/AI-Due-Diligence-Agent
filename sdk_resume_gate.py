@@ -7,8 +7,13 @@ real due-diligence entry point before any Runner call or credential lookup.
 
 def checked_resume_mode(checkpoint, pdf_bytes, sdk_state, model):
     if checkpoint is None:
-        if sdk_state is not None or model is not None:
+        if sdk_state is not None:
             raise ValueError("RESUME_CHECKPOINT_REQUIRED")
+        if model is not None:
+            from scripted_offline_model import ScriptedOfflineModel
+            if type(model) is not ScriptedOfflineModel:
+                raise ValueError("OFFLINE_MODEL_REQUIRED")
+            return "OFFLINE_FRESH_RUN"
         return "FRESH_RUN"
     if pdf_bytes is None:
         raise ValueError("RESUME_REQUIRES_ORIGINAL_PDF")
