@@ -1,5 +1,6 @@
 """Record a one-time, PDF-bound SDK approval decision without model calls."""
 from investigation_checkpoint import document_fingerprint
+from tool_state_rebinding import prepare_tool_state
 
 
 def decide_live_financial_pause(handoff, pdf_bytes, approved):
@@ -9,6 +10,12 @@ def decide_live_financial_pause(handoff, pdf_bytes, approved):
         raise ValueError("INVALID_APPROVAL_DECISION")
     if document_fingerprint(pdf_bytes) != handoff["checkpoint"]["document_sha256"]:
         raise ValueError("DOCUMENT_MISMATCH")
+    restored = prepare_tool_state(handoff["checkpoint"], pdf_bytes)
+    counts = restored["review_state"]
+    if ("page_reads" in handoff or "reads_at_review" in handoff):
+        if (handoff.get("page_reads") != counts["page_reads"]
+                or handoff.get("reads_at_review") != counts["reads_at_review"]):
+            raise ValueError("PAUSE_READ_COUNTER_MISMATCH")
     state = handoff["sdk_state"]
     get_requests = getattr(state, "get_interruptions", None)
     if not callable(get_requests):
