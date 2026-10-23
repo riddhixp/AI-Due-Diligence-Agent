@@ -49,7 +49,7 @@ def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_r
             if str(error) != "FINANCIAL_APPROVAL_REQUEST_CHANGED":
                 handoff["status"] = "FAILED"
             raise
-        except Exception:
+        except BaseException:
             handoff["status"] = "FAILED"
             raise
         handoff["status"] = "RESUMING_OFFLINE"
@@ -65,7 +65,7 @@ def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_r
         handoff["status"] = "PAUSED_AGAIN"
         return {"status": "AWAITING_APPROVAL", "handoff": paused.handoff,
                 "external_api_calls": 0, "scripted": True}
-    except Exception:
+    except BaseException:
         handoff["status"] = "FAILED"
         raise
     handoff["status"] = "COMPLETED_OFFLINE"

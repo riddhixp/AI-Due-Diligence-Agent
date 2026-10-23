@@ -123,3 +123,14 @@ class ApprovalResumeTests(unittest.TestCase):
         self.assertEqual(results.count('COMPLETED_OFFLINE'), 1)
         self.assertEqual(results.count('APPROVAL_RESUME_ALREADY_CLAIMED'), 15)
         self.assertEqual(self.model.calls, 3)
+
+    def test_cancelled_resume_is_terminal(self):
+        import asyncio
+        from unittest.mock import patch
+        with patch('due_diligence_engine.run_due_diligence', side_effect=asyncio.CancelledError()):
+            with self.assertRaises(asyncio.CancelledError):
+                decide_and_resume_offline(self.handoff, self.pdf, True, self.model)
+        self.assertEqual(self.handoff['status'], 'FAILED')
+        with self.assertRaisesRegex(ValueError, 'ALREADY_CLAIMED'):
+            decide_and_resume_offline(self.handoff, self.pdf, True, self.model)
+        self.assertEqual(self.model.calls, 1)

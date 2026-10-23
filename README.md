@@ -362,3 +362,11 @@ rules. A generated verification banner is refreshed when evidence changes, while
 the original narrative and saved file are preserved. The cache does not store the
 original SDK tool history, so a local source recheck does not invent that history
 or authorize a final report export. No model call or paid rerun is needed.
+
+
+Approval decisions also use a process-local weak-reference guard for the SDK
+state itself. Concurrent approval/rejection attempts through copied handoffs
+can apply only one decision. A failed or cancelled SDK decision remains consumed;
+a changed preview fingerprint can still be reviewed again before any decision.
+Cancelled offline continuations become failed handoffs and cannot be retried.
+These safeguards do not provide persistence or coordination across servers.
