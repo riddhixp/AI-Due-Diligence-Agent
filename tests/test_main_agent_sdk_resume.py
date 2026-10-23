@@ -51,7 +51,9 @@ class FullAgentRunStateTests(unittest.TestCase):
             pages, restored_checkpoint=checkpoint, resume_pdf_bytes=pdf,
             sdk_resume_state=sdk_state, offline_scripted_model=model,
         )
-        self.assertIn("Offline scripted", report)
+        self.assertIn("Investigation incomplete", report)
+        self.assertFalse(evaluation["final_eligible"])
+        self.assertIsNone(validation)
         self.assertEqual(model.calls, 2)
         self.assertEqual(financial, {})
         self.assertIsNone(validation)
