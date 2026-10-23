@@ -1,5 +1,6 @@
 """Recheck saved figures locally without inventing original SDK tool history."""
 from copy import deepcopy
+from financial_numbers import finite_number
 from agent_financial_review import review_financial_evidence
 from report_verification import finalise_dd_report
 
@@ -11,6 +12,9 @@ def recheck_cached_analysis(saved, pages):
     issues = ['ORIGINAL_TOOL_HISTORY_UNAVAILABLE']
     try:
         if not isinstance(financial, dict):
+            raise ValueError('INVALID_CACHED_FINANCIALS')
+        required = ('revenue_current', 'revenue_previous', 'gross_profit', 'net_income')
+        if financial and not all(finite_number(financial.get(key)) for key in required):
             raise ValueError('INVALID_CACHED_FINANCIALS')
         review = review_financial_evidence(pages, financial)
     except (KeyError, TypeError, ValueError, AttributeError, OverflowError):

@@ -48,3 +48,23 @@ class CachedAnalysisReviewTests(unittest.TestCase):
         new = finalise_dd_report(old, supported_submission(), {'status': 'NEEDS_REVIEW'})
         self.assertEqual(finalise_dd_report(new, supported_submission(), {'status': 'NEEDS_REVIEW'}), new)
         self.assertEqual(new.count('## Evidence verification status'), 1)
+
+    def test_invalid_required_numbers_are_cleared_before_dashboard_display(self):
+        for value in [None, True, '120', float('nan'), float('inf')]:
+            with self.subTest(value=value):
+                financial = supported_submission()
+                financial['revenue_current'] = value
+                result = recheck_cached_analysis({'report': '# Findings', 'financial_data': financial}, PAGES)
+                self.assertEqual(result['financial_data'], {})
+                self.assertIsNone(result['validation'])
+                self.assertIn('INVALID_CACHED_FINANCIALS', result['agent_evaluation']['issues'])
+
+    def test_zero_prior_revenue_cache_retains_figures_with_unavailable_growth(self):
+        financial = supported_submission()
+        financial['revenue_previous'] = 0
+        pages = [PAGES[0].replace('Total revenue 120 100 90', 'Total revenue 120 0 90')]
+        result = recheck_cached_analysis({'report': '# Findings', 'financial_data': financial}, pages)
+        self.assertEqual(result['financial_data']['revenue_previous'], 0)
+        self.assertEqual(result['validation']['revenue_growth']['status'], 'UNAVAILABLE')
+        self.assertEqual(result['agent_evaluation']['financial_evidence'], 'NEEDS_REVIEW')
+        self.assertFalse(final_report_eligible(result['agent_evaluation']))
