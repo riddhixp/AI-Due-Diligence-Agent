@@ -1483,7 +1483,7 @@ if uploaded_file is not None:
                     st.session_state["financial_data"] = financial_data
                     st.session_state["agent_evaluation"] = agent_evaluation
                     if (should_cache_report(bool(st.session_state.get("smoke_test_mode")))
-                            and final_report_eligible(agent_evaluation)):
+                            and final_report_eligible(agent_evaluation, st.session_state.get("live_financial_pause"))):
                         save_report(
                             pdf_bytes,
                             report,
@@ -1959,7 +1959,7 @@ if uploaded_file is not None:
         )
 
 
-        if final_report_eligible(agent_evaluation):
+        if final_report_eligible(agent_evaluation, st.session_state.get("live_financial_pause")):
             # Export the preliminary report only after verification checks.
             try:
                 report_pdf_bytes = generate_pdf_report(
