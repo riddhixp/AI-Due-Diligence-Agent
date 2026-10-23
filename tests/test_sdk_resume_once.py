@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import dataclass
 from sdk_resume_once import consume_sdk_resume_state
 
 class ResumeOnceTests(unittest.TestCase):
@@ -14,3 +15,12 @@ class ResumeOnceTests(unittest.TestCase):
         a, b = State(), State()
         consume_sdk_resume_state(a)
         consume_sdk_resume_state(b)
+
+    def test_unhashable_state(self):
+        @dataclass
+        class State:
+            value: int
+        state = State(1)
+        consume_sdk_resume_state(state)
+        with self.assertRaisesRegex(ValueError, 'ALREADY_CONSUMED'):
+            consume_sdk_resume_state(state)
