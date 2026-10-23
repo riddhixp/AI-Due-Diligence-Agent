@@ -27,6 +27,7 @@ from live_financial_approval_decision import decide_live_financial_pause
 from live_continuation_preflight import preflight_live_continuation
 from latest_review_gate import trusted_latest_review
 from completion_boundary import enforce_completion_boundary
+from final_artifact_policy import final_report_eligible
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
 from offline_approval_demo import start_offline_approval, finish_offline_approval
@@ -1482,7 +1483,7 @@ if uploaded_file is not None:
                     st.session_state["financial_data"] = financial_data
                     st.session_state["agent_evaluation"] = agent_evaluation
                     if (should_cache_report(bool(st.session_state.get("smoke_test_mode")))
-                            and agent_evaluation["evaluation"] != "INTERRUPTED_TURN_LIMIT"):
+                            and final_report_eligible(agent_evaluation)):
                         save_report(
                             pdf_bytes,
                             report,
@@ -1958,35 +1959,43 @@ if uploaded_file is not None:
         )
 
 
-        # Generate a professional PDF from the saved analysis.
-        try:
-            pdf_bytes = generate_pdf_report(
-                report=st.session_state["report"],
-                financial_data=st.session_state.get("financial_data"),
-                validation=st.session_state.get("validation"),
-            )
+        if final_report_eligible(agent_evaluation):
+            # Export the preliminary report only after verification checks.
+            try:
+                pdf_bytes = generate_pdf_report(
+                    report=st.session_state["report"],
+                    financial_data=st.session_state.get("financial_data"),
+                    validation=st.session_state.get("validation"),
+                )
+
+                st.download_button(
+                    label="Download Professional PDF Report",
+                    data=pdf_bytes,
+                    file_name="due_diligence_report.pdf",
+                    mime="application/pdf",
+                    width="stretch",
+                )
+
+            except Exception as exc:
+                st.error(
+                    f"PDF export unavailable: {exc}"
+                )
+
 
             st.download_button(
-                label="Download Professional PDF Report",
-                data=pdf_bytes,
-                file_name="due_diligence_report.pdf",
-                mime="application/pdf",
+                label="Download Due Diligence Report",
+                data=st.session_state["report"],
+                file_name="due_diligence_report.md",
+                mime="text/markdown",
                 width="stretch",
             )
 
-        except Exception as exc:
-            st.error(
-                f"PDF export unavailable: {exc}"
+        else:
+            st.warning(
+                "Final report exports are disabled because the investigation "
+                "has not passed all financial evidence and sequence checks. "
+                "The progress summary and evaluation remain visible."
             )
-
-
-        st.download_button(
-            label="Download Due Diligence Report",
-            data=st.session_state["report"],
-            file_name="due_diligence_report.md",
-            mime="text/markdown",
-            width="stretch",
-        )
 
         st.info(
             "Before using this report, check important "
