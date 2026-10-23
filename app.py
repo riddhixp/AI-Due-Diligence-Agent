@@ -26,6 +26,7 @@ from live_financial_pause_handoff import make_financial_pause_handoff, SDKFinanc
 from live_financial_approval_decision import decide_live_financial_pause
 from live_continuation_preflight import preflight_live_continuation
 from latest_review_gate import trusted_latest_review
+from completion_boundary import enforce_completion_boundary
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
 from offline_approval_demo import start_offline_approval, finish_offline_approval
@@ -1131,6 +1132,17 @@ or fabricate values merely to submit the data.
             data,
             submitted["reported"],
         )
+
+    if resume_mode == "OFFLINE_SDK_RESUME":
+        completion = enforce_completion_boundary(
+            report, financial_submission, submission_attempts["count"],
+            review_state, evaluation,
+        )
+        report = completion["report"]
+        evaluation["final_eligible"] = completion["final_eligible"]
+        evaluation["completion_reason"] = completion["reason"]
+        if not completion["final_eligible"]:
+            validation_results = None
 
     return report, validation_results, financial_submission.copy(), evaluation
 
