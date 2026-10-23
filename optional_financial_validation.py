@@ -1,10 +1,7 @@
+from financial_numbers import finite_number
+from optional_statement_metrics import OPTIONAL_STATEMENT_METRICS
 
-OPTIONAL_METRICS = (
-    "operating_income",
-    "operating_cash_flow",
-    "capital_expenditure",
-    "subscription_revenue",
-)
+OPTIONAL_METRICS = tuple(item[0] for item in OPTIONAL_STATEMENT_METRICS)
 
 
 def validate_optional_financial_data(data, total_pages):
@@ -42,11 +39,9 @@ def validate_optional_financial_data(data, total_pages):
                 f"the document's {total_pages} pages."
             )
 
-        if isinstance(value, bool) or not isinstance(
-            value, (int, float)
-        ):
+        if not finite_number(value):
             issues.append(
-                f"{metric}: financial value must be numeric."
+                f"{metric}: financial value must be a finite number."
             )
 
     return issues

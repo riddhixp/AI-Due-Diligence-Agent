@@ -1,5 +1,6 @@
 
 from financial_validator import FinancialData, validate_financials
+from optional_statement_metrics import OPTIONAL_STATEMENT_METRICS
 from source_verifier import (
     verify_financial_data,
     verify_with_alternative_labels,
@@ -102,6 +103,14 @@ def review_statement_evidence(pages, submitted):
          fiscal_year, 0),
     ]
 
+    for field, label, aliases, offset in OPTIONAL_STATEMENT_METRICS:
+        # Missing optional metrics remain optional. A supplied value or citation
+        # must be established against its own row and period before a pass.
+        if submitted.get(field) is None and source_pages.get(field) is None:
+            continue
+        year = fiscal_year - offset if type(fiscal_year) is int else None
+        checks.append((label, field, aliases, year, offset))
+
     results = []
 
     for label, field, aliases, year, column in checks:
@@ -121,20 +130,32 @@ def review_statement_evidence(pages, submitted):
                 "reason": "Missing or invalid figure, year or page.",
             }
         else:
-            result = verify_with_alternative_labels(
-                pages=pages,
-                value=value,
-                page_number=page,
-                labels=aliases,
-                fiscal_year=year,
-                column_index=column,
-            )
+            spend_metric = field.startswith("capital_expenditure") or field == "share_repurchases"
+            if spend_metric and value < 0:
+                result = {"status": "NEEDS_REVIEW", "reason": (
+                    "Cash-spend inputs must be non-negative. Reconcile the source outflow "
+                    "to a positive spending amount before calculating cash-flow diagnostics.")}
+            else:
+                result = verify_with_alternative_labels(
+                    pages=pages, value=value, page_number=page, labels=aliases,
+                    fiscal_year=year, column_index=column,
+                )
+                if spend_metric and value > 0 and result["status"] != "ROW_YEAR_MATCH":
+                    outflow = verify_with_alternative_labels(
+                        pages=pages, value=-value, page_number=page, labels=aliases,
+                        fiscal_year=year, column_index=column,
+                    )
+                    if outflow["status"] == "ROW_YEAR_MATCH":
+                        result = {**outflow, "normalization": "CASH_OUTFLOW_MAGNITUDE",
+                                  "reason": outflow["reason"] +
+                                  " Reconciled to a positive cash-spend amount."}
 
         results.append({
             "metric": label,
             "status": result["status"],
             "reason": result["reason"],
             "matched_label": result.get("matched_label"),
+            "normalization": result.get("normalization"),
         })
 
     return results

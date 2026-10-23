@@ -1,45 +1,51 @@
 
 import re
+import math
+
+_NUMBER_CORE = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+_NUMBER_PATTERN = re.compile(
+    r"(?<![\w,])(?:"
+    + r"(?:[$£€]\s*)?\(\s*[$£€]?\s*" + _NUMBER_CORE + r"\s*\)"
+    + r"|(?:[+\-−]\s*[$£€]?\s*|[$£€]\s*[+\-−]?\s*)?" + _NUMBER_CORE
+    + r")(?![\w,]|\.\d)"
+)
 
 
 def normalise_number(value):
     """Convert a financial number into a comparable format."""
-    text = str(value).strip()
-    text = text.replace(",", "").replace("$", "")
-    text = text.replace("£", "").replace("€", "")
-    text = text.replace(" ", "")
-
+    text = str(value).strip().replace("−", "-")
+    text = re.sub(r"\s+", "", text)
+    for symbol in (",", "$", "£", "€"):
+        text = text.replace(symbol, "")
+    if text.startswith("(") and text.endswith(")"):
+        inner = text[1:-1]
+        if inner.startswith(("-", "+")):
+            return None  # Ambiguous double sign, rather than silently flipping it.
+        text = "-" + inner
     try:
-        return float(text)
+        number = float(text)
+        return number if math.isfinite(number) else None
     except ValueError:
         return None
 
 
+def _number_matches(text):
+    """Yield the same signed tokens for matching and evidence excerpts."""
+    for match in _NUMBER_PATTERN.finditer(text):
+        raw = match.group()
+        if "(" not in raw:
+            before = text[:match.start()].rstrip()
+            after = text[match.end():].lstrip()
+            if before.endswith("(") or after.startswith(")"):
+                continue  # Do not rescue unsigned digits from an incomplete bracket.
+        number = normalise_number(raw)
+        if number is not None:
+            yield match, number
 
 
 def extract_numbers(text):
-    """Find financial numbers, including comma-separated values."""
-
-    pattern = (
-        r"(?<![\w,])"
-        r"-?\$?"
-        r"(?:\d{1,3}(?:,\d{3})+|\d+)"
-        r"(?:\.\d+)?"
-        r"(?![\w,]|\.\d)"
-    )
-
-    matches = re.findall(pattern, text)
-
-    numbers = []
-
-    for match in matches:
-        number = normalise_number(match)
-
-        if number is not None:
-            numbers.append(number)
-
-    return numbers
-
+    """Find monetary numbers while preserving minus and accounting signs."""
+    return [number for _, number in _number_matches(text)]
 
 
 
@@ -164,25 +170,12 @@ def extract_evidence_context(
 
     page_text = pages[page_number - 1]
 
-    pattern = (
-        r"(?<![\w,])"
-        r"-?\$?"
-        r"(?:\d{1,3}(?:,\d{3})+|\d+)"
-        r"(?:\.\d+)?"
-        r"(?![\w,]|\.\d)"
-    )
-
     target = normalise_number(value)
 
     if target is None:
         return None
 
-    for match in re.finditer(pattern, page_text):
-        number = normalise_number(match.group())
-
-        if number is None:
-            continue
-
+    for match, number in _number_matches(page_text):
         if abs(number - target) < 0.0001:
             start = max(0, match.start() - context_chars)
             end = min(
@@ -263,25 +256,32 @@ def check_statement_row_and_year(
 
     text = pages[page_number - 1]
 
-    # Look for a year heading in the statement.
-    heading = text.split(row_label, 1)[0]
-
-    years = re.findall(r"\b20\d{2}\b", heading)
-    distinct_years = list(dict.fromkeys(years))
-
-    # Find the specified financial row.
-    matching_rows = [
-        line for line in text.splitlines()
-        if line.strip().lower().startswith(row_label.lower())
-    ]
-
+    # Require the full approved label followed by monetary data. A label
+    # prefix alone must not accept "Net income per share" or a margin row.
+    lines = text.splitlines()
+    matching_rows = []
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped.lower().startswith(row_label.lower()):
+            continue
+        suffix = stripped[len(row_label):]
+        if _NUMBER_PATTERN.match(suffix.lstrip(" .:…\t")):
+            matching_rows.append((index, line))
     if len(matching_rows) != 1:
         return {
             "status": "NEEDS_REVIEW",
             "reason": "Expected financial row not uniquely found.",
         }
+    row_index, row = matching_rows[0]
+    if "%" in row:
+        return {"status": "NEEDS_REVIEW",
+                "reason": "A percentage row cannot verify a monetary amount."}
+    # Use only text before the actual matched row, independent of label case.
+    # Later notes or statements cannot supply this row's year heading.
+    heading = "\n".join(lines[:row_index])
+    years = re.findall(r"\b20\d{2}\b", heading)
+    distinct_years = list(dict.fromkeys(years))
 
-    row = matching_rows[0]
     values = extract_numbers(row)
 
     if column_index >= len(values):
@@ -295,6 +295,10 @@ def check_statement_row_and_year(
             "status": "NEEDS_REVIEW",
             "reason": "Fiscal-year column cannot be established.",
         }
+
+    if len(values) > len(distinct_years):
+        return {"status": "NEEDS_REVIEW",
+                "reason": "Extra numeric tokens prevent reliable year-column alignment."}
 
     extracted_year = int(distinct_years[column_index])
     extracted_value = values[column_index]
