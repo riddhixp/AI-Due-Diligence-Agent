@@ -1962,7 +1962,7 @@ if uploaded_file is not None:
         if final_report_eligible(agent_evaluation):
             # Export the preliminary report only after verification checks.
             try:
-                pdf_bytes = generate_pdf_report(
+                report_pdf_bytes = generate_pdf_report(
                     report=st.session_state["report"],
                     financial_data=st.session_state.get("financial_data"),
                     validation=st.session_state.get("validation"),
@@ -1970,7 +1970,7 @@ if uploaded_file is not None:
 
                 st.download_button(
                     label="Download Professional PDF Report",
-                    data=pdf_bytes,
+                    data=report_pdf_bytes,
                     file_name="due_diligence_report.pdf",
                     mime="application/pdf",
                     width="stretch",
