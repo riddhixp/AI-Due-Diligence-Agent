@@ -55,6 +55,26 @@ def run_offline_evaluation():
                        declined['financial']['revenue_current'] == 130
                        and declined['evaluation']['final_eligible'] is False
                        and declined['validation'] is None))
+        # A model can request another submission before reviewing its correction.
+        # Preserve that valid pause, then ensure approval cannot bypass tool limits.
+        from openai.types.responses import ResponseFunctionToolCall
+        from synthetic_financial_fixture import conflict_submission_arguments
+        unreviewed = start_offline_correction_workflow(pdf)
+        correction_pause = decide_and_resume_offline(unreviewed['handoff'], pdf, True, unreviewed['model'])
+        unreviewed['model'].responses.insert(0, [ResponseFunctionToolCall(
+            id='extra_eval_f', call_id='extra_eval_c', type='function_call',
+            name='submit_financial_data', arguments=json.dumps(
+                conflict_submission_arguments(revenue_current=999)), status='completed')])
+        extra_pause = decide_and_resume_offline(correction_pause['handoff'], pdf, True, unreviewed['model'])
+        saved = extra_pause['handoff']['checkpoint']
+        checks.append(('unreviewed_correction_survives_further_pause',
+                       saved['submission_count'] == 2 and saved['reviewed_count'] == 1
+                       and saved['review_status'] is None
+                       and saved['financial_data']['revenue_current'] == 120))
+        protected = decide_and_resume_offline(extra_pause['handoff'], pdf, True, unreviewed['model'])
+        checks.append(('third_approved_request_cannot_replace_corrected_figures',
+                       protected['financial']['revenue_current'] == 120
+                       and protected['evaluation']['final_eligible'] is False))
     return {
         'evaluation': 'PASS' if all(passed for _, passed in checks) else 'FAIL',
         'execution_mode': 'SCRIPTED_OFFLINE_FULL_ENGINE',

@@ -92,3 +92,26 @@ class FullCorrectionWorkflowTests(unittest.TestCase):
                                           True, self.session['model'])
         self.assertEqual(result['financial']['revenue_current'], 120)
         self.assertEqual(result['status'], 'COMPLETED_OFFLINE')
+
+    def test_pause_after_unreviewed_correction_preserves_new_figures(self):
+        import json
+        from openai.types.responses import ResponseFunctionToolCall
+        from synthetic_financial_fixture import conflict_submission_arguments
+        paused = self.approve_initial()
+        self.session['model'].responses.insert(0, [ResponseFunctionToolCall(
+            id='extra_f', call_id='extra_c', type='function_call',
+            name='submit_financial_data',
+            arguments=json.dumps(conflict_submission_arguments(revenue_current=999)),
+            status='completed')])
+        next_pause = decide_and_resume_offline(paused['handoff'], self.pdf,
+                                               True, self.session['model'])
+        checkpoint = next_pause['handoff']['checkpoint']
+        self.assertEqual(checkpoint['submission_count'], 2)
+        self.assertEqual(checkpoint['reviewed_count'], 1)
+        self.assertIsNone(checkpoint['review_status'])
+        self.assertEqual(checkpoint['financial_data']['revenue_current'], 120)
+        result = decide_and_resume_offline(next_pause['handoff'], self.pdf,
+                                          True, self.session['model'])
+        # Even an explicit approval cannot bypass the two-submission tool limit.
+        self.assertEqual(result['financial']['revenue_current'], 120)
+        self.assertFalse(result['evaluation']['final_eligible'])

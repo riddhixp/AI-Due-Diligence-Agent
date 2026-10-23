@@ -3,6 +3,7 @@ from investigation_checkpoint import document_fingerprint
 from offline_correction_workflow import start_offline_correction_workflow
 from financial_approval_resume import decide_and_resume_offline
 from financial_approval_preview import financial_approval_preview
+from synthetic_conflict_document import read_synthetic_conflict_pages
 
 SESSION_KEY = 'offline_application_workflow'
 
@@ -45,6 +46,18 @@ def render_correction_workflow(st, pdf_bytes):
         st.warning('Financial submission awaiting your decision. Compare the proposed figures with the PDF.')
         st.write('Submission:', preview['metadata'])
         st.dataframe(preview['metrics'], hide_index=True)
+        pages = read_synthetic_conflict_pages(pdf_bytes)
+        cited_pages = sorted({row['PDF page'] for row in preview['metrics']
+                              if row['PDF page'] is not None})
+        with st.expander('Source evidence for pending figures'):
+            st.caption('Compare the proposed amounts, row labels and fiscal-year columns '
+                       'with the cited PDF text. The proposal has not been verified yet.')
+            for page in cited_pages:
+                if type(page) in (int, float) and int(page) == page and 1 <= page <= len(pages):
+                    st.markdown(f'**PDF page {int(page)}**')
+                    st.text(pages[int(page) - 1])
+                else:
+                    st.warning(f'Cited PDF page {page} is unavailable.')
         if handoff['checkpoint']['submission_count']:
             st.write('Previous review:', handoff['checkpoint']['review_status'])
         st.caption('Approving or rejecting continues only the local scripted model. '

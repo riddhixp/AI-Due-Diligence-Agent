@@ -23,7 +23,10 @@ def restore_financial_state(checkpoint, pdf_bytes):
         raise ValueError("INVALID_REVIEW_STATUS")
     if reviewed == 0 and status is not None:
         raise ValueError("STALE_REVIEW_STATUS")
-    if reviewed and status is None:
+    # A correction clears the latest status while retaining the earlier
+    # reviewed submission count. Only a review of the latest figures needs
+    # a status; earlier feedback cannot stand in for the pending review.
+    if reviewed == submissions and reviewed > 0 and status is None:
         raise ValueError("MISSING_REVIEW_STATUS")
     if not isinstance(figures, dict) or not isinstance(events, list):
         raise ValueError("INVALID_CHECKPOINT_DATA")

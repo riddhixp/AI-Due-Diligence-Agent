@@ -104,3 +104,14 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertEqual(row['Proposed'], 131)
         self.click('app_workflow_approve')
         self.assertEqual(session['handoff']['checkpoint']['financial_data']['revenue_current'], 131)
+
+    def test_source_evidence_is_available_before_any_approval(self):
+        self.click('app_workflow_start')
+        evidence = ' '.join(item.value for item in self.app.text)
+        self.assertIn('Total revenue 120 100 90', evidence)
+        self.assertIn('Fiscal years 2025 2024 2023', evidence)
+        self.assertIn('authoritative FY2025 total revenue figure is 120', evidence)
+        session = self.app.session_state['offline_application_workflow']
+        self.assertEqual(session['model'].calls, 2)
+        self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(session['handoff']['checkpoint']['submission_count'], 0)

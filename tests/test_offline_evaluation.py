@@ -8,7 +8,7 @@ class FullEngineEvaluationTests(unittest.TestCase):
         with patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')):
             report = run_offline_evaluation()
         self.assertEqual(report['evaluation'], 'PASS')
-        self.assertEqual(len(report['checks']), 7)
+        self.assertEqual(len(report['checks']), 9)
         self.assertTrue(all(check['passed'] for check in report['checks']))
         self.assertEqual(report['autonomous_model_validation'], 'NOT_RUN')
         self.assertFalse(report['paid_continuation_enabled'])

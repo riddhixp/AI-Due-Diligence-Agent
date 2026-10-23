@@ -323,3 +323,14 @@ supported revenue-arrow patterns; it is not a complete natural-language fact che
 The chronology check requires a revenue label on the arrow's line or an immediate
 revenue heading. An unrelated cash-flow arrow using the same numbers is not
 classified as a revenue contradiction.
+
+A corrected submission can also pause before its own review runs. Restoration
+preserves the new figures with an empty latest-review status while retaining the
+prior reviewed-submission count. Earlier feedback cannot validate the correction.
+The full-engine evaluation rehearses this additional pause and confirms that a
+third submission still cannot replace the corrected figures, even if approved.
+
+The offline approval screen also shows the cited PDF page text in **Source evidence
+for pending figures**. Reviewers can compare amounts, statement labels and year
+columns before recording a decision. Opening the evidence preview does not call
+or resume a model or accept the pending figures.

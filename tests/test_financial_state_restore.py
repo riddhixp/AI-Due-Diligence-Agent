@@ -37,6 +37,33 @@ class RestoreTests(unittest.TestCase):
         result["financial_submission"]["revenue_current"] = 120
         self.assertEqual(self.checkpoint["financial_data"]["revenue_current"], 130)
 
+    def test_corrected_submission_can_wait_for_its_own_review(self):
+        from tool_state_rebinding import prepare_tool_state
+        checkpoint = create_checkpoint(document_fingerprint(self.pdf),
+            {'revenue_current': 120}, 2, 1, None,
+            ['submit_financial_data', 'review_submitted_financials',
+             'read_page', 'submit_financial_data'])
+        restored = prepare_tool_state(checkpoint, self.pdf)
+        self.assertEqual(restored['submission_attempts']['count'], 2)
+        self.assertEqual(restored['review_state']['reviewed_count'], 1)
+        self.assertIsNone(restored['review_state']['status'])
+        self.assertEqual(restored['financial_submission']['revenue_current'], 120)
+
+    def test_latest_review_still_requires_a_status(self):
+        self.checkpoint['reviewed_count'] = 1
+        self.checkpoint['tool_calls'].append('review_submitted_financials')
+        with self.assertRaisesRegex(ValueError, 'MISSING_REVIEW_STATUS'):
+            restore_financial_state(self.checkpoint, self.pdf)
+
+    def test_earlier_status_cannot_validate_unreviewed_correction(self):
+        from tool_state_rebinding import prepare_tool_state
+        checkpoint = create_checkpoint(document_fingerprint(self.pdf),
+            {'revenue_current': 120}, 2, 1, 'PRELIMINARY_CHECKS_PASSED',
+            ['submit_financial_data', 'review_submitted_financials',
+             'read_page', 'submit_financial_data'])
+        with self.assertRaisesRegex(ValueError, 'STALE_LATEST_REVIEW'):
+            prepare_tool_state(checkpoint, self.pdf)
+
 
 if __name__ == "__main__":
     unittest.main()
