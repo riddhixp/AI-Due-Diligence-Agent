@@ -10,11 +10,13 @@ from synthetic_financial_fixture import PAGES, conflict_submission_arguments
 
 
 class FreshCompletionBoundaryTests(unittest.TestCase):
-    def run_local(self, final_output='Synthetic completed review.', skip_review=False):
+    def run_local(self, final_output='Synthetic completed review.', skip_review=False,
+                  revenue_previous=100):
         set_tracing_disabled(True)
         model = ScriptedOfflineModel()
         fields = conflict_submission_arguments(source_page=1, revenue_current_page=1,
-            revenue_previous_page=1, gross_profit_page=1, net_income_page=1)
+            revenue_previous_page=1, gross_profit_page=1, net_income_page=1,
+            revenue_previous=revenue_previous)
         def call(name, args, index):
             return [ResponseFunctionToolCall(id=f'fresh_f{index}', call_id=f'fresh_c{index}',
                 type='function_call', name=name, arguments=json.dumps(args), status='completed')]
@@ -38,7 +40,9 @@ class FreshCompletionBoundaryTests(unittest.TestCase):
         with patch('due_diligence_engine.Agent', side_effect=local_agent), \
              patch('due_diligence_engine.Runner.run_sync', side_effect=finish), \
              patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')):
-            return run_due_diligence(PAGES)
+            pages = [page.replace('Total revenue 120 100 90',
+                     f'Total revenue 120 {revenue_previous} 90') for page in PAGES]
+            return run_due_diligence(pages)
 
     def test_completed_fresh_run_has_explicit_completion(self):
         report, validation, _, evaluation = self.run_local()
@@ -64,4 +68,21 @@ class FreshCompletionBoundaryTests(unittest.TestCase):
                 self.assertFalse(evaluation['final_response_complete'])
                 self.assertIn('FINAL_RESPONSE_MISSING', evaluation['issues'])
                 self.assertIsNone(validation)
+                self.assertIn('Investigation incomplete', report)
+
+    def test_zero_prior_revenue_finishes_as_incomplete_without_crashing(self):
+        report, validation, financial, evaluation = self.run_local(revenue_previous=0)
+        self.assertFalse(evaluation['final_eligible'])
+        self.assertEqual(evaluation['financial_evidence'], 'NEEDS_REVIEW')
+        self.assertEqual(financial['revenue_previous'], 0)
+        self.assertIsNone(validation)
+        self.assertIn('Investigation incomplete', report)
+
+    def test_nonfinite_submission_is_not_accepted(self):
+        for value in [float('nan'), float('inf')]:
+            with self.subTest(value=value):
+                report, validation, financial, evaluation = self.run_local(revenue_previous=value)
+                self.assertEqual(financial, {})
+                self.assertIsNone(validation)
+                self.assertFalse(evaluation['final_eligible'])
                 self.assertIn('Investigation incomplete', report)

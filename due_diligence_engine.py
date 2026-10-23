@@ -26,6 +26,7 @@ from completion_boundary import enforce_completion_boundary
 from io import BytesIO
 from pypdf import PdfReader
 from financial_validator import FinancialData, validate_financials
+from financial_numbers import finite_number
 from agents import Agent, Runner, function_tool
 
 def extract_pages(pdf_bytes):
@@ -200,6 +201,13 @@ When a statement shows those spending outflows in parentheses or with a minus,
 reconcile their magnitudes explicitly; do not flip other metrics to positive.
         """
 
+
+        required_values = (
+            revenue_current, revenue_previous, gross_profit, net_income,
+            reported_revenue_growth, reported_gross_margin, reported_net_margin,
+        )
+        if not all(finite_number(value) for value in required_values):
+            return "Financial submission rejected: figures and percentages must be finite numbers."
 
         page_references = {
             "source_page": source_page,

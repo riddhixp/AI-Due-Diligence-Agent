@@ -389,3 +389,14 @@ appendices cannot stand in for a model's final narrative. Final export requires
 explicit boolean completion and non-simulation flags; older or partial evaluation
 objects without these fields cannot qualify. The normal-run completion path is
 covered with a local scripted model and network access blocked, without paid tests.
+
+
+Undefined financial ratios now return `UNAVAILABLE` with an explanation instead
+of raising division errors. Revenue denominators must be positive; negative income
+and cash flow remain valid signed numerators. Non-finite inputs and overflowing
+calculations cannot pass validation or produce NaN/Infinity diagnostics. Required
+submission figures must be finite, and all supported optional metric/page pairs
+receive structural and finite-value checks. The app displays unavailable ratios
+explicitly, including when rechecking saved analyses. A zero prior-revenue practice
+run preserves the submitted figures for review and finishes as incomplete without
+crashing; it cannot export a final report.

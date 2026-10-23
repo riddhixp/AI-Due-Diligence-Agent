@@ -55,6 +55,7 @@ from report_storage import save_report, load_report
 from dotenv import load_dotenv
 from pypdf import PdfReader
 from financial_validator import FinancialData, validate_financials
+from financial_numbers import format_percentage
 from financial_insights import (
     ExtendedFinancialData,
     calculate_financial_insights,
@@ -522,17 +523,17 @@ if uploaded_file is not None:
 
             col2.metric(
                 "Revenue growth",
-                f"{validation['revenue_growth']['calculated']:.2f}%"
+                format_percentage(validation['revenue_growth']['calculated'])
             )
 
             col3.metric(
                 "Gross margin",
-                f"{validation['gross_margin']['calculated']:.2f}%"
+                format_percentage(validation['gross_margin']['calculated'])
             )
 
             col4.metric(
                 "Net margin",
-                f"{validation['net_margin']['calculated']:.2f}%"
+                format_percentage(validation['net_margin']['calculated'])
             )
 
             # Revenue chart
@@ -831,7 +832,8 @@ if uploaded_file is not None:
                         f"{result['calculated']}%"
                     )
                 else:
-                    st.warning(f"{metric}: MISSING")
+                    reason = result.get('reason') or 'Reported percentage was not supplied.'
+                    st.warning(f"{metric}: {status} — {reason}")
         else:
             if agent_evaluation and agent_evaluation["evaluation"] == "INTERRUPTED_TURN_LIMIT":
                 st.warning(
