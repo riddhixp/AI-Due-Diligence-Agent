@@ -1046,7 +1046,14 @@ or fabricate values merely to submit the data.
     print("Latest submission reviewed:", audit["latest_submission_reviewed"])
 
     
-    report = str(result.final_output)
+    final_output = result.final_output
+    evaluation["final_response_complete"] = isinstance(final_output, str) and bool(final_output.strip())
+    if not evaluation["final_response_complete"]:
+        evaluation["evaluation"] = "NEEDS_HUMAN_REVIEW"
+        evaluation["issues"] = list(dict.fromkeys(
+            evaluation["issues"] + ["FINAL_RESPONSE_MISSING"]
+        ))
+    report = final_output if isinstance(final_output, str) else ""
     final_review = trusted_latest_review(
         pages, financial_submission, submission_attempts["count"], review_state
     )
@@ -1087,16 +1094,15 @@ or fabricate values merely to submit the data.
             submitted["reported"],
         )
 
-    if resume_mode in ("OFFLINE_SDK_RESUME", "OFFLINE_FRESH_RUN"):
-        evaluation["simulation"] = True
-        completion = enforce_completion_boundary(
-            report, financial_submission, submission_attempts["count"],
-            review_state, evaluation,
-        )
-        report = completion["report"]
-        evaluation["final_eligible"] = completion["final_eligible"]
-        evaluation["completion_reason"] = completion["reason"]
-        if not completion["final_eligible"]:
-            validation_results = None
+    evaluation["simulation"] = resume_mode in ("OFFLINE_SDK_RESUME", "OFFLINE_FRESH_RUN")
+    completion = enforce_completion_boundary(
+        report, financial_submission, submission_attempts["count"],
+        review_state, evaluation,
+    )
+    report = completion["report"]
+    evaluation["final_eligible"] = completion["final_eligible"]
+    evaluation["completion_reason"] = completion["reason"]
+    if not completion["final_eligible"]:
+        validation_results = None
 
     return report, validation_results, financial_submission.copy(), evaluation

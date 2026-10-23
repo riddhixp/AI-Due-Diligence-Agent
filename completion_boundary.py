@@ -8,7 +8,9 @@ def enforce_completion_boundary(report, financial_data, submission_count,
     status = evaluation.get("evaluation")
     reviewed = review_state.get("reviewed_count", 0)
     passed = (
-        submission_count > 0
+        bool(financial_data)
+        and evaluation.get("final_response_complete") is True
+        and submission_count > 0
         and reviewed == submission_count
         and review_state.get("status") == "PRELIMINARY_CHECKS_PASSED"
         and status == "PRELIMINARY_PASS"
@@ -30,6 +32,8 @@ def enforce_completion_boundary(report, financial_data, submission_count,
         "Financial evidence, review sequence, or investigation completion has "
         "not passed every required check. This is **not** a completed report.",
     )
+    if evaluation.get("final_response_complete") is not True:
+        summary += "\n\nNo complete final narrative was produced; generated notices and audit details do not replace it."
     if evaluation.get("narrative_issues"):
         summary += ("\n\n### Narrative requires review\n\n"
                     + "\n\n".join(evaluation["narrative_issues"]))

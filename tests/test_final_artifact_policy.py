@@ -9,6 +9,9 @@ class FinalArtifactPolicyTests(unittest.TestCase):
             "financial_evidence": "PRELIMINARY_CHECKS_PASSED",
             "sequence_ok": True,
             "issues": [],
+            "final_eligible": True,
+            "final_response_complete": True,
+            "simulation": False,
         }
 
     def test_preliminary_pass(self):
@@ -35,4 +38,20 @@ class FinalArtifactPolicyTests(unittest.TestCase):
 
     def test_sequence_issues_not_final(self):
         self.passed["issues"] = ["LATEST_SUBMISSION_NOT_REVIEWED"]
+        self.assertFalse(final_report_eligible(self.passed))
+
+    def test_completion_must_be_explicit_boolean_true(self):
+        for value in [None, 1, 'true', {}, []]:
+            with self.subTest(value=value):
+                self.passed['final_eligible'] = value
+                self.assertFalse(final_report_eligible(self.passed))
+        self.passed.pop('final_eligible')
+        self.assertFalse(final_report_eligible(self.passed))
+
+    def test_simulation_mode_must_be_explicit_boolean_false(self):
+        for value in [None, 0, 'false', {}, []]:
+            with self.subTest(value=value):
+                self.passed['simulation'] = value
+                self.assertFalse(final_report_eligible(self.passed))
+        self.passed.pop('simulation')
         self.assertFalse(final_report_eligible(self.passed))

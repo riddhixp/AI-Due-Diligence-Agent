@@ -379,3 +379,13 @@ when the decision was applied. A changed request stops before financial tool
 execution or another scripted model response; its handoff is marked failed and
 cannot be retried. This applies to approvals and rejections and is limited to the
 trusted in-memory offline workflow; paid continuation remains disabled.
+
+
+The same final completion boundary now applies to fresh investigations and offline
+continuations. An unreviewed submission or missing/empty final narrative produces
+an incomplete summary rather than an apparently finished report, and arithmetic
+results are withheld from the completion display. Generated notices and audit
+appendices cannot stand in for a model's final narrative. Final export requires
+explicit boolean completion and non-simulation flags; older or partial evaluation
+objects without these fields cannot qualify. The normal-run completion path is
+covered with a local scripted model and network access blocked, without paid tests.

@@ -10,6 +10,9 @@ class CompletionBoundaryTests(unittest.TestCase):
             "financial_evidence": "PRELIMINARY_CHECKS_PASSED",
             "sequence_ok": True,
             "issues": [],
+            "final_eligible": True,
+            "final_response_complete": True,
+            "simulation": False,
         }
 
     def check(self, count=1):
@@ -39,3 +42,12 @@ class CompletionBoundaryTests(unittest.TestCase):
     def test_bad_tool_sequence_blocks_completion(self):
         self.evaluation["sequence_ok"] = False
         self.assertFalse(self.check()["final_eligible"])
+
+    def test_missing_response_completion_blocks_completion(self):
+        self.evaluation.pop('final_response_complete')
+        self.assertFalse(self.check()['final_eligible'])
+
+    def test_empty_financial_payload_cannot_qualify(self):
+        result = enforce_completion_boundary('MODEL FINISHED REPORT', {}, 1,
+                                             self.state, self.evaluation)
+        self.assertFalse(result['final_eligible'])
