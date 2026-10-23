@@ -48,7 +48,7 @@ class LiveApprovalDecisionTests(unittest.TestCase):
 
     def test_tampered_financial_history_blocks_approval(self):
         self.handoff["checkpoint"]["submission_count"] = 1
-        with self.assertRaisesRegex(ValueError, "SUBMISSION_TRACE_COUNT_MISMATCH"):
+        with self.assertRaisesRegex(ValueError, "MISSING_SUBMISSION"):
             decide_live_financial_pause(self.handoff, self.doc, True)
         self.assertEqual(self.sdk.approved, 0)
         self.assertEqual(self.handoff["status"], "AWAITING_APPROVAL")
