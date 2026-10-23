@@ -20,6 +20,8 @@ SCENARIOS = {
     'missing_review': 'Model submits figures but skips review',
     'wrong_year': 'Current and prior-year revenue are swapped',
     'wrong_source_page': 'Figures cite the provisional summary page',
+    'unverified_cash_flow': 'Invented operating cash flow must not qualify for verification',
+    'cash_flow_wrong_metric': 'A gross-profit number cannot verify operating cash flow',
     'missing_units': 'Monetary units are unspecified',
     'rejected_replacement': 'Invalid correction must preserve previous figures',
     'turn_limit_before_submission': 'Run stops before any financial submission',
@@ -50,6 +52,10 @@ def _script(name):
     if name == 'wrong_source_page':
         fields.update({key: 1 for key in fields if key.endswith('_page')})
         read = call('read_page', {'page_number': 1}, 1)
+    if name == 'unverified_cash_flow':
+        fields.update(operating_cash_flow=999, operating_cash_flow_page=2)
+    if name == 'cash_flow_wrong_metric':
+        fields.update(operating_cash_flow=80, operating_cash_flow_page=2)
     if name == 'missing_units':
         fields['units'] = 'unspecified'
     if name == 'rejected_replacement':

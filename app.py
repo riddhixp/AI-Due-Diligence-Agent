@@ -135,23 +135,6 @@ if uploaded_file is not None:
         st.session_state.pop("live_financial_pause", None)
         st.session_state.pop("live_continuation_preflight", None)
 
-    # Reload previously saved analysis
-    if "report" not in st.session_state:
-        saved = load_report(pdf_bytes)
-
-        if saved:
-            st.session_state["report"] = saved["report"]
-            st.session_state["validation"] = saved.get("validation")
-            st.session_state["financial_data"] = saved.get(
-                "financial_data"
-            )
-            st.success(
-                "Previously saved analysis loaded. "
-                "No OpenAI API call needed."
-            )
-
-
-
     if len(pdf_bytes) > 15 * 1024 * 1024:
         st.error("Please upload a PDF smaller than 15 MB.")
         st.stop()
@@ -179,6 +162,21 @@ if uploaded_file is not None:
             "Scanned PDFs will need OCR support."
         )
         st.stop()
+
+    # Cached reports are rechecked against this PDF with the current rules.
+    # A cache does not establish the original model's tool/review history.
+    if "report" not in st.session_state:
+        from cached_analysis_review import recheck_cached_analysis
+        try:
+            saved = load_report(pdf_bytes)
+            if saved:
+                refreshed = recheck_cached_analysis(saved, pages)
+                for name in ("report", "validation", "financial_data", "agent_evaluation"):
+                    st.session_state[name] = refreshed[name]
+                st.info("Saved analysis loaded and evidence rechecked locally. "
+                        "Original investigation history is unavailable. No API call was made.")
+        except (ValueError, OSError):
+            st.warning("Saved analysis could not be loaded. No AI model was run.")
 
     st.subheader("2. Check source evidence")
 

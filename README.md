@@ -298,7 +298,7 @@ approval inside an investigation as permission for additional paid model usage.
 ## Practice incomplete investigations without API credits
 
 Run `python -m practice_scenarios` to create a temporary synthetic PDF and run
-nine failure scenarios through the actual application engine. Alternatively,
+eleven failure scenarios through the actual application engine. Alternatively,
 upload `synthetic_conflict_test.pdf` in Streamlit and select **Run FREE practice
 suite**. These rehearsals are independent of real analysis and paid-test plans.
 
@@ -334,3 +334,24 @@ The offline approval screen also shows the cited PDF page text in **Source evide
 for pending figures**. Reviewers can compare amounts, statement labels and year
 columns before recording a decision. Opening the evidence preview does not call
 or resume a model or accept the pending figures.
+
+## Optional financial evidence and saved analyses
+
+Supplied optional metrics now require their own recognized statement row,
+fiscal-year column and PDF page before financial evidence can pass. This covers
+operating income, operating cash flow and capital expenditure (including the
+supported prior years), subscription revenue, share repurchases, stock-based
+compensation and changes in deferred revenue. Missing optional inputs remain
+optional. Unknown labels, ambiguous tables and missing evidence require review;
+a matching number elsewhere on a page is insufficient. The practice suite also
+checks fabricated cash flow and cash flow copied from the gross-profit row.
+
+Monetary row matching rejects per-share or margin rows that merely start with an
+approved label, and rejects percentage rows as evidence for monetary amounts.
+Only text before the actual matched row can establish its fiscal-year heading.
+
+Saved analyses are rechecked locally against the uploaded PDF with the current
+rules. A generated verification banner is refreshed when evidence changes, while
+the original narrative and saved file are preserved. The cache does not store the
+original SDK tool history, so a local source recheck does not invent that history
+or authorize a final report export. No model call or paid rerun is needed.

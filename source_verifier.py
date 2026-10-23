@@ -263,25 +263,32 @@ def check_statement_row_and_year(
 
     text = pages[page_number - 1]
 
-    # Look for a year heading in the statement.
-    heading = text.split(row_label, 1)[0]
-
-    years = re.findall(r"\b20\d{2}\b", heading)
-    distinct_years = list(dict.fromkeys(years))
-
-    # Find the specified financial row.
-    matching_rows = [
-        line for line in text.splitlines()
-        if line.strip().lower().startswith(row_label.lower())
-    ]
-
+    # Require the full approved label followed by monetary data. A label
+    # prefix alone must not accept "Net income per share" or a margin row.
+    lines = text.splitlines()
+    matching_rows = []
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped.lower().startswith(row_label.lower()):
+            continue
+        suffix = stripped[len(row_label):]
+        if re.match(r"^[\s.:…]*[$£€]?\s*\(?-?\d", suffix):
+            matching_rows.append((index, line))
     if len(matching_rows) != 1:
         return {
             "status": "NEEDS_REVIEW",
             "reason": "Expected financial row not uniquely found.",
         }
+    row_index, row = matching_rows[0]
+    if "%" in row:
+        return {"status": "NEEDS_REVIEW",
+                "reason": "A percentage row cannot verify a monetary amount."}
+    # Use only text before the actual matched row, independent of label case.
+    # Later notes or statements cannot supply this row's year heading.
+    heading = "\n".join(lines[:row_index])
+    years = re.findall(r"\b20\d{2}\b", heading)
+    distinct_years = list(dict.fromkeys(years))
 
-    row = matching_rows[0]
     values = extract_numbers(row)
 
     if column_index >= len(values):

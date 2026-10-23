@@ -27,7 +27,10 @@ def finalise_dd_report(report, financial_data, review):
         "---\n\n"
     )
     report = str(report or "")
-    # Stable, idempotent output: calling twice does not produce two banners.
+    # Replace our earlier generated banner when evidence changes. Keep the
+    # narrative body, and remain idempotent for an unchanged review result.
     if report.startswith("## Evidence verification status\n"):
-        return report
+        separator = "\n\n---\n\n"
+        if separator in report:
+            report = report.split(separator, 1)[1]
     return preface + report

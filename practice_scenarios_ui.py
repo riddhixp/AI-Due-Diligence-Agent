@@ -1,13 +1,13 @@
 """Run failure rehearsals independently from real analyses and paid-test planning."""
 from investigation_checkpoint import document_fingerprint
-from practice_scenarios import run_practice_suite
+from practice_scenarios import SCENARIOS, run_practice_suite
 
 PRACTICE_KEY = 'offline_practice_suite'
 
 
 def render_practice_scenarios(st, pdf_bytes):
     with st.expander('FREE practice: incomplete and unsuccessful investigations'):
-        st.caption('Nine scripted scenarios exercise the application tools. '
+        st.caption(f'{len(SCENARIOS)} scripted scenarios exercise the application tools. '
                    'The expected result is an incomplete report when evidence or execution is incomplete. '
                    'This does not test autonomous AI reasoning and uses no API credits.')
         digest = document_fingerprint(pdf_bytes)
@@ -28,7 +28,7 @@ def render_practice_scenarios(st, pdf_bytes):
             return
         result = stored['result']
         if result['evaluation'] == 'PASS':
-            st.success('All nine practice scenarios behaved as expected. External API calls: 0.')
+            st.success(f"All {len(result['scenarios'])} practice scenarios behaved as expected. External API calls: 0.")
         else:
             st.error('A practice scenario did not behave as expected. Review the failed checks.')
         st.dataframe([{'Practice scenario': row['description'],

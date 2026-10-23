@@ -1,5 +1,6 @@
 
 from financial_validator import FinancialData, validate_financials
+from optional_statement_metrics import OPTIONAL_STATEMENT_METRICS
 from source_verifier import (
     verify_financial_data,
     verify_with_alternative_labels,
@@ -101,6 +102,14 @@ def review_statement_evidence(pages, submitted):
          ["Net income", "Net earnings"],
          fiscal_year, 0),
     ]
+
+    for field, label, aliases, offset in OPTIONAL_STATEMENT_METRICS:
+        # Missing optional metrics remain optional. A supplied value or citation
+        # must be established against its own row and period before a pass.
+        if submitted.get(field) is None and source_pages.get(field) is None:
+            continue
+        year = fiscal_year - offset if type(fiscal_year) is int else None
+        checks.append((label, field, aliases, year, offset))
 
     results = []
 
