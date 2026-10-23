@@ -50,7 +50,7 @@ def decide_and_resume_offline(handoff, pdf_bytes, approved, model):
         handoff["status"] = "RESUMING_OFFLINE"
 
     try:
-        from app import run_due_diligence
+        from due_diligence_engine import run_due_diligence
         result = run_due_diligence(
             pages, restored_checkpoint=checkpoint, resume_pdf_bytes=pdf_bytes,
             sdk_resume_state=handoff["sdk_state"], offline_scripted_model=model,

@@ -213,3 +213,16 @@ remains, and completion checks keep the report incomplete. The rehearsal is
 restricted to the synthetic fixture, marks results as simulations, and never
 qualifies them for final report export. Automated coverage blocks socket
 connections while running this full workflow.
+
+### Try the workflow in Streamlit
+
+Upload `synthetic_conflict_test.pdf` and select **Start FREE application workflow**.
+Use **Approve and continue FREE workflow** for the initial synthetic figures,
+then inspect the failed source review before approving or rejecting the proposed
+correction. Each pending request requires its own decision. The rehearsal uses
+no paid model and leaves existing analysis results untouched. Changing the
+uploaded PDF clears the session; **Discard FREE application workflow** removes it
+explicitly. Rehearsal results have no final-report download.
+
+`due_diligence_engine.py` holds the investigation tools independently of the
+Streamlit page. Resuming a workflow no longer imports or renders the page.

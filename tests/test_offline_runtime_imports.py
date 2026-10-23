@@ -27,3 +27,20 @@ assert checked_resume_mode({}, b"pdf", SimpleNamespace(get_interruptions=lambda:
         result = subprocess.run([sys.executable, '-c', script],
                                 capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_engine_and_orchestrator_do_not_import_streamlit_page(self):
+        script = """
+import importlib.abc
+import sys
+class BlockUI(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname in ('app', 'streamlit') or fullname.startswith('streamlit.'):
+            raise ImportError('Investigation engine imported UI')
+sys.meta_path.insert(0, BlockUI())
+import due_diligence_engine
+import financial_approval_resume
+import offline_correction_workflow
+"""
+        result = subprocess.run([sys.executable, '-c', script],
+                                capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
