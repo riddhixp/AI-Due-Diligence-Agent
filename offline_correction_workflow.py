@@ -10,16 +10,12 @@ from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessa
 from synthetic_conflict_document import read_synthetic_conflict_pages
 from live_financial_pause_handoff import SDKFinancialApprovalPaused
 from scripted_offline_model import ScriptedOfflineModel
+from synthetic_financial_fixture import conflict_submission_arguments
 
 
 def start_offline_correction_workflow(pdf_bytes):
     pages = read_synthetic_conflict_pages(pdf_bytes)
-    fields = dict(company='Illustrative Software Company', fiscal_year=2025,
-                  currency='USD', units='millions', revenue_current=120,
-                  revenue_previous=100, gross_profit=80, net_income=30,
-                  reported_revenue_growth=20, reported_gross_margin=66.67,
-                  reported_net_margin=25, source_page=2, revenue_current_page=2,
-                  revenue_previous_page=2, gross_profit_page=2, net_income_page=2)
+    fields = conflict_submission_arguments()
     wrong = dict(fields, revenue_current=130, reported_revenue_growth=30,
                  reported_gross_margin=61.54, reported_net_margin=23.08)
 

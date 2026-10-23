@@ -30,5 +30,8 @@ def enforce_completion_boundary(report, financial_data, submission_count,
         "Financial evidence, review sequence, or investigation completion has "
         "not passed every required check. This is **not** a completed report.",
     )
+    if evaluation.get("narrative_issues"):
+        summary += ("\n\n### Narrative requires review\n\n"
+                    + "\n\n".join(evaluation["narrative_issues"]))
     return {"report": summary, "final_eligible": False,
             "reason": status or "INVESTIGATION_UNVERIFIED"}

@@ -294,3 +294,32 @@ The app does not claim these settings guarantee an exact lifetime £5 ceiling.
 Confirm the actual remaining credit and currency before proposing a paid run;
 then seek permission for that specific run. Never interpret a financial-submission
 approval inside an investigation as permission for additional paid model usage.
+
+## Practice incomplete investigations without API credits
+
+Run `python -m practice_scenarios` to create a temporary synthetic PDF and run
+nine failure scenarios through the actual application engine. Alternatively,
+upload `synthetic_conflict_test.pdf` in Streamlit and select **Run FREE practice
+suite**. These rehearsals are independent of real analysis and paid-test plans.
+
+The scenarios cover premature final output, reversed revenue chronology in the narrative,
+a skipped review, swapped fiscal-year
+values, incorrect source-page citations, missing monetary units, a replacement
+with an optional value but no source page, and turn limits both before submission
+and after review. Each check requires the report to remain incomplete and
+ineligible for final export; a rejected replacement must retain earlier figures.
+`PASS` means the expected failure behavior occurred, not that the investigation
+produced a valid report. Scripts exercise local SDK tools and financial controls;
+real model reasoning is still untested. CI runs this suite, and unit tests execute
+it with socket connections blocked. No paid test is started and no credit balance
+is required.
+
+A detected reversal of verified revenue chronology now changes a preliminary pass
+to `NEEDS_HUMAN_REVIEW`, blocks completion and final-export eligibility, and keeps
+the specific chronology warning in the incomplete report. Numeric verification
+alone cannot override that known narrative conflict. This check recognizes the
+supported revenue-arrow patterns; it is not a complete natural-language fact checker.
+
+The chronology check requires a revenue label on the arrow's line or an immediate
+revenue heading. An unrelated cash-flow arrow using the same numbers is not
+classified as a revenue contradiction.

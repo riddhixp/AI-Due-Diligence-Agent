@@ -24,3 +24,5 @@ jobs:
         run: python -m unittest discover -s tests -t . -q
       - name: Evaluate complete offline application workflow
         run: python -m offline_evaluation
+      - name: Practice incomplete and unsuccessful investigations offline
+        run: python -m practice_scenarios

@@ -31,3 +31,14 @@ def supported_submission():
         },
     }
 
+
+def conflict_submission_arguments(**overrides):
+    """Fresh tool arguments for page 2 of the two-page conflict fixture."""
+    fields = dict(company='Illustrative Software Company', fiscal_year=2025,
+                  currency='USD', units='millions', revenue_current=120,
+                  revenue_previous=100, gross_profit=80, net_income=30,
+                  reported_revenue_growth=20, reported_gross_margin=66.67,
+                  reported_net_margin=25, source_page=2, revenue_current_page=2,
+                  revenue_previous_page=2, gross_profit_page=2, net_income_page=2)
+    fields.update(overrides)
+    return fields

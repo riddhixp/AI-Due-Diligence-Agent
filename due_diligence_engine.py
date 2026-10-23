@@ -1048,6 +1048,13 @@ or fabricate values merely to submit the data.
     report = append_audit_appendix(report, audit, sequence_audit)
     narrative_issues = find_reversed_revenue_arrows(report, financial_submission)
     if narrative_issues:
+        evaluation["narrative_issues"] = narrative_issues
+        evaluation["issues"] = list(dict.fromkeys(
+            evaluation["issues"] + ["REVENUE_NARRATIVE_CHRONOLOGY_CONFLICT"]
+        ))
+        evaluation["final_eligible"] = False
+        if evaluation["evaluation"] == "PRELIMINARY_PASS":
+            evaluation["evaluation"] = "NEEDS_HUMAN_REVIEW"
         print("Narrative chronology warning:", "; ".join(narrative_issues))
         report += ("\n\n### Automated chronology warning\n\n"
                    + "\n\n".join(narrative_issues)

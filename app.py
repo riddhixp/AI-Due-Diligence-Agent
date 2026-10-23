@@ -131,6 +131,7 @@ if uploaded_file is not None:
         st.session_state.pop("financial_resume_result", None)
         st.session_state.pop("offline_application_workflow", None)
         st.session_state.pop("paid_test_plan_preview", None)
+        st.session_state.pop("offline_practice_suite", None)
         st.session_state.pop("live_financial_pause", None)
         st.session_state.pop("live_continuation_preflight", None)
 
@@ -346,6 +347,8 @@ if uploaded_file is not None:
 
     from correction_workflow_ui import render_correction_workflow
     render_correction_workflow(st, pdf_bytes)
+    from practice_scenarios_ui import render_practice_scenarios
+    render_practice_scenarios(st, pdf_bytes)
     from paid_test_planning_ui import render_paid_test_planning
     render_paid_test_planning(st, pdf_bytes)
 
