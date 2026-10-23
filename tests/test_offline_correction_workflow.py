@@ -1,0 +1,66 @@
+"""Exercise two approvals and evidence correction through the actual app."""
+import tempfile
+import unittest
+from pathlib import Path
+from scripts.create_conflict_test_fixture import create_conflict_fixture
+from offline_correction_workflow import start_offline_correction_workflow
+from financial_approval_resume import decide_and_resume_offline
+from final_artifact_policy import final_report_eligible
+
+
+class FullCorrectionWorkflowTests(unittest.TestCase):
+    def setUp(self):
+        from unittest.mock import patch
+        network = patch("socket.socket.connect", side_effect=AssertionError("NETWORK_FORBIDDEN"))
+        network.start()
+        self.addCleanup(network.stop)
+        with tempfile.TemporaryDirectory() as folder:
+            self.pdf = create_conflict_fixture(Path(folder) / 'conflict.pdf').read_bytes()
+        self.session = start_offline_correction_workflow(self.pdf)
+
+    def approve_initial(self):
+        return decide_and_resume_offline(self.session['handoff'], self.pdf,
+                                         True, self.session['model'])
+
+    def test_two_approvals_correct_revenue_and_preserve_source_history(self):
+        paused = self.approve_initial()
+        self.assertEqual(paused['status'], 'AWAITING_APPROVAL')
+        handoff = paused['handoff']
+        checkpoint = handoff['checkpoint']
+        self.assertEqual(checkpoint['financial_data']['revenue_current'], 130)
+        self.assertEqual(checkpoint['submission_count'], 1)
+        self.assertEqual(checkpoint['reviewed_count'], 1)
+        self.assertEqual(checkpoint['review_status'], 'NEEDS_REVIEW')
+        self.assertEqual(checkpoint['tool_calls'], [
+            'read_page', 'submit_financial_data', 'review_submitted_financials', 'read_page'])
+        self.assertEqual(handoff['page_reads'], 2)
+        self.assertEqual(handoff['reads_at_review'], 1)
+        result = decide_and_resume_offline(handoff, self.pdf, True, self.session['model'])
+        self.assertEqual(result['financial']['revenue_current'], 120)
+        self.assertEqual(result['financial']['source_pages']['revenue_current'], 2)
+        self.assertEqual(result['evaluation']['evaluation'], 'PRELIMINARY_PASS')
+        self.assertTrue(result['evaluation']['final_eligible'])
+        self.assertFalse(final_report_eligible(result['evaluation']))
+        self.assertEqual(self.session['model'].calls, 6)
+
+    def test_declined_correction_keeps_original_unverified_figures(self):
+        paused = self.approve_initial()
+        result = decide_and_resume_offline(paused['handoff'], self.pdf,
+                                          False, self.session['model'])
+        self.assertEqual(result['financial']['revenue_current'], 130)
+        self.assertFalse(result['evaluation']['final_eligible'])
+        self.assertIsNone(result['validation'])
+        self.assertIn('Investigation incomplete', result['report'])
+
+    def test_changed_pdf_cannot_approve_correction(self):
+        paused = self.approve_initial()
+        calls = self.session['model'].calls
+        with self.assertRaisesRegex(ValueError, 'DOCUMENT_MISMATCH'):
+            decide_and_resume_offline(paused['handoff'], self.pdf + b'changed',
+                                      True, self.session['model'])
+        self.assertEqual(self.session['model'].calls, calls)
+        self.assertEqual(paused['handoff']['status'], 'AWAITING_APPROVAL')
+
+    def test_other_pdf_cannot_start_rehearsal(self):
+        with self.assertRaisesRegex(ValueError, 'SYNTHETIC_CONFLICT_PDF_REQUIRED'):
+            start_offline_correction_workflow(b'not a pdf')
