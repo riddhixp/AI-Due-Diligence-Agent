@@ -1,6 +1,6 @@
 import unittest
 from live_financial_approval_decision import decide_live_financial_pause
-from investigation_checkpoint import document_fingerprint
+from investigation_checkpoint import document_fingerprint, create_checkpoint
 
 
 class FakeState:
@@ -25,7 +25,7 @@ class LiveApprovalDecisionTests(unittest.TestCase):
         self.handoff = {
             "status": "AWAITING_APPROVAL",
             "sdk_state": self.sdk,
-            "checkpoint": {"document_sha256": document_fingerprint(self.doc)},
+            "checkpoint": create_checkpoint(document_fingerprint(self.doc), {}, 0, 0, None, []),
         }
 
     def test_accept_once(self):
@@ -44,6 +44,20 @@ class LiveApprovalDecisionTests(unittest.TestCase):
     def test_wrong_pdf_does_not_mutate(self):
         with self.assertRaisesRegex(ValueError, "DOCUMENT_MISMATCH"):
             decide_live_financial_pause(self.handoff, b"other", True)
+        self.assertEqual(self.sdk.approved, 0)
+
+    def test_tampered_financial_history_blocks_approval(self):
+        self.handoff["checkpoint"]["submission_count"] = 1
+        with self.assertRaisesRegex(ValueError, "SUBMISSION_TRACE_COUNT_MISMATCH"):
+            decide_live_financial_pause(self.handoff, self.doc, True)
+        self.assertEqual(self.sdk.approved, 0)
+        self.assertEqual(self.handoff["status"], "AWAITING_APPROVAL")
+
+    def test_tampered_page_reads_blocks_approval(self):
+        self.handoff["page_reads"] = 1
+        self.handoff["reads_at_review"] = 0
+        with self.assertRaisesRegex(ValueError, "PAUSE_READ_COUNTER_MISMATCH"):
+            decide_live_financial_pause(self.handoff, self.doc, True)
         self.assertEqual(self.sdk.approved, 0)
 
     def test_invalid_sdk_state_rejected(self):
