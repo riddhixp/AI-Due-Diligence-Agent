@@ -1,16 +1,22 @@
-"""Prevent replaying the same SDK RunState in a scripted continuation.
+"""One-shot SDK RunState dispatch guard for offline continuation.
 
-SDK approval state is mutable; running the same state twice could execute tools
-twice. Consume the particular state instance before attempting Runner.run_sync.
+RunState is unhashable. Track object identity via weak references rather than
+using WeakSet, which requires hashable SDK state objects.
 """
 import weakref
 
-_consumed = weakref.WeakSet()
+_consumed = {}
 
 
 def consume_sdk_resume_state(state):
     if state is None:
         raise ValueError("SDK_RUN_STATE_REQUIRED")
-    if state in _consumed:
+    key = id(state)
+    existing = _consumed.get(key)
+    if existing is not None and existing() is state:
         raise ValueError("SDK_RUN_STATE_ALREADY_CONSUMED")
-    _consumed.add(state)
+    try:
+        reference = weakref.ref(state, lambda ref, key=key: _consumed.pop(key, None))
+    except TypeError as exc:
+        raise ValueError("SDK_RUN_STATE_NOT_WEAKREFABLE") from exc
+    _consumed[key] = reference
