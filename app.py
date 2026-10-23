@@ -25,6 +25,7 @@ from sdk_resume_gate import checked_resume_mode
 from live_financial_pause_handoff import make_financial_pause_handoff, SDKFinancialApprovalPaused
 from live_financial_approval_decision import decide_live_financial_pause
 from live_continuation_preflight import preflight_live_continuation
+from latest_review_gate import trusted_latest_review
 from offline_demo import simulate_conflict_correction
 from offline_interruption_demo import simulate_turn_limit
 from offline_approval_demo import start_offline_approval, finish_offline_approval
@@ -1098,14 +1099,8 @@ or fabricate values merely to submit the data.
 
     
     report = str(result.final_output)
-    final_review = (
-        review_financial_evidence(pages, financial_submission)
-        if (
-            financial_submission
-            and review_state["reviewed_count"] == submission_attempts["count"]
-            and review_state["status"] is not None
-        )
-        else None
+    final_review = trusted_latest_review(
+        pages, financial_submission, submission_attempts["count"], review_state
     )
     report = finalise_dd_report(report, financial_submission, final_review)
     report = append_audit_appendix(report, audit, sequence_audit)
