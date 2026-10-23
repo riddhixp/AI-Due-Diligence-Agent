@@ -166,3 +166,21 @@ Additional helper modules support financial-label matching and year-column detec
 A short demonstration can show: **(1)** upload a public annual report; **(2)** inspect extracted financial metrics and derived trends; **(3)** show the verification table, highlighting `ROW_YEAR_MATCH` versus `NUMBER_FOUND`; **(4)** review the diligence narrative and open questions; and **(5)** download the PDF briefing.
 
 **Project takeaway:** Agentic AI can help structure and accelerate early-stage deal screening when it is paired with transparent calculations, traceable evidence, explicit uncertainty and human review.
+
+## Offline approval-to-resume development
+
+`financial_approval_resume.decide_and_resume_offline` connects a document-bound
+financial approval handoff to the actual app's SDK resume path. It applies the
+reviewer's decision, extracts source text from the same PDF, restores financial
+counters, and uses the SDK's in-memory serialization interface to resolve pending
+calls against rebuilt application tools. A further approval pause returns a new
+handoff; failures consume the old handoff and are not retried automatically.
+
+Only the exact `ScriptedOfflineModel` implementation is accepted. These runs test
+SDK orchestration and financial controls, not autonomous model reasoning. Results
+are marked as simulations and cannot qualify for final report export. No snapshot
+is written to disk. The existing one-shot resume guard remains process-local;
+independent copies or restarts are not protected by durable idempotency.
+
+Live paid-model continuation remains disabled. It requires separate authorization
+and validation before enabling. Development remains on the open feature branch.

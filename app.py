@@ -968,6 +968,8 @@ or fabricate values merely to submit the data.
     interrupted = False
     if resume_mode == "OFFLINE_SDK_RESUME":
         consume_sdk_resume_state(sdk_resume_state)
+        from sdk_state_rebinding import rebind_offline_state
+        sdk_resume_state = rebind_offline_state(sdk_resume_state, agent)
     try:
         result = Runner.run_sync(
             agent,

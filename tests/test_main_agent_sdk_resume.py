@@ -36,7 +36,7 @@ class FullAgentRunStateTests(unittest.TestCase):
             return str((current / previous - 1) * 100)
 
         initial_agent = Agent(
-            name="Full-agent SDK boundary fixture", model=model,
+            name="AI Due Diligence Analyst", model=model,
             tools=[calculate_growth],
         )
         pause = Runner.run_sync(initial_agent, "Offline test")

@@ -70,7 +70,7 @@ class MainFinancialResumeGuardTests(unittest.TestCase):
             raise AssertionError("Initial paused tool must never execute")
 
         first = Runner.run_sync(
-            Agent(name="Offline initial approval", model=model,
+            Agent(name="AI Due Diligence Analyst", model=model,
                   tools=[submit_financial_data]),
             "Pause a financial submission in the offline SDK.",
         )
