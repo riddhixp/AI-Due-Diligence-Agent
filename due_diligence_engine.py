@@ -133,14 +133,19 @@ def run_due_diligence(
         observed_tool_calls = prepared["observed_tool_calls"]
         submission_attempts = prepared["submission_attempts"]
         review_state = prepared["review_state"]
+        page_read_events = prepared["page_read_events"]
+        if any(event["page"] > len(pages) for event in page_read_events):
+            raise ValueError("INVALID_PAGE_READ_HISTORY")
 
     else:
         financial_submission = {}
+        page_read_events = []
         observed_tool_calls = []
         submission_attempts = {"count": 0}
         review_state = {
             "reviewed_count": 0, "status": None,
             "page_reads": 0, "reads_at_review": 0,
+            "source_pages_since_review": set(),
         }
 
     @function_tool(needs_approval=financial_approval_required)
@@ -293,6 +298,16 @@ reconcile their magnitudes explicitly; do not flip other metrics to positive.
         if refusal:
             return refusal
 
+        if submission_attempts["count"] == 1:
+            cited_pages = set(page_references.values())
+            cited_pages.update(page for value, page in optional_metrics.values()
+                               if value is not None and page is not None)
+            missing = cited_pages - review_state["source_pages_since_review"]
+            if missing:
+                return ("SOURCE_RECHECK_REQUIRED: Read every cited correction page after "
+                        "the failed review. Missing PDF pages: "
+                        + ", ".join(str(page) for page in sorted(missing)))
+
         previous_submission = financial_submission.copy()
         financial_submission.clear()
         financial_submission.update({
@@ -413,7 +428,9 @@ reconcile their magnitudes explicitly; do not flip other metrics to positive.
         if not 1 <= page_number <= len(pages):
             return "Invalid page number."
 
+        page_read_events.append({"tool_index": len(observed_tool_calls), "page": page_number})
         observed_tool_calls.append("read_page")
+        review_state["source_pages_since_review"].add(page_number)
         review_state["page_reads"] += 1
         return (
             f"PDF page {page_number}\n"
@@ -470,6 +487,7 @@ reconcile their magnitudes explicitly; do not flip other metrics to positive.
         review_state["reviewed_count"] = submission_attempts["count"]
         review_state["status"] = result["status"]
         review_state["reads_at_review"] = review_state["page_reads"]
+        review_state["source_pages_since_review"].clear()
         result["next_actions"] = investigation_next_actions(result)
 
         return json.dumps(result, default=str)
@@ -979,6 +997,7 @@ or fabricate values merely to submit the data.
             submission_attempts["count"], review_state["reviewed_count"],
             review_state["status"], observed_tool_calls,
             review_state["page_reads"], review_state["reads_at_review"],
+            page_read_events=page_read_events,
         )
         raise SDKFinancialApprovalPaused(handoff)
 

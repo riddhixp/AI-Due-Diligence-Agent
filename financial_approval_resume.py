@@ -32,12 +32,15 @@ def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_r
         raise ValueError("MISSING_FINANCIAL_CHECKPOINT")
     if checkpoint.get("document_sha256") != document_fingerprint(pdf_bytes):
         raise ValueError("DOCUMENT_MISMATCH")
-    prepare_tool_state(checkpoint, pdf_bytes)
+    prepared = prepare_tool_state(checkpoint, pdf_bytes)
     # Derive tool evidence from the bound PDF, never caller-supplied page text.
     from pypdf import PdfReader
     pages = [page.extract_text() or "" for page in PdfReader(BytesIO(pdf_bytes)).pages]
     if not pages or not any(page.strip() for page in pages):
         raise ValueError("READABLE_PDF_REQUIRED")
+
+    if any(event["page"] > len(pages) for event in prepared["page_read_events"]):
+        raise ValueError("INVALID_PAGE_READ_HISTORY")
 
     with _claim_lock:
         if handoff.get("status") != "AWAITING_APPROVAL":

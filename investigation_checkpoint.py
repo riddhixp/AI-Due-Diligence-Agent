@@ -7,13 +7,13 @@ def document_fingerprint(pdf_bytes):
 
 
 def create_checkpoint(document_sha256, financial_data, submission_count,
-                      reviewed_count, review_status, tool_calls):
+                      reviewed_count, review_status, tool_calls, *, page_read_events=None):
     """Save only minimal, non-secret structured state."""
     if len(document_sha256) != 64:
         raise ValueError("Invalid document fingerprint")
     if submission_count < 0 or reviewed_count < 0 or reviewed_count > submission_count:
         raise ValueError("Invalid review counters")
-    return {
+    checkpoint = {
         "version": 1,
         "document_sha256": document_sha256,
         "financial_data": dict(financial_data),
@@ -23,6 +23,9 @@ def create_checkpoint(document_sha256, financial_data, submission_count,
         "tool_calls": list(tool_calls),
         "model_conversation_saved": False,
     }
+    if page_read_events is not None:
+        checkpoint["page_read_events"] = [dict(event) for event in page_read_events]
+    return checkpoint
 
 
 def inspect_checkpoint(checkpoint, pdf_bytes):

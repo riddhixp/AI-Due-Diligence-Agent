@@ -56,3 +56,35 @@ class ToolStateRebindingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SourcePageHistoryTests(unittest.TestCase):
+    def setUp(self):
+        self.pdf = b'fixture'
+        self.checkpoint = create_checkpoint(document_fingerprint(self.pdf),
+            {'revenue_current': 130}, 1, 1, 'NEEDS_REVIEW',
+            ['read_page', 'submit_financial_data', 'review_submitted_financials', 'read_page'],
+            page_read_events=[{'tool_index': 0, 'page': 2}, {'tool_index': 3, 'page': 1}])
+
+    def test_only_page_read_after_review_authorizes_source_recheck(self):
+        restored = prepare_tool_state(self.checkpoint, self.pdf)
+        self.assertEqual(restored['review_state']['source_pages_since_review'], {1})
+        restored['page_read_events'][0]['page'] = 99
+        self.assertEqual(self.checkpoint['page_read_events'][0]['page'], 2)
+
+    def test_legacy_checkpoint_does_not_invent_source_page_history(self):
+        self.checkpoint.pop('page_read_events')
+        restored = prepare_tool_state(self.checkpoint, self.pdf)
+        self.assertEqual(restored['review_state']['source_pages_since_review'], set())
+        self.assertEqual(restored['review_state']['page_reads'], 2)
+
+    def test_invalid_history_is_rejected(self):
+        for history in [None, {}, [{'tool_index': 1, 'page': 2}],
+                        [{'tool_index': True, 'page': 2}], [{'tool_index': 0, 'page': True}],
+                        [{'tool_index': 0, 'page': 0}], [{'tool_index': 9, 'page': 2}],
+                        [{'tool_index': 3, 'page': 1}, {'tool_index': 0, 'page': 2}],
+                        [{'tool_index': 0, 'page': 2}, {'tool_index': 0, 'page': 1}]]:
+            with self.subTest(history=history):
+                self.checkpoint['page_read_events'] = history
+                with self.assertRaisesRegex(ValueError, 'INVALID_PAGE_READ_HISTORY'):
+                    prepare_tool_state(self.checkpoint, self.pdf)

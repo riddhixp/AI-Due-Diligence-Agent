@@ -115,3 +115,31 @@ class FullCorrectionWorkflowTests(unittest.TestCase):
         # Even an explicit approval cannot bypass the two-submission tool limit.
         self.assertEqual(result['financial']['revenue_current'], 120)
         self.assertFalse(result['evaluation']['final_eligible'])
+
+    def test_unrelated_page_read_cannot_authorize_correction_after_resume(self):
+        import json
+        # The post-review reread now visits page 1, while correction cites page 2.
+        self.session['model'].responses[1][0].arguments = json.dumps({'page_number': 1})
+        paused = self.approve_initial()
+        checkpoint = paused['handoff']['checkpoint']
+        self.assertEqual(checkpoint['page_read_events'],
+                         [{'tool_index': 0, 'page': 2}, {'tool_index': 3, 'page': 1}])
+        result = decide_and_resume_offline(paused['handoff'], self.pdf, True, self.session['model'])
+        self.assertEqual(result['financial']['revenue_current'], 130)
+        self.assertFalse(result['evaluation']['final_eligible'])
+        self.assertIsNone(result['validation'])
+
+    def test_missing_legacy_page_history_requires_new_source_read(self):
+        paused = self.approve_initial()
+        paused['handoff']['checkpoint'].pop('page_read_events')
+        result = decide_and_resume_offline(paused['handoff'], self.pdf, True, self.session['model'])
+        self.assertEqual(result['financial']['revenue_current'], 130)
+        self.assertFalse(result['evaluation']['final_eligible'])
+
+    def test_cited_source_reread_survives_approval_pause(self):
+        paused = self.approve_initial()
+        self.assertEqual(paused['handoff']['checkpoint']['page_read_events'],
+                         [{'tool_index': 0, 'page': 2}, {'tool_index': 3, 'page': 2}])
+        result = decide_and_resume_offline(paused['handoff'], self.pdf, True, self.session['model'])
+        self.assertEqual(result['financial']['revenue_current'], 120)
+        self.assertTrue(result['evaluation']['final_eligible'])

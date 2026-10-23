@@ -35,10 +35,23 @@ def prepare_tool_state(checkpoint, pdf_bytes):
             review_positions.append(index)
     if traced_reviewed != reviewed:
         raise ValueError("REVIEW_TRACE_COUNT_MISMATCH")
+    read_events = checkpoint.get("page_read_events", [])
+    if not isinstance(read_events, list):
+        raise ValueError("INVALID_PAGE_READ_HISTORY")
+    previous_index = -1
+    for event in read_events:
+        if (not isinstance(event, dict) or set(event) != {"tool_index", "page"}
+                or type(event["tool_index"]) is not int or type(event["page"]) is not int
+                or not previous_index < event["tool_index"] < len(events)
+                or event["page"] < 1
+                or events[event["tool_index"]] != "read_page"):
+            raise ValueError("INVALID_PAGE_READ_HISTORY")
+        previous_index = event["tool_index"]
     last_review = review_positions[-1] if review_positions else -1
     reads_total = events.count("read_page")
     reads_at_review = events[:last_review + 1].count("read_page")
     return {
+        "page_read_events": deepcopy(read_events),
         "financial_submission": deepcopy(state["financial_submission"]),
         "submission_attempts": {"count": submissions},
         "review_state": {
@@ -46,6 +59,8 @@ def prepare_tool_state(checkpoint, pdf_bytes):
             "status": status,
             "page_reads": reads_total,
             "reads_at_review": reads_at_review,
+            "source_pages_since_review": {event["page"] for event in read_events
+                                          if event["tool_index"] > last_review},
         },
         "observed_tool_calls": list(events),
         "model_conversation_restored": False,

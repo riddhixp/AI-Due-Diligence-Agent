@@ -400,3 +400,13 @@ receive structural and finite-value checks. The app displays unavailable ratios
 explicitly, including when rechecking saved analyses. A zero prior-revenue practice
 run preserves the submitted figures for review and finishes as incomplete without
 crashing; it cannot export a final report.
+
+
+Corrections now require a fresh read of every cited correction page after the
+failed financial review. Reading an unrelated page does not unlock a replacement.
+Successful page reads record their PDF page number and tool-trace position; this
+history is validated and restored across in-memory approval pauses. Reads from
+before the latest review do not count. Older checkpoints without page-level
+history require new source reads rather than inferring pages from a total count.
+Refused corrections preserve the accepted figures and do not consume the remaining
+successful-submission slot. This remains a process-local offline safeguard.

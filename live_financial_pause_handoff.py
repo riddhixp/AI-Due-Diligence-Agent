@@ -16,7 +16,7 @@ class SDKFinancialApprovalPaused(RuntimeError):
 
 def make_financial_pause_handoff(
     capture, pdf_bytes, financial_data, submission_count, reviewed_count,
-    review_status, tool_calls, page_reads, reads_at_review,
+    review_status, tool_calls, page_reads, reads_at_review, *, page_read_events=None,
 ):
     if not capture.get("paused") or capture.get("state") is None:
         raise ValueError("NO_CAPTURED_SDK_APPROVAL")
@@ -26,7 +26,7 @@ def make_financial_pause_handoff(
         raise ValueError("INVALID_PAGE_READ_COUNTERS")
     checkpoint = create_checkpoint(
         document_fingerprint(pdf_bytes), financial_data, submission_count,
-        reviewed_count, review_status, tool_calls,
+        reviewed_count, review_status, tool_calls, page_read_events=page_read_events,
     )
     restored = prepare_tool_state(checkpoint, pdf_bytes)
     counters = restored["review_state"]
