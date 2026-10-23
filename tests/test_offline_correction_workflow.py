@@ -64,3 +64,31 @@ class FullCorrectionWorkflowTests(unittest.TestCase):
     def test_other_pdf_cannot_start_rehearsal(self):
         with self.assertRaisesRegex(ValueError, 'SYNTHETIC_CONFLICT_PDF_REQUIRED'):
             start_offline_correction_workflow(b'not a pdf')
+
+    def test_repeated_review_survives_second_approval_pause(self):
+        from openai.types.responses import ResponseFunctionToolCall
+        self.session['model'].responses.insert(1, [ResponseFunctionToolCall(
+            id='repeat_f', call_id='repeat_c', type='function_call',
+            name='review_submitted_financials', arguments='{}', status='completed')])
+        paused = self.approve_initial()
+        checkpoint = paused['handoff']['checkpoint']
+        self.assertEqual(checkpoint['reviewed_count'], 1)
+        self.assertEqual(checkpoint['tool_calls'].count('review_submitted_financials'), 2)
+        result = decide_and_resume_offline(paused['handoff'], self.pdf,
+                                          True, self.session['model'])
+        self.assertEqual(result['financial']['revenue_current'], 120)
+        self.assertTrue(result['evaluation']['final_eligible'])
+
+    def test_review_after_declined_initial_figures_does_not_poison_checkpoint(self):
+        paused = decide_and_resume_offline(self.session['handoff'], self.pdf,
+                                          False, self.session['model'])
+        self.assertEqual(paused['status'], 'AWAITING_APPROVAL')
+        checkpoint = paused['handoff']['checkpoint']
+        self.assertEqual(checkpoint['submission_count'], 0)
+        self.assertEqual(checkpoint['reviewed_count'], 0)
+        self.assertIsNone(checkpoint['review_status'])
+        self.assertIn('review_without_submission', checkpoint['tool_calls'])
+        result = decide_and_resume_offline(paused['handoff'], self.pdf,
+                                          True, self.session['model'])
+        self.assertEqual(result['financial']['revenue_current'], 120)
+        self.assertEqual(result['status'], 'COMPLETED_OFFLINE')

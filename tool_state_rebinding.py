@@ -20,10 +20,21 @@ def prepare_tool_state(checkpoint, pdf_bytes):
     # Do not rebuild privileged financial counters from an inconsistent trace.
     if events.count("submit_financial_data") != submissions:
         raise ValueError("SUBMISSION_TRACE_COUNT_MISMATCH")
-    if events.count("review_submitted_financials") != reviewed:
+    # reviewed_count identifies the most recently reviewed submission, not
+    # the number of review invocations. Rechecking one submission is valid.
+    traced_submissions = 0
+    traced_reviewed = 0
+    review_positions = []
+    for index, name in enumerate(events):
+        if name == "submit_financial_data":
+            traced_submissions += 1
+        elif name == "review_submitted_financials":
+            if traced_submissions == 0:
+                raise ValueError("REVIEW_BEFORE_SUBMISSION")
+            traced_reviewed = traced_submissions
+            review_positions.append(index)
+    if traced_reviewed != reviewed:
         raise ValueError("REVIEW_TRACE_COUNT_MISMATCH")
-    review_positions = [i for i, name in enumerate(events)
-                        if name == "review_submitted_financials"]
     last_review = review_positions[-1] if review_positions else -1
     reads_total = events.count("read_page")
     reads_at_review = events[:last_review + 1].count("read_page")

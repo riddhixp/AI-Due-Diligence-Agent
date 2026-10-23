@@ -226,3 +226,10 @@ explicitly. Rehearsal results have no final-report download.
 
 `due_diligence_engine.py` holds the investigation tools independently of the
 Streamlit page. Resuming a workflow no longer imports or renders the page.
+
+Checkpoint review tracking identifies the latest accepted submission that was
+reviewed, rather than counting every review invocation. Repeated reviews survive
+an approval pause, and the most recent review sets the source-reread boundary.
+A review requested before any accepted submission remains diagnostic only and
+cannot establish verified financial state. Restoring a trace with a review before
+its submission, or a false claim that the latest submission was reviewed, fails.

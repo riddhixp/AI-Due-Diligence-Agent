@@ -447,6 +447,12 @@ def run_due_diligence(
             pages,
             financial_submission,
         )
+        if not financial_submission or submission_attempts["count"] == 0:
+            # A diagnostic request is not a review of an accepted submission.
+            # Preserve the empty checkpoint so a later approval can resume.
+            observed_tool_calls.append("review_without_submission")
+            result["next_actions"] = investigation_next_actions(result)
+            return json.dumps(result, default=str)
         observed_tool_calls.append("review_submitted_financials")
         review_state["reviewed_count"] = submission_attempts["count"]
         review_state["status"] = result["status"]
