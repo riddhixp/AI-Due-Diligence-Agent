@@ -28,6 +28,7 @@ class ContinuationPreflightTests(unittest.TestCase):
         self.assertEqual(result["submission_count"], 1)
         self.assertEqual(result["reviewed_count"], 1)
         self.assertFalse(result["ready_for_paid_resume"])
+        self.assertEqual(result["reason"], "PAID_CONTINUATION_DISABLED")
         self.assertFalse(result["model_resumed"])
 
     def test_inconsistent_saved_read_counters(self):

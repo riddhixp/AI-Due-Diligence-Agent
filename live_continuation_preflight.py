@@ -34,5 +34,5 @@ def preflight_live_continuation(handoff, pdf_bytes):
         "model_resumed": False,
         "api_calls": 0,
         "ready_for_paid_resume": False,
-        "reason": "SDK_TOOL_CLOSURES_NOT_REBOUND",
+        "reason": "PAID_CONTINUATION_DISABLED",
     }

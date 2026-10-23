@@ -256,3 +256,41 @@ validation, which remains `NOT_RUN`. Paid continuation remains disabled. The
 remaining live-test inputs are an explicitly approved public or synthetic test
 PDF and an agreed API spending limit; a turn cap alone is not a monetary cap.
 No real-model investigation or paid continuation is launched by this command.
+
+## Paid-test preparation: no API calls
+
+The agreed test document is `synthetic_conflict_test.pdf`. The original **£5 API
+budget includes all prior usage**; it is not a fresh allowance for another test.
+Every paid test requires separate explicit permission. No new funding or
+automatic top-up is authorized by preparing a plan.
+
+Use the Streamlit **Prepare a paid test — estimate only, no API call** panel, or:
+
+```bash
+python -m paid_test_planning synthetic_conflict_test.pdf
+# Optional: replace the example balance with the actual current USD credit.
+python -m paid_test_planning synthetic_conflict_test.pdf --remaining-credit-usd 1.00
+```
+
+Blank credit stays unknown. The planner does not read credentials, retrieve an
+account balance, perform currency conversion, or execute an investigation. A
+reported balance is not treated as verified. An ample balance never authorizes
+execution: `can_execute` is always false, and paid continuation remains disabled.
+
+The default proposal is 8 model requests across the whole test, at most 16,000
+input tokens and 2,048 output tokens per request. These ceilings do not reset at
+approval. Using the [official GPT-5 Mini pricing](https://developers.openai.com/api/docs/models/gpt-5-mini)
+checked on 23 October 2026 ($0.25 input and $2.00 output per million tokens), the
+conditional token-cost estimate is **$0.064768**, with a doubled, upward-rounded
+planning reserve of **$0.13**. This assumes all requests fit those planned limits,
+ignores cached-input discounts, and is **not an enforced spending cap**. Live
+request accounting and model availability still need validation before any paid
+execution. The current documentation marks GPT-5 Mini deprecated; the planner
+records that fact rather than silently replacing the configured model.
+
+For platform-level controls, [OpenAI's spend-limit documentation](https://developers.openai.com/api/docs/guides/spend-limits)
+distinguishes alerts from enforced limits and notes that enforcement can lag.
+The app does not claim these settings guarantee an exact lifetime £5 ceiling.
+Confirm the actual remaining credit and currency before proposing a paid run;
+then seek permission for that specific run. Never interpret a financial-submission
+approval inside an investigation as permission for additional paid model usage.

@@ -4,27 +4,16 @@ This scripted fixture does not demonstrate autonomous model reasoning. It is
 restricted to the project's synthetic conflict PDF and never uses a provider.
 """
 import json
-from io import BytesIO
 
 from agents import set_tracing_disabled
 from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
-from pypdf import PdfReader
+from synthetic_conflict_document import read_synthetic_conflict_pages
 from live_financial_pause_handoff import SDKFinancialApprovalPaused
 from scripted_offline_model import ScriptedOfflineModel
 
 
 def start_offline_correction_workflow(pdf_bytes):
-    try:
-        pages = [page.extract_text() or '' for page in PdfReader(BytesIO(pdf_bytes)).pages]
-    except Exception as error:
-        raise ValueError('SYNTHETIC_CONFLICT_PDF_REQUIRED') from error
-    if (len(pages) != 2
-            or 'SYNTHETIC CONFLICT TEST - NOT A REAL COMPANY' not in pages[0]
-            or not all(line in pages[1] for line in (
-                'Fiscal years 2025 2024 2023', 'Total revenue 120 100 90',
-                'Gross profit 80 70 60', 'Net income 30 25 20',
-                'The authoritative FY2025 total revenue figure is 120'))):
-        raise ValueError('SYNTHETIC_CONFLICT_PDF_REQUIRED')
+    pages = read_synthetic_conflict_pages(pdf_bytes)
     fields = dict(company='Illustrative Software Company', fiscal_year=2025,
                   currency='USD', units='millions', revenue_current=120,
                   revenue_previous=100, gross_profit=80, net_income=30,
