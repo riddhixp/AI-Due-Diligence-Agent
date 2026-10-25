@@ -8,11 +8,15 @@ from openai.types.responses import (
 from agents.models.interface import Model
 from agents.items import ModelResponse
 from agents.usage import Usage
+from model_request_budget import ModelRequestBudget
 
 
 class ScriptedOfflineModel(Model):
     is_offline_scripted_model = True
-    def __init__(self):
+    def __init__(self, *, request_budget=None):
+        if request_budget is not None and type(request_budget) is not ModelRequestBudget:
+            raise ValueError('INVALID_MODEL_REQUEST_BUDGET')
+        self.request_budget = request_budget
         self.responses = [
             [ResponseFunctionToolCall(
                 id="fc_test_1", call_id="call_test_1", type="function_call",
@@ -32,6 +36,8 @@ class ScriptedOfflineModel(Model):
         self.calls = 0
 
     async def get_response(self, *args, **kwargs):
+        if self.request_budget is not None:
+            self.request_budget.reserve()
         self.calls += 1
         if not self.responses:
             raise AssertionError("Unexpected further model request")

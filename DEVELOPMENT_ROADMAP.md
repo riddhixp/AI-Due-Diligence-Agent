@@ -26,6 +26,21 @@ and retention, durable approval/idempotency across restarts or servers, monitori
 load testing and deployment. Estimate that only after choosing the hosting and
 usage requirements; it is likely weeks of additional work.
 
+## Current controlled-test preparation
+
+A process-local model-request budget is implemented and exercised with the actual
+SDK offline approval/resume workflow. The same quota survives both approval
+pauses; concurrent reservations cannot exceed it and failed requests do not
+refund a reservation. Exhaustion blocks the next model dispatch, preserves any
+accepted-but-unreviewed tool progress and cannot create a final report.
+
+This budget is currently wired only into the scripted model. It does not limit
+paid providers, provider-internal retries, input/output tokens, or billing. Live
+integration, per-request token bounds, retry policy, usage reporting and explicit
+authorisation remain outstanding before any paid continuation can be considered.
+Creating a fresh budget object resets its quota; trusted orchestration must keep
+one object for the entire test. Restart/server durability remains separate work.
+
 ## Free manual acceptance check
 
 Use the generated synthetic conflict PDF, not a confidential company document.
