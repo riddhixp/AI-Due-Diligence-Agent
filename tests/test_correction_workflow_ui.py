@@ -139,18 +139,21 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertEqual(len(self.app.get('download_button')), 0)
 
     def test_invalid_preview_remains_discardable(self):
-        self.click('app_workflow_start')
-        session = self.app.session_state['offline_application_workflow']
-        # Corrupt SDK-owned state, since public interruption previews are copies.
-        session['handoff']['sdk_state']._current_step.interruptions[0].raw_item.arguments = 'not JSON'
-        self.app.run()
-        self.assertFalse(self.app.exception)
-        self.assertTrue(self.app.error)
-        self.assertFalse(any(button.key == 'app_workflow_approve' for button in self.app.button))
-        self.app.button(key='app_workflow_discard').click().run()
-        self.assertNotIn('offline_application_workflow', self.app.session_state)
-        self.assertFalse(self.app.error)
-        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+        invalid = ['not JSON', '{"revenue_current":120,"nested":' + '[' * 1500 + '0' + ']' * 1500 + '}']
+        for arguments in invalid:
+            with self.subTest(argument_length=len(arguments)):
+                self.click('app_workflow_start')
+                session = self.app.session_state['offline_application_workflow']
+                # Corrupt SDK-owned state; public interruption previews are copies.
+                session['handoff']['sdk_state']._current_step.interruptions[0].raw_item.arguments = arguments
+                self.app.run()
+                self.assertFalse(self.app.exception)
+                self.assertTrue(self.app.error)
+                self.assertFalse(any(button.key == 'app_workflow_approve' for button in self.app.button))
+                self.app.button(key='app_workflow_discard').click().run()
+                self.assertNotIn('offline_application_workflow', self.app.session_state)
+                self.assertFalse(self.app.error)
+                self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
 
     def test_terminal_continuation_failure_removes_decision_controls(self):
         self.click('app_workflow_start')

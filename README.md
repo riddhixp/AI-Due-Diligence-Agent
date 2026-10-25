@@ -499,3 +499,11 @@ that no model conversation was saved. Restoration rejects figures when the
 accepted-submission count is zero. Inconsistent checkpoints are blocked before
 an SDK approval decision or model continuation. These checks validate trusted
 in-memory state; they do not add uploaded-snapshot support.
+
+
+Pending financial requests reject unknown argument names, fractional or
+non-positive page numbers, invalid fiscal years, blank metadata and null required
+values before recording a decision. Optional missing value/page pairs remain
+valid. Deeply nested or malformed JSON produces a controlled preview error,
+leaving discard available and the real analysis untouched. These checks do not
+replace the SDK's full tool schema validation or establish source accuracy.

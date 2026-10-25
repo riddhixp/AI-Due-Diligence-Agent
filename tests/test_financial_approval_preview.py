@@ -98,3 +98,42 @@ class PreviewTests(unittest.TestCase):
         row = next(row for row in preview['metrics'] if row['Metric'] == 'Operating cash flow')
         self.assertEqual(row['PDF pages'], [])
         self.assertIsNone(row['PDF page'])
+
+    def test_fractional_or_nonpositive_pages_are_rejected_before_decision(self):
+        for value in [1.5, 1.0, 0, -1, None]:
+            with self.subTest(page=value):
+                self.raw.arguments = json.dumps(dict(revenue_current=120, revenue_current_page=value))
+                with self.assertRaisesRegex(ValueError, 'INVALID_FINANCIAL_PAGE'):
+                    decide_live_financial_pause(self.handoff, b'pdf', True)
+                self.assertEqual(self.decisions, [])
+                self.assertEqual(self.handoff['status'], 'AWAITING_APPROVAL')
+
+    def test_invalid_years_and_unknown_arguments_are_rejected(self):
+        for field, value in [('fiscal_year', 2025.5), ('fiscal_year', 0),
+                             ('fiscal_year', None), ('unrecognized_amount', 99)]:
+            with self.subTest(field=field, value=value):
+                self.raw.arguments = json.dumps({'revenue_current': 120, field: value})
+                with self.assertRaises(ValueError):
+                    inspect_financial_request(self.request)
+
+    def test_blank_metadata_and_null_required_values_are_rejected(self):
+        for field, value in [('company', None), ('currency', '  '), ('units', ''),
+                             ('gross_profit', None), ('reported_net_margin', None)]:
+            self.raw.arguments = json.dumps({'revenue_current': 120, field: value})
+            with self.assertRaises(ValueError):
+                inspect_financial_request(self.request)
+
+    def test_deeply_nested_json_is_a_controlled_invalid_request(self):
+        self.raw.arguments = '{"revenue_current":120,"nested":' + '[' * 1500 + '0' + ']' * 1500 + '}'
+        with self.assertRaises(ValueError):
+            inspect_financial_request(self.request)
+        from unittest.mock import patch
+        with patch('financial_approval_preview.json.loads', side_effect=RecursionError()):
+            with self.assertRaisesRegex(ValueError, 'INVALID_FINANCIAL_ARGUMENTS'):
+                inspect_financial_request(self.request)
+
+    def test_optional_null_pairs_remain_valid(self):
+        self.raw.arguments = json.dumps(dict(revenue_current=120,
+            operating_cash_flow=None, operating_cash_flow_page=None))
+        values, _ = inspect_financial_request(self.request)
+        self.assertIsNone(values['operating_cash_flow'])

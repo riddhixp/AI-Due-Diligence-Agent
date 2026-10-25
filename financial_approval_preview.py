@@ -28,16 +28,32 @@ def inspect_financial_request(request):
     try:
         values = json.loads(arguments, object_pairs_hook=_unique_object)
         canonical = json.dumps(values, sort_keys=True, separators=(',', ':'), allow_nan=False)
-    except (TypeError, ValueError) as error:
+    except (TypeError, ValueError, RecursionError) as error:
         raise ValueError('INVALID_FINANCIAL_ARGUMENTS') from error
     if not isinstance(values, dict) or values.get('revenue_current') is None:
         raise ValueError('MISSING_PROPOSED_REVENUE')
+    metadata = {'company', 'currency', 'units'}
+    metrics = {'revenue_current', 'revenue_previous', 'gross_profit', 'net_income'}
+    optional = {field for field, *_ in OPTIONAL_STATEMENT_METRICS}
+    percentages = {'reported_revenue_growth', 'reported_gross_margin', 'reported_net_margin'}
+    page_fields = {field + '_page' for field in metrics | optional} | {'source_page'}
+    allowed = metadata | metrics | optional | percentages | page_fields | {'fiscal_year'}
     for key, value in values.items():
-        if value is None:
-            continue
-        if key in ('company', 'currency', 'units'):
-            if not isinstance(value, str) or len(value) > 256:
+        if key not in allowed:
+            raise ValueError('UNEXPECTED_FINANCIAL_ARGUMENT')
+        if key in metadata:
+            if not isinstance(value, str) or not value.strip() or len(value) > 256:
                 raise ValueError('INVALID_FINANCIAL_METADATA')
+        elif key in page_fields:
+            if value is None and key != 'source_page' and key.removesuffix('_page') in optional:
+                continue
+            if type(value) is not int or value < 1:
+                raise ValueError('INVALID_FINANCIAL_PAGE')
+        elif key == 'fiscal_year':
+            if type(value) is not int or not 1 <= value <= 9999:
+                raise ValueError('INVALID_FINANCIAL_YEAR')
+        elif value is None and key in optional:
+            continue
         elif (type(value) not in (int, float) or abs(value) > 1e308
               or not math.isfinite(value)):
             raise ValueError('INVALID_FINANCIAL_VALUE')
