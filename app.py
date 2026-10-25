@@ -13,6 +13,7 @@ from audit_appendix import append_audit_appendix
 from agent_evaluation import evaluate_agent_run
 from run_limits import permitted_turn_limit
 from cache_policy import should_cache_report
+from fresh_analysis_policy import fresh_analysis_block_reason
 from correction_changes import financial_correction_changes
 from revenue_narrative_check import find_reversed_revenue_arrows
 from fault_injection import inject_first_submission_error
@@ -134,6 +135,7 @@ if uploaded_file is not None:
         st.session_state.pop("paid_test_plan_preview", None)
         st.session_state.pop("offline_practice_suite", None)
         st.session_state.pop("live_financial_pause", None)
+        st.session_state.pop(LIVE_PREVIEW_KEY, None)
         st.session_state.pop("live_continuation_preflight", None)
 
     if len(pdf_bytes) > 15 * 1024 * 1024:
@@ -372,12 +374,21 @@ if uploaded_file is not None:
         except ValueError as error:
             st.error(str(error))
 
+    analysis_block = fresh_analysis_block_reason(st.session_state.get("live_financial_pause"))
+    if analysis_block:
+        st.info(analysis_block)
     if st.button(
         "Analyse Company",
         type="primary",
         width="stretch",
+        key="analyse_company",
+        disabled=analysis_block is not None,
     ):
-        if not os.getenv("OPENAI_API_KEY"):
+        # Recheck on dispatch as well as disabling the visible control.
+        dispatch_block = fresh_analysis_block_reason(st.session_state.get("live_financial_pause"))
+        if dispatch_block:
+            st.error(dispatch_block)
+        elif not os.getenv("OPENAI_API_KEY"):
             st.error(
                 "OPENAI_API_KEY is missing from .env"
             )

@@ -534,3 +534,12 @@ and missing interruptions cannot qualify as an approved preflight. Cached readin
 results are rechecked before display and cleared when their underlying state
 changes. Even a successful check explicitly leaves paid resume unavailable and
 makes no model call.
+
+
+A stored real investigation pause blocks starting a fresh analysis until it is
+explicitly discarded, including after approval, rejection or failure. The Analyse
+Company button is disabled and dispatch checks the pause again before model/key
+lookup. Free approval and inspection controls remain available. A full-app UI test
+covers a forced dispatched event, approval without continuation, and discarding
+the pause to re-enable a fresh run; the provider entry point is forbidden and
+network access is blocked throughout.
