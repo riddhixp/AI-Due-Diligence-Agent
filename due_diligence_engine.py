@@ -28,6 +28,7 @@ from pypdf import PdfReader
 from financial_validator import FinancialData, validate_financials
 from financial_numbers import finite_number
 from agents import Agent, Runner, function_tool
+from financial_turn_policy import FinancialTurnHooks
 
 def extract_pages(pdf_bytes):
     reader = PdfReader(BytesIO(pdf_bytes))
@@ -507,6 +508,8 @@ reconcile their magnitudes explicitly; do not flip other metrics to positive.
             review_submitted_financials,
         ],
         instructions="""
+Call submit_financial_data and review_submitted_financials on separate turns,
+each alone without other tool calls. Wait for each result before the next step.
 
 
 You are a senior financial and technology due diligence analyst
@@ -964,6 +967,7 @@ or fabricate values merely to submit the data.
 ),
 
         max_turns=permitted_turn_limit(max_turns),
+        hooks=FinancialTurnHooks(),
         )
     except Exception as error:
         from agents.exceptions import MaxTurnsExceeded

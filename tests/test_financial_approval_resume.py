@@ -194,3 +194,14 @@ class ApprovalResumeTests(unittest.TestCase):
         result = decide_and_resume_offline(self.handoff, self.pdf, True, self.model)
         self.assertEqual(result['financial']['revenue_current'], 120)
         self.assertTrue(result['evaluation']['final_eligible'])
+
+    def test_resumed_financial_batch_stops_before_review(self):
+        from unittest.mock import patch
+        self.model.responses = [call('review_submitted_financials', {}, 2)
+                                + call('read_page', {'page_number': 1}, 3)]
+        with patch('due_diligence_engine.review_financial_evidence') as review:
+            with self.assertRaisesRegex(ValueError, 'FINANCIAL_TOOLS_REQUIRE_SEPARATE_TURNS'):
+                decide_and_resume_offline(self.handoff, self.pdf, True, self.model)
+            review.assert_not_called()
+        self.assertEqual(self.handoff['status'], 'FAILED')
+        self.assertEqual(self.model.calls, 2)

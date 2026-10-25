@@ -469,3 +469,13 @@ cash flow remains unavailable in diagnostics, including cash conversion and free
 cash flow. Declining the removal preserves the prior unverified figure and blocks
 completion. This is another fixed synthetic script, with no provider calls or
 final-report exports; the standalone evaluation now includes 13 workflow checks.
+
+
+Financial submissions and financial reviews must each occupy a separate model
+turn. A local SDK response hook rejects a function-call batch containing either
+operation before any tool in that batch starts. This prevents a same-response
+review/correction from being treated as if the model had consumed the review
+feedback first. Read-only search/page batches remain supported. The same hook
+runs on fresh investigations and approved offline continuations; a prohibited
+resumed batch leaves its handoff failed and cannot produce a final report.
+These behaviors are tested with local scripted responses and network blocked.
