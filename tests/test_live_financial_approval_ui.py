@@ -36,6 +36,9 @@ render_live_financial_decision(st, st.session_state['fixture']['handoff'], pdf)
         session = self.app.session_state['fixture']
         self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
         self.assertEqual(session['model'].calls, 2)
+        self.assertTrue(any('Proposed figures need review' in item.value for item in self.app.warning))
+        self.assertTrue(any('status' in frame.value.columns for frame in self.app.dataframe[1:]))
+        self.assertEqual(session['handoff']['checkpoint']['submission_count'], 0)
 
     def test_approval_records_decision_without_model_or_report_changes(self):
         self.app.button(key='live_financial_approve').click().run()
@@ -86,3 +89,18 @@ render_live_financial_decision(st, st.session_state['fixture']['handoff'], pdf)
         self.assertTrue(any('DOCUMENT_MISMATCH' in item.value for item in self.app.error))
         self.assertFalse(self.app.button)
         self.assertEqual(self.app.session_state['fixture']['model'].calls, 2)
+
+    def test_supported_proposal_shows_local_checks_without_accepting_figures(self):
+        from financial_approval_resume import decide_and_resume_offline
+        fixture = self.app.session_state['fixture']
+        result = decide_and_resume_offline(fixture['handoff'], self.pdf, True, fixture['model'])
+        fixture['handoff'] = result['handoff']
+        self.app.run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(any('passed local preliminary checks' in item.value for item in self.app.info))
+        handoff = fixture['handoff']
+        self.assertEqual(handoff['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(handoff['checkpoint']['submission_count'], 1)
+        self.assertEqual(handoff['checkpoint']['financial_data']['revenue_current'], 130)
+        self.assertEqual(fixture['model'].calls, 5)
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
