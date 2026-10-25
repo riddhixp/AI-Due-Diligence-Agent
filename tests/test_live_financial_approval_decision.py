@@ -129,3 +129,10 @@ class LiveApprovalDecisionTests(unittest.TestCase):
         gc.collect()
         self.assertIsNone(reference())
         self.assertNotIn(state_id, _decided_states)
+
+    def test_invalid_pdf_page_count_cannot_record_decision(self):
+        for count in [True, 0, -1, 1.5]:
+            with self.assertRaisesRegex(ValueError, 'INVALID_PDF_PAGE_COUNT'):
+                decide_live_financial_pause(self.handoff, self.doc, True, total_pages=count)
+        self.assertEqual(self.sdk.approved, 0)
+        self.assertEqual(self.handoff['status'], 'AWAITING_APPROVAL')

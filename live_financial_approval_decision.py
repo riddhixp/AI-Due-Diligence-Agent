@@ -18,7 +18,7 @@ def _forget_decision(key, reference):
             _decided_states.pop(key, None)
 
 
-def decide_live_financial_pause(handoff, pdf_bytes, approved, *, expected_request_sha256=None):
+def decide_live_financial_pause(handoff, pdf_bytes, approved, *, expected_request_sha256=None, total_pages=None):
     """Apply one decision per state identity, including through copied handoffs.
 
     Claims survive SDK failures, but hold only weak references to transcript state.
@@ -26,10 +26,10 @@ def decide_live_financial_pause(handoff, pdf_bytes, approved, *, expected_reques
     """
     with _decision_lock:
         return _decide_locked(handoff, pdf_bytes, approved,
-                              expected_request_sha256=expected_request_sha256)
+                              expected_request_sha256=expected_request_sha256, total_pages=total_pages)
 
 
-def _decide_locked(handoff, pdf_bytes, approved, *, expected_request_sha256=None):
+def _decide_locked(handoff, pdf_bytes, approved, *, expected_request_sha256=None, total_pages=None):
     if handoff.get("status") != "AWAITING_APPROVAL":
         raise ValueError("LIVE_APPROVAL_ALREADY_DECIDED")
     if type(approved) is not bool:
@@ -47,9 +47,16 @@ def _decide_locked(handoff, pdf_bytes, approved, *, expected_request_sha256=None
     previous = _decided_states.get(key)
     if previous is not None and previous() is state:
         raise ValueError("SDK_APPROVAL_ALREADY_DECIDED")
-    request, _, fingerprint = pending_financial_request(state)
+    request, values, fingerprint = pending_financial_request(state)
     if expected_request_sha256 is not None and fingerprint != expected_request_sha256:
         raise ValueError("FINANCIAL_APPROVAL_REQUEST_CHANGED")
+    if total_pages is not None:
+        if type(total_pages) is not int or total_pages < 1:
+            raise ValueError("INVALID_PDF_PAGE_COUNT")
+        if approved and any(value is not None and value > total_pages
+                            for field, value in values.items()
+                            if field == "source_page" or field.endswith("_page")):
+            raise ValueError("FINANCIAL_APPROVAL_PAGE_OUT_OF_RANGE")
     method = getattr(state, "approve" if approved else "reject", None)
     if not callable(method):
         raise ValueError("SDK_DECISION_METHOD_UNAVAILABLE")

@@ -78,7 +78,7 @@ def financial_approval_preview(handoff):
         raise ValueError('NO_PENDING_FINANCIAL_APPROVAL')
     _, values, fingerprint = pending_financial_request(handoff['sdk_state'])
     previous = handoff['checkpoint']['financial_data']
-    metadata_fields = ('company', 'fiscal_year', 'currency', 'units')
+    metadata_fields = ('company', 'fiscal_year', 'currency', 'units', 'source_page')
     ratio_inputs = {
         'reported_revenue_growth': ('revenue_current', 'revenue_previous'),
         'reported_gross_margin': ('gross_profit', 'revenue_current'),

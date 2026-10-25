@@ -507,3 +507,12 @@ values before recording a decision. Optional missing value/page pairs remain
 valid. Deeply nested or malformed JSON produces a controlled preview error,
 leaving discard available and the real analysis untouched. These checks do not
 replace the SDK's full tool schema validation or establish source accuracy.
+
+
+Approval controls now compare proposed citations with the bound PDF's actual page
+count before recording approval. Out-of-document citations leave the decision
+pending without executing tools or consuming the local script; the reviewer can
+still reject the request. This covers both required and optional citations, with
+page-count checks supplied by the offline continuation and real-pause decision
+controls. The preview also displays the primary source page in its metadata.
+No paid continuation is enabled by these decision checks.

@@ -230,3 +230,38 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertTrue(result['evaluation']['simulation'])
         self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
         self.assertEqual(len(self.app.get('download_button')), 0)
+
+    def test_unavailable_citation_cannot_be_approved_but_can_be_rejected(self):
+        import json
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        from due_diligence_engine import run_due_diligence
+        from live_financial_pause_handoff import SDKFinancialApprovalPaused
+        from scripted_offline_model import ScriptedOfflineModel
+        from synthetic_conflict_document import read_synthetic_conflict_pages
+        from openai.types.responses import ResponseFunctionToolCall
+        raw = session['handoff']['sdk_state'].get_interruptions()[0].raw_item
+        fields = json.loads(raw.arguments)
+        fields['revenue_current_page'] = 3
+        model = ScriptedOfflineModel()
+        model.responses = [[ResponseFunctionToolCall(id='unavailable_f', call_id='unavailable_c',
+            type='function_call', name='submit_financial_data', arguments=json.dumps(fields),
+            status='completed')]] + session['model'].responses
+        pdf = self.pdf_path.read_bytes()
+        with self.assertRaises(SDKFinancialApprovalPaused) as paused:
+            run_due_diligence(read_synthetic_conflict_pages(pdf), offline_scripted_model=model,
+                              financial_approval_required=True, pause_pdf_bytes=pdf)
+        session['handoff'] = paused.exception.handoff
+        session['model'] = model
+        session.pop('displayed_request_sha256', None)
+        self.app.run()
+        self.assertTrue(any('page 3 is unavailable' in item.value for item in self.app.warning))
+        self.app.button(key='app_workflow_approve').click().run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(any('PAGE_OUT_OF_RANGE' in item.value for item in self.app.error))
+        self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(session['model'].calls, 1)
+        self.click('app_workflow_reject')
+        self.assertEqual(session['result']['financial'], {})
+        self.assertFalse(session['result']['evaluation']['final_eligible'])
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')

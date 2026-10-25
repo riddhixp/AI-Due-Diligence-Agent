@@ -252,13 +252,13 @@ if uploaded_file is not None:
             approve_live, reject_live = st.columns(2)
             if approve_live.button("Approve paused financial submission"):
                 try:
-                    decide_live_financial_pause(live_handoff, pdf_bytes, True)
+                    decide_live_financial_pause(live_handoff, pdf_bytes, True, total_pages=len(pages))
                     st.rerun()
                 except ValueError as error:
                     st.error(str(error))
             if reject_live.button("Reject paused financial submission"):
                 try:
-                    decide_live_financial_pause(live_handoff, pdf_bytes, False)
+                    decide_live_financial_pause(live_handoff, pdf_bytes, False, total_pages=len(pages))
                     st.rerun()
                 except ValueError as error:
                     st.error(str(error))

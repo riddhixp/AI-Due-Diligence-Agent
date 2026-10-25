@@ -50,9 +50,11 @@ def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_r
             raise ValueError("APPROVAL_RESUME_ALREADY_CLAIMED")
         try:
             decide_live_financial_pause(
-                handoff, pdf_bytes, approved, expected_request_sha256=expected_request_sha256)
+                handoff, pdf_bytes, approved, expected_request_sha256=expected_request_sha256,
+                total_pages=len(pages))
         except ValueError as error:
-            if str(error) != "FINANCIAL_APPROVAL_REQUEST_CHANGED":
+            if str(error) not in ("FINANCIAL_APPROVAL_REQUEST_CHANGED",
+                                  "FINANCIAL_APPROVAL_PAGE_OUT_OF_RANGE"):
                 handoff["status"] = "FAILED"
             raise
         except BaseException:

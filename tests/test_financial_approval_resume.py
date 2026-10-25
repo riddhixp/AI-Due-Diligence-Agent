@@ -244,3 +244,39 @@ class ApprovalResumeTests(unittest.TestCase):
             approve.assert_not_called()
         self.assertEqual(self.handoff['status'], 'AWAITING_APPROVAL')
         self.assertEqual(self.model.calls, 1)
+
+    def test_out_of_document_page_blocks_approval_without_consuming_decision(self):
+        from unittest.mock import patch
+        self._pause_with_arguments({**self.fields, 'revenue_current_page': 2})
+        state = self.handoff['sdk_state']
+        responses = list(self.model.responses)
+        with patch.object(state, 'approve', wraps=state.approve) as approve:
+            with self.assertRaisesRegex(ValueError, 'FINANCIAL_APPROVAL_PAGE_OUT_OF_RANGE'):
+                decide_and_resume_offline(self.handoff, self.pdf, True, self.model)
+            approve.assert_not_called()
+        self.assertEqual(self.handoff['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(self.model.calls, 1)
+        self.assertEqual(self.model.responses, responses)
+        result = decide_and_resume_offline(self.handoff, self.pdf, False, self.model,
+                                         stop_after_rejection=True)
+        self.assertEqual(result['financial'], {})
+        self.assertFalse(result['evaluation']['final_eligible'])
+
+    def test_out_of_document_optional_page_is_also_blocked(self):
+        self._pause_with_arguments({**self.fields,
+            'operating_cash_flow': 60, 'operating_cash_flow_page': 2})
+        with self.assertRaisesRegex(ValueError, 'FINANCIAL_APPROVAL_PAGE_OUT_OF_RANGE'):
+            decide_and_resume_offline(self.handoff, self.pdf, True, self.model)
+        self.assertEqual(self.handoff['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(self.model.calls, 1)
+
+    def _pause_with_arguments(self, fields):
+        from due_diligence_engine import run_due_diligence
+        from live_financial_pause_handoff import SDKFinancialApprovalPaused
+        model = ScriptedOfflineModel()
+        model.responses = [call('submit_financial_data', fields, 101), self.model.responses[-1]]
+        with self.assertRaises(SDKFinancialApprovalPaused) as paused:
+            run_due_diligence(PAGES, offline_scripted_model=model,
+                              financial_approval_required=True, pause_pdf_bytes=self.pdf)
+        self.handoff = paused.exception.handoff
+        self.model = model
