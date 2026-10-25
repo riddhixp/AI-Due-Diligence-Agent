@@ -18,7 +18,8 @@ def render_correction_workflow(st, pdf_bytes):
         st.session_state.pop(SESSION_KEY, None)
         session = None
     scenarios = {'Standard correction': 'standard',
-                 'Recover after unrelated source read': 'source_recovery'}
+                 'Recover after unrelated source read': 'source_recovery',
+                 'Remove unsupported cash flow': 'optional_removal'}
     selected = st.selectbox('Free rehearsal scenario', list(scenarios),
                             key='app_workflow_scenario')
     if st.button('Start FREE application workflow', key='app_workflow_start'):
@@ -35,6 +36,10 @@ def render_correction_workflow(st, pdf_bytes):
         st.caption('Active rehearsal: source-read recovery. The scripted model first reads '
                    'an unrelated page. That correction is blocked; it then reads the cited '
                    'page and requests a new approval. Expect three approval steps.')
+    if session.get('scenario') == 'optional_removal':
+        st.caption('Active rehearsal: remove unsupported cash flow. The first review flags '
+                   'an unsupported optional figure. The correction removes it; unavailable '
+                   'cash flow must remain missing, not become zero.')
     handoff = session['handoff']
     result = session.get('result')
     if result is not None:

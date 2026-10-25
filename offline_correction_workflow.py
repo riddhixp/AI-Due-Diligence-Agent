@@ -14,12 +14,14 @@ from synthetic_financial_fixture import conflict_submission_arguments
 
 
 def start_offline_correction_workflow(pdf_bytes, *, scenario="standard"):
-    if scenario not in ("standard", "source_recovery"):
+    if scenario not in ("standard", "source_recovery", "optional_removal"):
         raise ValueError("UNKNOWN_OFFLINE_WORKFLOW_SCENARIO")
     pages = read_synthetic_conflict_pages(pdf_bytes)
     fields = conflict_submission_arguments()
     wrong = dict(fields, revenue_current=130, reported_revenue_growth=30,
                  reported_gross_margin=61.54, reported_net_margin=23.08)
+    if scenario == "optional_removal":
+        wrong = dict(fields, operating_cash_flow=999, operating_cash_flow_page=2)
 
     def call(name, args, index):
         return [ResponseFunctionToolCall(id=f'flow_f{index}', call_id=f'flow_c{index}',

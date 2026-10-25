@@ -203,3 +203,21 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.click('app_workflow_approve')
         self.assertEqual(session['handoff']['checkpoint']['submission_count'], 1)
         self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
+
+    def test_optional_removal_is_visible_before_approval_and_stays_missing(self):
+        self.app.selectbox(key='app_workflow_scenario').select('Remove unsupported cash flow').run()
+        self.click('app_workflow_start')
+        self.click('app_workflow_approve')
+        frame = self.app.dataframe[0].value
+        row = frame[frame['Metric'] == 'Operating cash flow'].iloc[0]
+        self.assertEqual(row['Previous'], 999)
+        self.assertEqual(row['Change'], 'Removed')
+        self.assertEqual(list(row['Previous PDF pages']), [2])
+        self.assertEqual(list(row['PDF pages']), [])
+        self.click('app_workflow_approve')
+        result = self.app.session_state['offline_application_workflow']['result']
+        self.assertIsNone(result['financial']['operating_cash_flow'])
+        self.assertIsNone(result['financial']['source_pages']['operating_cash_flow'])
+        self.assertTrue(result['evaluation']['simulation'])
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+        self.assertEqual(len(self.app.get('download_button')), 0)

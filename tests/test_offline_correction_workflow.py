@@ -185,3 +185,37 @@ class FullCorrectionWorkflowTests(unittest.TestCase):
         self.assertIn('TOOL_TRACE_MISMATCH', result['evaluation']['issues'])
         self.assertFalse(result['evaluation']['final_eligible'])
         self.assertIsNone(result['validation'])
+
+    def test_optional_removal_clears_approved_value_and_citation(self):
+        from financial_approval_preview import financial_approval_preview
+        from financial_insights import ExtendedFinancialData, calculate_financial_insights
+        session = start_offline_correction_workflow(self.pdf, scenario='optional_removal')
+        paused = decide_and_resume_offline(session['handoff'], self.pdf, True, session['model'])
+        self.assertEqual(paused['handoff']['checkpoint']['review_status'], 'NEEDS_REVIEW')
+        preview = financial_approval_preview(paused['handoff'])
+        row = next(row for row in preview['metrics'] if row['Metric'] == 'Operating cash flow')
+        self.assertEqual(row['Previous'], 999)
+        self.assertEqual(row['Change'], 'Removed')
+        self.assertIsNone(row['Proposed'])
+        result = decide_and_resume_offline(paused['handoff'], self.pdf, True, session['model'])
+        financial = result['financial']
+        self.assertIsNone(financial['operating_cash_flow'])
+        self.assertIsNone(financial['source_pages']['operating_cash_flow'])
+        self.assertTrue(result['evaluation']['final_eligible'])
+        self.assertFalse(final_report_eligible(result['evaluation']))
+        data = ExtendedFinancialData(**{key: financial.get(key) for key in ExtendedFinancialData.__dataclass_fields__})
+        insights = calculate_financial_insights(data)
+        self.assertIsNone(insights['operating_cash_conversion'])
+        self.assertIsNone(insights['free_cash_flow'])
+        self.assertEqual(session['model'].calls, 7)
+
+    def test_declined_optional_removal_keeps_previous_unverified_value(self):
+        session = start_offline_correction_workflow(self.pdf, scenario='optional_removal')
+        paused = decide_and_resume_offline(session['handoff'], self.pdf, True, session['model'])
+        result = decide_and_resume_offline(paused['handoff'], self.pdf, False, session['model'],
+                                         stop_after_rejection=True)
+        self.assertEqual(result['financial']['operating_cash_flow'], 999)
+        self.assertEqual(result['financial']['source_pages']['operating_cash_flow'], 2)
+        self.assertEqual(result['evaluation']['financial_evidence'], 'NEEDS_REVIEW')
+        self.assertFalse(result['evaluation']['final_eligible'])
+        self.assertIsNone(result['validation'])

@@ -90,6 +90,18 @@ def run_offline_evaluation():
                        and recovered['evaluation']['final_eligible'] is True
                        and not final_report_eligible(recovered['evaluation'])
                        and recovery['model'].calls == 9))
+        removal = start_offline_correction_workflow(pdf, scenario='optional_removal')
+        removal_pause = decide_and_resume_offline(removal['handoff'], pdf, True, removal['model'])
+        before = removal_pause['handoff']['checkpoint']
+        checks.append(('unsupported_optional_figure_requires_review',
+                       before['financial_data']['operating_cash_flow'] == 999
+                       and before['review_status'] == 'NEEDS_REVIEW'))
+        removed = decide_and_resume_offline(removal_pause['handoff'], pdf, True, removal['model'])
+        checks.append(('approved_optional_removal_clears_value_and_citation',
+                       removed['financial']['operating_cash_flow'] is None
+                       and removed['financial']['source_pages']['operating_cash_flow'] is None
+                       and removed['evaluation']['final_eligible'] is True
+                       and not final_report_eligible(removed['evaluation'])))
     return {
         'evaluation': 'PASS' if all(passed for _, passed in checks) else 'FAIL',
         'execution_mode': 'SCRIPTED_OFFLINE_FULL_ENGINE',

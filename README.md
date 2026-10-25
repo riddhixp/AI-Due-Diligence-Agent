@@ -460,3 +460,12 @@ Missing optional citations remain missing, and optional figures omitted by a
 correction appear explicitly as removed. The evidence panel includes both old
 and proposed pages for comparison. Previewing these changes does not verify the
 proposal, record approval or invoke a model.
+
+
+The **Remove unsupported cash flow** free rehearsal submits an unsupported optional
+cash-flow figure, pauses for a correction that omits it, and clears both its value
+and citation only when approved. The preview explicitly marks the removal. Missing
+cash flow remains unavailable in diagnostics, including cash conversion and free
+cash flow. Declining the removal preserves the prior unverified figure and blocks
+completion. This is another fixed synthetic script, with no provider calls or
+final-report exports; the standalone evaluation now includes 13 workflow checks.
