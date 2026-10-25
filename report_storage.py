@@ -54,9 +54,14 @@ def load_report(pdf_bytes):
     if not file_path.exists():
         return None
 
-    data = json.loads(file_path.read_text(encoding="utf-8"),
-                      object_pairs_hook=_unique_fields, parse_constant=_reject_constant,
-                      parse_float=_finite_float)
+    try:
+        data = json.loads(file_path.read_text(encoding="utf-8"),
+                          object_pairs_hook=_unique_fields, parse_constant=_reject_constant,
+                          parse_float=_finite_float)
+    except RecursionError as error:
+        # Treat parser depth exhaustion as a corrupt cache, so the UI can show
+        # its existing local-load warning without running a replacement model.
+        raise ValueError("SAVED_REPORT_NESTING_TOO_DEEP") from error
     if not isinstance(data, dict):
         raise ValueError("INVALID_SAVED_REPORT")
     return data

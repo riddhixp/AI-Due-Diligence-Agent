@@ -6,7 +6,9 @@ from report_verification import finalise_dd_report
 
 
 def recheck_cached_analysis(saved, pages):
-    if not isinstance(saved, dict):
+    if (not isinstance(saved, dict)
+            or not isinstance(saved.get('report'), str)
+            or not saved['report'].strip()):
         raise ValueError('INVALID_SAVED_ANALYSIS')
     financial = deepcopy(saved.get('financial_data') or {})
     issues = ['ORIGINAL_TOOL_HISTORY_UNAVAILABLE']
