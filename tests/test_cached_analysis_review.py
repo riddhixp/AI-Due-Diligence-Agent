@@ -68,3 +68,18 @@ class CachedAnalysisReviewTests(unittest.TestCase):
         self.assertEqual(result['validation']['revenue_growth']['status'], 'UNAVAILABLE')
         self.assertEqual(result['agent_evaluation']['financial_evidence'], 'NEEDS_REVIEW')
         self.assertFalse(final_report_eligible(result['agent_evaluation']))
+
+    def test_invalid_narrative_is_rejected_before_evidence_review(self):
+        for report in [None, '', '  \n ', False, 123, ['Findings'], {'text': 'Findings'}]:
+            with self.subTest(report=report):
+                saved = {'report': report, 'financial_data': supported_submission()}
+                original = copy.deepcopy(saved)
+                with patch('cached_analysis_review.review_financial_evidence') as review:
+                    with self.assertRaisesRegex(ValueError, 'INVALID_SAVED_ANALYSIS'):
+                        recheck_cached_analysis(saved, PAGES)
+                    review.assert_not_called()
+                self.assertEqual(saved, original)
+
+    def test_missing_narrative_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'INVALID_SAVED_ANALYSIS'):
+            recheck_cached_analysis({'financial_data': supported_submission()}, PAGES)

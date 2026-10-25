@@ -70,3 +70,34 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
                 self.assertNotIn('live_financial_pause', app.session_state)
                 self.assertFalse(app.button(key='analyse_company').disabled)
                 run.assert_not_called()
+
+    def test_corrupt_saved_analysis_warns_without_model_or_partial_session(self):
+        import report_storage
+        with tempfile.TemporaryDirectory() as folder:
+            directory = Path(folder)
+            pdf = create_conflict_fixture(directory / 'fixture.pdf').read_bytes()
+            cache = directory / (report_storage.get_report_id(pdf) + '.json')
+            payloads = [
+                '{"report":["Invalid narrative"],"financial_data":{}}',
+                '{"report":"Findings","nested":' + '[' * 10000 + '0' + ']' * 10000 + '}',
+            ]
+            for payload in payloads:
+                with self.subTest(nested=len(payload) > 1000):
+                    cache.write_text(payload, encoding='utf-8')
+                    upload = BytesIO(pdf)
+                    upload.name = 'fixture.pdf'
+                    app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py'),
+                                            default_timeout=20)
+                    with patch('streamlit.file_uploader', return_value=upload), \
+                         patch.object(report_storage, 'REPORTS_DIR', directory), \
+                         patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')), \
+                         patch('due_diligence_engine.run_due_diligence',
+                               side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as run:
+                        app.run()
+                    self.assertFalse(app.exception)
+                    self.assertTrue(any('Saved analysis could not be loaded' in item.value
+                                        for item in app.warning))
+                    for key in ['report', 'financial_data', 'validation', 'agent_evaluation']:
+                        self.assertNotIn(key, app.session_state)
+                    run.assert_not_called()
+                    self.assertEqual(cache.read_text(encoding='utf-8'), payload)

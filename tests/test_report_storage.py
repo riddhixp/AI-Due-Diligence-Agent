@@ -124,6 +124,14 @@ class TestReportStorage(unittest.TestCase):
                     report_storage.load_report(self.pdf_bytes)
                 self.assertEqual(path.read_text(encoding='utf-8'), text)
 
+    def test_excessively_nested_cache_is_rejected_without_rewriting(self):
+        path = self.reports_dir / (report_storage.get_report_id(self.pdf_bytes) + '.json')
+        payload = '{"report":"Findings","nested":' + '[' * 10000 + '0' + ']' * 10000 + '}'
+        path.write_text(payload, encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'SAVED_REPORT_NESTING_TOO_DEEP'):
+            report_storage.load_report(self.pdf_bytes)
+        self.assertEqual(path.read_text(encoding='utf-8'), payload)
+
 
 if __name__ == "__main__":
     unittest.main()
