@@ -265,3 +265,31 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertEqual(session['result']['financial'], {})
         self.assertFalse(session['result']['evaluation']['final_eligible'])
         self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
+    def test_local_proposal_checks_are_visible_before_each_free_decision(self):
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        self.assertTrue(any('Proposed figures need review' in item.value for item in self.app.warning))
+        self.assertEqual(session['handoff']['checkpoint']['submission_count'], 0)
+        self.assertEqual(session['model'].calls, 2)
+        self.assertTrue(any('status' in frame.value.columns for frame in self.app.dataframe[1:]))
+        self.click('app_workflow_approve')
+        self.assertTrue(any('passed local preliminary checks' in item.value for item in self.app.info))
+        self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(session['handoff']['checkpoint']['financial_data']['revenue_current'], 130)
+        self.assertEqual(session['model'].calls, 5)
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
+    def test_local_check_failure_leaves_rehearsal_rejectable_and_discardable(self):
+        with patch('proposed_financial_review_ui.review_proposed_financial_request',
+                   side_effect=ValueError('LOCAL_REVIEW_UNAVAILABLE')):
+            self.click('app_workflow_start')
+            session = self.app.session_state['offline_application_workflow']
+            self.assertTrue(any('Local checks are unavailable' in item.value for item in self.app.warning))
+            self.assertEqual(session['handoff']['checkpoint']['submission_count'], 0)
+            self.assertEqual(session['model'].calls, 2)
+            self.click('app_workflow_reject')
+        self.assertEqual(session['result']['financial'], {})
+        self.assertFalse(session['result']['evaluation']['final_eligible'])
+        self.click('app_workflow_discard')
+        self.assertNotIn('offline_application_workflow', self.app.session_state)

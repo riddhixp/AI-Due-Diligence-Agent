@@ -3,6 +3,7 @@ from investigation_checkpoint import document_fingerprint
 from offline_correction_workflow import start_offline_correction_workflow
 from financial_approval_resume import decide_and_resume_offline
 from financial_approval_preview import financial_approval_preview
+from proposed_financial_review_ui import render_proposed_financial_review
 from synthetic_conflict_document import read_synthetic_conflict_pages
 
 SESSION_KEY = 'offline_application_workflow'
@@ -78,6 +79,7 @@ def render_correction_workflow(st, pdf_bytes):
                     st.text(pages[int(page) - 1])
                 else:
                     st.warning(f'Cited PDF page {page} is unavailable.')
+        render_proposed_financial_review(st, handoff['sdk_state'], pages, preview['request_sha256'])
         if handoff['checkpoint']['submission_count']:
             st.write('Previous review:', handoff['checkpoint']['review_status'])
         st.caption('Approving or rejecting continues only the local scripted model. '
