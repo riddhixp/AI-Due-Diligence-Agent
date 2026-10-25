@@ -24,7 +24,7 @@ from tool_state_rebinding import prepare_tool_state
 from sdk_resume_gate import checked_resume_mode
 from sdk_resume_once import consume_sdk_resume_state
 from live_financial_pause_handoff import make_financial_pause_handoff, SDKFinancialApprovalPaused
-from live_financial_approval_decision import decide_live_financial_pause
+from live_financial_approval_ui import render_live_financial_decision, DISPLAY_KEY as LIVE_PREVIEW_KEY
 from live_continuation_preflight import preflight_live_continuation
 from latest_review_gate import trusted_latest_review
 from completion_boundary import enforce_completion_boundary
@@ -244,43 +244,23 @@ if uploaded_file is not None:
             "No completed report was produced. Paid resume is disabled."
         )
         st.write("Pending approval checkpoint:", public_pause)
-        if live_handoff.get("status") == "AWAITING_APPROVAL":
-            st.caption(
-                "This decision will be applied to the paused SDK state. "
-                "It will not resume the AI model or use additional API credits."
-            )
-            approve_live, reject_live = st.columns(2)
-            if approve_live.button("Approve paused financial submission"):
+        render_live_financial_decision(st, live_handoff, pdf_bytes)
+        if live_handoff.get("status") == "APPROVED":
+            if st.button("Check financial continuation readiness (FREE)"):
                 try:
-                    decide_live_financial_pause(live_handoff, pdf_bytes, True, total_pages=len(pages))
-                    st.rerun()
+                    st.session_state["live_continuation_preflight"] = (
+                        preflight_live_continuation(live_handoff, pdf_bytes)
+                    )
                 except ValueError as error:
                     st.error(str(error))
-            if reject_live.button("Reject paused financial submission"):
-                try:
-                    decide_live_financial_pause(live_handoff, pdf_bytes, False, total_pages=len(pages))
-                    st.rerun()
-                except ValueError as error:
-                    st.error(str(error))
-        else:
-            st.info(
-                "Financial submission decision recorded: "
-                f"{live_handoff['status']}. The model has not resumed."
-            )
-            if live_handoff["status"] == "APPROVED":
-                if st.button("Check financial continuation readiness (FREE)"):
-                    try:
-                        st.session_state["live_continuation_preflight"] = (
-                            preflight_live_continuation(live_handoff, pdf_bytes)
-                        )
-                    except ValueError as error:
-                        st.error(str(error))
-                ready = st.session_state.get("live_continuation_preflight")
-                if ready is not None:
-                    st.write("Continuation checks:", ready)
-                    st.caption("No AI model resumed; paid continuation remains disabled.")
+            ready = st.session_state.get("live_continuation_preflight")
+            if ready is not None:
+                st.write("Continuation checks:", ready)
+                st.caption("No AI model resumed; paid continuation remains disabled.")
         if st.button("Discard paused investigation"):
             st.session_state.pop("live_financial_pause", None)
+            st.session_state.pop(LIVE_PREVIEW_KEY, None)
+            st.session_state.pop("live_continuation_preflight", None)
             st.rerun()
 
     st.subheader("FREE approval interface demo")

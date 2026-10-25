@@ -516,3 +516,13 @@ still reject the request. This covers both required and optional citations, with
 page-count checks supplied by the offline continuation and real-pause decision
 controls. The preview also displays the primary source page in its metadata.
 No paid continuation is enabled by these decision checks.
+
+
+The real-pause decision screen now shows proposed figures, metadata, previous
+citations and PDF evidence before a decision. Approval and rejection are bound to
+the request last displayed for that document; replacing a pending request requires
+reviewing the refreshed preview before another click can record the decision.
+A changed PDF hides decision controls. These controls only call SDK approve/reject:
+they do not resume the model, execute financial tools or consume additional API
+credits. Automated UI tests create the genuine SDK pause with a local scripted
+model and block network access throughout. Paid continuation remains disabled.
