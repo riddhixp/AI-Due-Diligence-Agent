@@ -101,3 +101,38 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
                         self.assertNotIn(key, app.session_state)
                     run.assert_not_called()
                     self.assertEqual(cache.read_text(encoding='utf-8'), payload)
+
+    def test_invalid_cached_figures_preserve_narrative_without_dashboard_crash(self):
+        import report_storage
+        from synthetic_financial_fixture import supported_submission
+        with tempfile.TemporaryDirectory() as folder:
+            directory = Path(folder)
+            pdf = create_conflict_fixture(directory / 'fixture.pdf').read_bytes()
+            for field, value in [('fiscal_year', 'not a year'),
+                                 ('fiscal_year', True),
+                                 ('operating_cash_flow', 'not a number'),
+                                 ('currency', ['USD'])]:
+                with self.subTest(field=field, value=value):
+                    financial = supported_submission()
+                    financial[field] = value
+                    upload = BytesIO(pdf)
+                    upload.name = 'fixture.pdf'
+                    app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py'),
+                                            default_timeout=20)
+                    with patch('streamlit.file_uploader', return_value=upload), \
+                         patch.object(report_storage, 'REPORTS_DIR', directory), \
+                         patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')), \
+                         patch('due_diligence_engine.run_due_diligence',
+                               side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as run:
+                        report_storage.save_report(pdf, '# Retained cached narrative', {}, financial)
+                        app.run()
+                        saved = report_storage.load_report(pdf)
+                    self.assertFalse(app.exception)
+                    self.assertEqual(app.session_state['financial_data'], {})
+                    self.assertIsNone(app.session_state['validation'])
+                    self.assertTrue(app.session_state['report'].endswith('# Retained cached narrative'))
+                    self.assertTrue(any('Financial evidence not fully verified' in item.value
+                                        for item in app.markdown))
+                    self.assertFalse(app.session_state['agent_evaluation']['final_eligible'])
+                    self.assertEqual(saved['financial_data'], financial)
+                    run.assert_not_called()

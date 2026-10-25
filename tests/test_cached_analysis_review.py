@@ -83,3 +83,37 @@ class CachedAnalysisReviewTests(unittest.TestCase):
     def test_missing_narrative_is_rejected(self):
         with self.assertRaisesRegex(ValueError, 'INVALID_SAVED_ANALYSIS'):
             recheck_cached_analysis({'financial_data': supported_submission()}, PAGES)
+
+    def test_invalid_cached_metadata_is_cleared_before_dashboard_formatting(self):
+        invalid = [('fiscal_year', value) for value in [None, True, '2025', 'bad', 2025.5, 0, 10000]]
+        invalid += [(field, value) for field in ['company', 'currency', 'units']
+                    for value in [None, True, 123, ['USD'], {'text': 'USD'}]]
+        for field, value in invalid:
+            with self.subTest(field=field, value=value):
+                financial = supported_submission()
+                financial[field] = value
+                result = recheck_cached_analysis({'report': '# Findings', 'financial_data': financial}, PAGES)
+                self.assertEqual(result['financial_data'], {})
+                self.assertIsNone(result['validation'])
+                self.assertIn('INVALID_CACHED_FINANCIALS', result['agent_evaluation']['issues'])
+                self.assertTrue(result['report'].endswith('# Findings'))
+
+    def test_all_optional_cached_metrics_require_finite_numeric_values(self):
+        from optional_statement_metrics import OPTIONAL_STATEMENT_METRICS
+        for field, *_ in OPTIONAL_STATEMENT_METRICS:
+            for value in [True, '123', [], float('inf'), float('nan')]:
+                with self.subTest(field=field, value=value):
+                    financial = supported_submission()
+                    financial[field] = value
+                    result = recheck_cached_analysis({'report': '# Findings', 'financial_data': financial}, PAGES)
+                    self.assertEqual(result['financial_data'], {})
+                    self.assertIsNone(result['validation'])
+                    self.assertFalse(result['agent_evaluation']['final_eligible'])
+
+    def test_unestablished_text_metadata_remains_an_evidence_issue(self):
+        financial = supported_submission()
+        financial['units'] = 'unknown'
+        result = recheck_cached_analysis({'report': '# Findings', 'financial_data': financial}, PAGES)
+        self.assertEqual(result['financial_data'], financial)
+        self.assertEqual(result['agent_evaluation']['financial_evidence'], 'NEEDS_REVIEW')
+        self.assertNotIn('INVALID_CACHED_FINANCIALS', result['agent_evaluation']['issues'])
