@@ -543,3 +543,12 @@ lookup. Free approval and inspection controls remain available. A full-app UI te
 covers a forced dispatched event, approval without continuation, and discarding
 the pause to re-enable a fresh run; the provider entry point is forbidden and
 network access is blocked throughout.
+
+
+Document session cleanup is centralized for upload changes and removal. Removing
+the PDF clears transient reports, figures, approval queues, SDK pauses, preview
+receipts and readiness results while retaining app preferences. Re-uploading the
+same bytes after removal does not resurrect the old SDK state. An unchanged active
+upload preserves its session; changed content clears it even when filename and
+size match. Persisted reports continue through the normal local evidence recheck.
+Full-app tests cover removal and re-upload with provider execution forbidden.

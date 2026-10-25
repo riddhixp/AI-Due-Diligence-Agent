@@ -14,6 +14,7 @@ from agent_evaluation import evaluate_agent_run
 from run_limits import permitted_turn_limit
 from cache_policy import should_cache_report
 from fresh_analysis_policy import fresh_analysis_block_reason
+from document_session import set_active_document
 from correction_changes import financial_correction_changes
 from revenue_narrative_check import find_reversed_revenue_arrows
 from fault_injection import inject_first_submission_error
@@ -121,22 +122,7 @@ if uploaded_file is not None:
     )
 
 
-    if st.session_state.get("file_id") != file_id:
-        st.session_state["file_id"] = file_id
-        st.session_state.pop("report", None)
-        st.session_state.pop("validation", None)
-        st.session_state.pop("financial_data", None)
-        st.session_state.pop("agent_evaluation", None)
-        st.session_state.pop("offline_approval_queue", None)
-        st.session_state.pop("sdk_offline_approval", None)
-        st.session_state.pop("financial_resume_demo", None)
-        st.session_state.pop("financial_resume_result", None)
-        st.session_state.pop("offline_application_workflow", None)
-        st.session_state.pop("paid_test_plan_preview", None)
-        st.session_state.pop("offline_practice_suite", None)
-        st.session_state.pop("live_financial_pause", None)
-        st.session_state.pop(LIVE_PREVIEW_KEY, None)
-        st.session_state.pop("live_continuation_preflight", None)
+    set_active_document(st.session_state, file_id)
 
     if len(pdf_bytes) > 15 * 1024 * 1024:
         st.error("Please upload a PDF smaller than 15 MB.")
@@ -933,4 +919,5 @@ if uploaded_file is not None:
         )
 
 else:
+    set_active_document(st.session_state, None)
     st.info("Upload a company PDF to begin.")

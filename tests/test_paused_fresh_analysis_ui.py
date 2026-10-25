@@ -22,7 +22,7 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
             app = AppTest.from_file(str(app_path), default_timeout=20)
             app.session_state['file_id'] = (upload.name, len(pdf), document_fingerprint(pdf))
             app.session_state['live_financial_pause'] = fixture['handoff']
-            with patch('streamlit.file_uploader', return_value=upload), \
+            with patch('streamlit.file_uploader', return_value=upload) as uploader, \
                  patch('report_storage.load_report', return_value=None), \
                  patch('due_diligence_engine.run_due_diligence', side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as run:
                 app.run()
@@ -49,6 +49,24 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
                 discard = next(button for button in app.button if button.label == 'Discard paused investigation')
                 discard.click().run()
                 self.assertFalse(app.exception)
+                self.assertNotIn('live_financial_pause', app.session_state)
+                self.assertFalse(app.button(key='analyse_company').disabled)
+                run.assert_not_called()
+
+                # Removing and re-uploading identical bytes must not resurrect
+                # an earlier report or SDK decision from transient session state.
+                app.session_state['report'] = 'Earlier report'
+                app.session_state['live_financial_pause'] = fixture['handoff']
+                app.session_state['live_financial_displayed_request'] = {'old': True}
+                uploader.return_value = None
+                app.run()
+                self.assertFalse(app.exception)
+                for key in ['file_id', 'report', 'live_financial_pause', 'live_financial_displayed_request']:
+                    self.assertNotIn(key, app.session_state)
+                uploader.return_value = upload
+                app.run()
+                self.assertFalse(app.exception)
+                self.assertNotIn('report', app.session_state)
                 self.assertNotIn('live_financial_pause', app.session_state)
                 self.assertFalse(app.button(key='analyse_company').disabled)
                 run.assert_not_called()
