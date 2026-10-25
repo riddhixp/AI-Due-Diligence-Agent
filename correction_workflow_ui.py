@@ -38,7 +38,10 @@ def render_correction_workflow(st, pdf_bytes):
     handoff = session['handoff']
     result = session.get('result')
     if result is not None:
-        st.success('Offline workflow finished. External API calls: 0.')
+        if result['evaluation'].get('final_eligible') is True:
+            st.success('Offline workflow completed its scripted checks. External API calls: 0.')
+        else:
+            st.warning('Offline workflow ended with incomplete checks. External API calls: 0.')
         financial = result['financial']
         st.write('Final synthetic revenue:', financial.get('revenue_current', 'Not submitted'))
         st.write('Evidence check:', result['evaluation']['financial_evidence'])
@@ -49,6 +52,7 @@ def render_correction_workflow(st, pdf_bytes):
             preview = financial_approval_preview(handoff)
         except ValueError as error:
             st.error(str(error))
+            _render_discard(st)
             return
         shown_fingerprint = session.get('displayed_request_sha256', preview['request_sha256'])
         st.warning('Financial submission awaiting your decision. Compare the proposed figures with the PDF.')
@@ -77,13 +81,10 @@ def render_correction_workflow(st, pdf_bytes):
             try:
                 if shown_fingerprint != preview['request_sha256']:
                     raise ValueError("FINANCIAL_APPROVAL_REQUEST_CHANGED")
-                if rejected:
-                    # End this fixed demonstration script after a declined request.
-                    # The SDK still records rejection and skips the pending tool.
-                    session['model'].responses = session['model'].responses[-1:]
                 resumed = decide_and_resume_offline(
                     handoff, pdf_bytes, approved, session['model'],
-                    expected_request_sha256=shown_fingerprint)
+                    expected_request_sha256=shown_fingerprint,
+                    stop_after_rejection=rejected)
                 if resumed['status'] == 'AWAITING_APPROVAL':
                     session['handoff'] = resumed['handoff']
                     session.pop('displayed_request_sha256', None)
@@ -91,12 +92,24 @@ def render_correction_workflow(st, pdf_bytes):
                     session['result'] = resumed
                 st.rerun()
             except ValueError as error:
+                if handoff.get('status') != 'AWAITING_APPROVAL':
+                    session['workflow_error'] = 'Offline continuation failed. Start a new rehearsal to continue.'
+                    st.rerun()
                 st.error(str(error))
             except Exception:
-                st.error('Offline continuation failed. Start a new rehearsal to continue.')
+                if handoff.get('status') == 'AWAITING_APPROVAL':
+                    st.error('Offline continuation could not start. No automatic retry was made.')
+                else:
+                    session['workflow_error'] = 'Offline continuation failed. Start a new rehearsal to continue.'
+                    st.rerun()
         session['displayed_request_sha256'] = preview['request_sha256']
     else:
-        st.error('This rehearsal cannot be resumed again. Start a new rehearsal to continue.')
+        st.error(session.get('workflow_error',
+                            'This rehearsal cannot be resumed again. Start a new rehearsal to continue.'))
+    _render_discard(st)
+
+
+def _render_discard(st):
     if st.button('Discard FREE application workflow', key='app_workflow_discard'):
         st.session_state.pop(SESSION_KEY, None)
         st.rerun()

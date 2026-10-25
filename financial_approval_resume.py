@@ -15,7 +15,8 @@ from tool_state_rebinding import prepare_tool_state
 _claim_lock = threading.Lock()
 
 
-def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_request_sha256=None):
+def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_request_sha256=None,
+                              stop_after_rejection=False):
     """Apply one explicit decision and dispatch the genuine app SDK resume path.
 
     Consume the handoff before SDK mutation. Failures require manual inspection;
@@ -25,6 +26,8 @@ def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_r
         raise ValueError("LIVE_RESUME_DISABLED")
     if type(approved) is not bool:
         raise ValueError("INVALID_APPROVAL_DECISION")
+    if type(stop_after_rejection) is not bool:
+        raise ValueError("INVALID_REJECTION_STOP_OPTION")
     if not isinstance(handoff, dict) or handoff.get("live_resume_enabled") is not False:
         raise ValueError("INVALID_OFFLINE_HANDOFF")
     checkpoint = handoff.get("checkpoint")
@@ -55,6 +58,9 @@ def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_r
         except BaseException:
             handoff["status"] = "FAILED"
             raise
+        if not approved and stop_after_rejection:
+            # Change the fixed local script only after the SDK records rejection.
+            model.responses = model.responses[-1:]
         handoff["status"] = "RESUMING_OFFLINE"
 
     try:

@@ -132,3 +132,69 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertTrue(result['evaluation']['simulation'])
         self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
         self.assertEqual(len(self.app.get('download_button')), 0)
+
+    def test_invalid_preview_remains_discardable(self):
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        # Corrupt SDK-owned state, since public interruption previews are copies.
+        session['handoff']['sdk_state']._current_step.interruptions[0].raw_item.arguments = 'not JSON'
+        self.app.run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(self.app.error)
+        self.assertFalse(any(button.key == 'app_workflow_approve' for button in self.app.button))
+        self.app.button(key='app_workflow_discard').click().run()
+        self.assertNotIn('offline_application_workflow', self.app.session_state)
+        self.assertFalse(self.app.error)
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
+    def test_terminal_continuation_failure_removes_decision_controls(self):
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        session['model'].responses = []
+        self.app.button(key='app_workflow_approve').click().run()
+        self.assertFalse(self.app.exception)
+        self.assertEqual(session['handoff']['status'], 'FAILED')
+        self.assertTrue(any('Offline continuation failed' in item.value for item in self.app.error))
+        self.assertFalse(any(button.key in ('app_workflow_approve', 'app_workflow_reject')
+                             for button in self.app.button))
+        self.assertNotIn('result', session)
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+        self.click('app_workflow_start')
+        replacement = self.app.session_state['offline_application_workflow']
+        self.assertEqual(replacement['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertIsNot(replacement['handoff']['sdk_state'], session['handoff']['sdk_state'])
+        self.assertNotIn('workflow_error', replacement)
+
+    def test_incomplete_rehearsal_has_warning_instead_of_success(self):
+        self.click('app_workflow_start')
+        self.click('app_workflow_reject')
+        self.assertFalse(self.app.success)
+        self.assertTrue(any('ended with incomplete checks' in item.value for item in self.app.warning))
+        self.assertEqual(len(self.app.get('download_button')), 0)
+
+    def test_failure_before_decision_stays_visible_without_automatic_retry(self):
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        with patch('correction_workflow_ui.decide_and_resume_offline', side_effect=OSError('Local failure')) as resume:
+            self.app.button(key='app_workflow_approve').click().run()
+            self.assertEqual(resume.call_count, 1)
+        self.assertFalse(self.app.exception)
+        self.assertTrue(any('could not start' in item.value for item in self.app.error))
+        self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(session['model'].calls, 2)
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+        self.click('app_workflow_approve')
+        self.assertEqual(session['handoff']['checkpoint']['submission_count'], 1)
+
+    def test_rejection_failure_before_decision_preserves_script(self):
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        responses = list(session['model'].responses)
+        with patch('correction_workflow_ui.decide_and_resume_offline', side_effect=OSError('Local failure')):
+            self.app.button(key='app_workflow_reject').click().run()
+        self.assertFalse(self.app.exception)
+        self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(session['model'].responses, responses)
+        self.click('app_workflow_approve')
+        self.assertEqual(session['handoff']['checkpoint']['submission_count'], 1)
+        self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')

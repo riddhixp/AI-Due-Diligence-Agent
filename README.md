@@ -439,3 +439,15 @@ before writing. Loading rejects duplicate JSON fields, non-finite numbers and
 malformed report objects without rewriting the saved file; the app reports the
 load failure without starting a model. This storage behavior does not provide
 cross-server approval idempotency or preserve SDK conversations after restart.
+
+
+The free workflow keeps discard available when a pending request cannot be
+previewed. Terminal continuation failures remove approval/rejection controls and
+show a restart message; starting a new rehearsal creates a fresh SDK state.
+Failures before a decision remain visible without an automatic retry. Incomplete
+or rejected rehearsals display a warning rather than a success banner, and none
+of these paths modifies the real report or exposes final-report downloads.
+
+The fixed rejection script is shortened only after the SDK successfully records
+the decision, so a stale preview or pre-decision failure cannot discard the
+remaining rehearsal steps.

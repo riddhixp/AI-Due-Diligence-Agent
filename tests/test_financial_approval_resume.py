@@ -182,3 +182,15 @@ class ApprovalResumeTests(unittest.TestCase):
                 decide_and_resume_offline(self.handoff, self.pdf, False, self.model)
         self.assertEqual(self.handoff['status'], 'FAILED')
         self.assertEqual(self.model.calls, 1)
+
+    def test_stale_rejection_does_not_shorten_script_before_decision(self):
+        responses = list(self.model.responses)
+        with self.assertRaisesRegex(ValueError, 'FINANCIAL_APPROVAL_REQUEST_CHANGED'):
+            decide_and_resume_offline(self.handoff, self.pdf, False, self.model,
+                                     expected_request_sha256='stale', stop_after_rejection=True)
+        self.assertEqual(self.handoff['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(self.model.responses, responses)
+        self.assertEqual(self.model.calls, 1)
+        result = decide_and_resume_offline(self.handoff, self.pdf, True, self.model)
+        self.assertEqual(result['financial']['revenue_current'], 120)
+        self.assertTrue(result['evaluation']['final_eligible'])
