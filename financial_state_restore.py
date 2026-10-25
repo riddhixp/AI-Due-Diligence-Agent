@@ -32,6 +32,8 @@ def restore_financial_state(checkpoint, pdf_bytes):
         raise ValueError("INVALID_CHECKPOINT_DATA")
     if not all(isinstance(x, str) for x in events):
         raise ValueError("INVALID_TOOL_EVENTS")
+    if submissions == 0 and figures:
+        raise ValueError("FIGURES_WITHOUT_SUBMISSION")
     if submissions > 0 and not figures:
         raise ValueError("MISSING_SUBMISSION")
 

@@ -233,3 +233,14 @@ class ApprovalResumeTests(unittest.TestCase):
         self.assertFalse(progress['model_conversation_saved'])
         with self.assertRaisesRegex(ValueError, 'ALREADY_CLAIMED'):
             decide_and_resume_offline(self.handoff, self.pdf, True, self.model)
+
+    def test_inconsistent_checkpoint_is_blocked_before_sdk_decision(self):
+        from unittest.mock import patch
+        state = self.handoff['sdk_state']
+        self.handoff['checkpoint']['model_conversation_saved'] = True
+        with patch.object(state, 'approve', wraps=state.approve) as approve:
+            with self.assertRaisesRegex(ValueError, 'INVALID_CHECKPOINT_CAPABILITIES'):
+                decide_and_resume_offline(self.handoff, self.pdf, True, self.model)
+            approve.assert_not_called()
+        self.assertEqual(self.handoff['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(self.model.calls, 1)

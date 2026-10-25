@@ -64,6 +64,12 @@ class RestoreTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'STALE_LATEST_REVIEW'):
             prepare_tool_state(checkpoint, self.pdf)
 
+    def test_figures_without_accepted_submission_are_rejected(self):
+        self.checkpoint['submission_count'] = 0
+        self.checkpoint['tool_calls'] = []
+        with self.assertRaisesRegex(ValueError, 'FIGURES_WITHOUT_SUBMISSION'):
+            restore_financial_state(self.checkpoint, self.pdf)
+
 
 if __name__ == "__main__":
     unittest.main()

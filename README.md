@@ -489,3 +489,13 @@ failure message. The checkpoint contains no SDK conversation or final report,
 does not replace the original pause checkpoint, and does not permit retry or
 final export. Starting a new rehearsal or discarding the failed one remains the
 recovery action; no automatic model call is made.
+
+
+Structured checkpoints take independent copies of nested financial data, so later
+edits to source-page mappings or reported metrics cannot alter a captured pause.
+Checkpoint versions and counters require real integers, fingerprints require the
+SHA-256 hexadecimal format, and structured-only checkpoints must explicitly state
+that no model conversation was saved. Restoration rejects figures when the
+accepted-submission count is zero. Inconsistent checkpoints are blocked before
+an SDK approval decision or model continuation. These checks validate trusted
+in-memory state; they do not add uploaded-snapshot support.

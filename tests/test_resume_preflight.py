@@ -30,10 +30,10 @@ class ResumePreflightTests(unittest.TestCase):
             "PENDING_TOOL_CALL",
         )
 
-    def test_even_saved_history_is_not_mistaken_for_live_resume(self):
+    def test_claimed_saved_history_is_rejected_as_inconsistent(self):
         self.checkpoint["model_conversation_saved"] = True
         result = resume_preflight(self.checkpoint, self.pdf, self.transcript)
-        self.assertEqual(result["reason"], "TOOL_STATE_REBINDING_NOT_IMPLEMENTED")
+        self.assertEqual(result["reason"], "INVALID_CHECKPOINT_CAPABILITIES")
         self.assertFalse(result["ready"])
 
 
