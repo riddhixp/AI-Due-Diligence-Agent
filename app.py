@@ -247,6 +247,7 @@ if uploaded_file is not None:
         render_live_financial_decision(st, live_handoff, pdf_bytes)
         if live_handoff.get("status") == "APPROVED":
             if st.button("Check financial continuation readiness (FREE)"):
+                st.session_state.pop("live_continuation_preflight", None)
                 try:
                     st.session_state["live_continuation_preflight"] = (
                         preflight_live_continuation(live_handoff, pdf_bytes)
@@ -255,8 +256,16 @@ if uploaded_file is not None:
                     st.error(str(error))
             ready = st.session_state.get("live_continuation_preflight")
             if ready is not None:
-                st.write("Continuation checks:", ready)
-                st.caption("No AI model resumed; paid continuation remains disabled.")
+                try:
+                    current = preflight_live_continuation(live_handoff, pdf_bytes)
+                except ValueError:
+                    current = None
+                if current != ready:
+                    st.session_state.pop("live_continuation_preflight", None)
+                    st.warning("The approved request or checkpoint changed. Repeat the free readiness check.")
+                else:
+                    st.write("Continuation checks:", ready)
+                    st.caption("No AI model resumed; paid continuation remains disabled.")
         if st.button("Discard paused investigation"):
             st.session_state.pop("live_financial_pause", None)
             st.session_state.pop(LIVE_PREVIEW_KEY, None)

@@ -1,4 +1,6 @@
 """Prepare a document-bound, explicit resume preflight with no Runner call."""
+import re
+from financial_approval_preview import pending_financial_request
 from investigation_checkpoint import document_fingerprint
 from tool_state_rebinding import prepare_tool_state
 
@@ -24,12 +26,22 @@ def preflight_live_continuation(handoff, pdf_bytes):
         if (handoff.get("page_reads") != review["page_reads"]
                 or handoff.get("reads_at_review") != review["reads_at_review"]):
             raise ValueError("PAUSE_READ_COUNTER_MISMATCH")
+    receipt = handoff.get("decision_request_sha256")
+    if not isinstance(receipt, str) or re.fullmatch(r"[0-9a-f]{64}", receipt) is None:
+        raise ValueError("MISSING_FINANCIAL_DECISION_RECEIPT")
+    try:
+        _, _, fingerprint = pending_financial_request(sdk_state)
+    except ValueError as error:
+        raise ValueError("FINANCIAL_APPROVAL_REQUEST_CHANGED") from error
+    if fingerprint != receipt:
+        raise ValueError("FINANCIAL_APPROVAL_REQUEST_CHANGED")
     return {
         "status": "APPROVED_PREFLIGHT_ONLY",
         "submission_count": restored["submission_attempts"]["count"],
         "reviewed_count": restored["review_state"]["reviewed_count"],
         "financial_review_status": restored["review_state"]["status"],
         "sdk_state_present": True,
+        "approved_request_unchanged": True,
         "model_conversation_restored": False,
         "model_resumed": False,
         "api_calls": 0,

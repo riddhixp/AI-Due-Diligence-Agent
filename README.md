@@ -526,3 +526,11 @@ A changed PDF hides decision controls. These controls only call SDK approve/reje
 they do not resume the model, execute financial tools or consume additional API
 credits. Automated UI tests create the genuine SDK pause with a local scripted
 model and block network access throughout. Paid continuation remains disabled.
+
+
+Free continuation readiness checks now require the recorded decision receipt to
+match the current pending financial request. Missing receipts, replaced requests
+and missing interruptions cannot qualify as an approved preflight. Cached readiness
+results are rechecked before display and cleared when their underlying state
+changes. Even a successful check explicitly leaves paid resume unavailable and
+makes no model call.
