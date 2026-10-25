@@ -1,5 +1,7 @@
 """Prepare a document-bound, explicit resume preflight with no Runner call."""
 import re
+from io import BytesIO
+from pypdf import PdfReader
 from financial_approval_preview import pending_financial_request
 from investigation_checkpoint import document_fingerprint
 from tool_state_rebinding import prepare_tool_state
@@ -30,11 +32,23 @@ def preflight_live_continuation(handoff, pdf_bytes):
     if not isinstance(receipt, str) or re.fullmatch(r"[0-9a-f]{64}", receipt) is None:
         raise ValueError("MISSING_FINANCIAL_DECISION_RECEIPT")
     try:
-        _, _, fingerprint = pending_financial_request(sdk_state)
+        _, values, fingerprint = pending_financial_request(sdk_state)
     except ValueError as error:
         raise ValueError("FINANCIAL_APPROVAL_REQUEST_CHANGED") from error
     if fingerprint != receipt:
         raise ValueError("FINANCIAL_APPROVAL_REQUEST_CHANGED")
+    try:
+        pages = [page.extract_text() or "" for page in PdfReader(BytesIO(pdf_bytes)).pages]
+    except Exception as error:
+        raise ValueError("READABLE_PDF_REQUIRED") from error
+    if not pages or not any(page.strip() for page in pages):
+        raise ValueError("READABLE_PDF_REQUIRED")
+    if any(event["page"] > len(pages) for event in restored["page_read_events"]):
+        raise ValueError("INVALID_PAGE_READ_HISTORY")
+    if any(value is not None and value > len(pages)
+           for field, value in values.items()
+           if field == "source_page" or field.endswith("_page")):
+        raise ValueError("FINANCIAL_APPROVAL_PAGE_OUT_OF_RANGE")
     return {
         "status": "APPROVED_PREFLIGHT_ONLY",
         "submission_count": restored["submission_attempts"]["count"],
@@ -42,6 +56,9 @@ def preflight_live_continuation(handoff, pdf_bytes):
         "financial_review_status": restored["review_state"]["status"],
         "sdk_state_present": True,
         "approved_request_unchanged": True,
+        "document_page_count": len(pages),
+        "document_readable": True,
+        "approved_citations_in_range": True,
         "model_conversation_restored": False,
         "model_resumed": False,
         "api_calls": 0,
