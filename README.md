@@ -337,82 +337,220 @@ or resume a model or accept the pending figures.
 
 ## Optional financial evidence and saved analyses
 
-Supplied optional metrics now re…4019 tokens truncated…reports"
-REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+Supplied optional metrics now require their own recognized statement row,
+fiscal-year column and PDF page before financial evidence can pass. This covers
+operating income, operating cash flow and capital expenditure (including the
+supported prior years), subscription revenue, share repurchases, stock-based
+compensation and changes in deferred revenue. Missing optional inputs remain
+optional. Unknown labels, ambiguous tables and missing evidence require review;
+a matching number elsewhere on a page is insufficient. The practice suite also
+checks fabricated cash flow and cash flow copied from the gross-profit row.
+
+Monetary row matching rejects per-share or margin rows that merely start with an
+approved label, and rejects percentage rows as evidence for monetary amounts.
+Only text before the actual matched row can establish its fiscal-year heading.
+Accounting parentheses, currency-prefixed minus signs and Unicode minus signs
+preserve negative values in both source checks and evidence excerpts. Extra
+numeric note markers prevent automatic year-column alignment. Income and
+operating cash flow retain their signs. Capital expenditure and repurchases use
+non-negative spending amounts; a matching negative source outflow is explicitly
+reconciled and disclosed in the verification notice. Negative spending inputs
+require review and cannot inflate calculated free cash flow.
+
+Saved analyses are rechecked locally against the uploaded PDF with the current
+rules. A generated verification banner is refreshed when evidence changes, while
+the original narrative and saved file are preserved. The cache does not store the
+original SDK tool history, so a local source recheck does not invent that history
+or authorize a final report export. No model call or paid rerun is needed.
 
 
-def get_report_id(pdf_bytes):
-    """Create a unique identifier for each PDF."""
-    return hashlib.sha256(pdf_bytes).hexdigest()
+Approval decisions also use a process-local weak-reference guard for the SDK
+state itself. Concurrent approval/rejection attempts through copied handoffs
+can apply only one decision. A failed or cancelled SDK decision remains consumed;
+a changed preview fingerprint can still be reviewed again before any decision.
+Cancelled offline continuations become failed handoffs and cannot be retried.
+These safeguards do not provide persistence or coordination across servers.
 
 
-def save_report(pdf_bytes, report, validation, financial_data):
-    """Save a completed analysis locally."""
-
-    report_id = get_report_id(pdf_bytes)
-
-    data = {
-        "report": report,
-        "validation": validation,
-        "financial_data": financial_data,
-    }
-
-    file_path = REPORTS_DIR / f"{report_id}.json"
-
-    # Serialize before touching the existing file; invalid values never replace it.
-    payload = json.dumps(data, indent=2, allow_nan=False)
-    temporary_path = None
-    try:
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=REPORTS_DIR,
-                                         prefix=f".{report_id}.", suffix=".tmp",
-                                         delete=False) as temporary:
-            temporary_path = Path(temporary.name)
-            temporary.write(payload)
-        temporary_path.replace(file_path)
-    finally:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
-
-    return file_path
+Offline continuations carry the decided request fingerprint through SDK state
+restoration. Both the original pending request and the detached restored request
+must match the call identity, tool name and canonical financial arguments recorded
+when the decision was applied. A changed request stops before financial tool
+execution or another scripted model response; its handoff is marked failed and
+cannot be retried. This applies to approvals and rejections and is limited to the
+trusted in-memory offline workflow; paid continuation remains disabled.
 
 
-def load_report(pdf_bytes):
-    """Load an existing analysis if one is saved."""
-
-    report_id = get_report_id(pdf_bytes)
-    file_path = REPORTS_DIR / f"{report_id}.json"
-
-    if not file_path.exists():
-        return None
-
-    try:
-        data = json.loads(file_path.read_text(encoding="utf-8"),
-                          object_pairs_hook=_unique_fields, parse_constant=_reject_constant,
-                          parse_float=_finite_float)
-    except RecursionError as error:
-        # Treat parser depth exhaustion as a corrupt cache, so the UI can show
-        # its existing local-load warning without running a replacement model.
-        raise ValueError("SAVED_REPORT_NESTING_TOO_DEEP") from error
-    if not isinstance(data, dict):
-        raise ValueError("INVALID_SAVED_REPORT")
-    return data
+The same final completion boundary now applies to fresh investigations and offline
+continuations. An unreviewed submission or missing/empty final narrative produces
+an incomplete summary rather than an apparently finished report, and arithmetic
+results are withheld from the completion display. Generated notices and audit
+appendices cannot stand in for a model's final narrative. Final export requires
+explicit boolean completion and non-simulation flags; older or partial evaluation
+objects without these fields cannot qualify. The normal-run completion path is
+covered with a local scripted model and network access blocked, without paid tests.
 
 
-def _unique_fields(pairs):
-    result = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError("DUPLICATE_SAVED_REPORT_FIELD")
-        result[key] = value
-    return result
+Undefined financial ratios now return `UNAVAILABLE` with an explanation instead
+of raising division errors. Revenue denominators must be positive; negative income
+and cash flow remain valid signed numerators. Non-finite inputs and overflowing
+calculations cannot pass validation or produce NaN/Infinity diagnostics. Required
+submission figures must be finite, and all supported optional metric/page pairs
+receive structural and finite-value checks. The app displays unavailable ratios
+explicitly, including when rechecking saved analyses. A zero prior-revenue practice
+run preserves the submitted figures for review and finishes as incomplete without
+crashing; it cannot export a final report.
 
 
-def _reject_constant(value):
-    raise ValueError("NONFINITE_SAVED_REPORT_VALUE")
+Corrections now require a fresh read of every cited correction page after the
+failed financial review. Reading an unrelated page does not unlock a replacement.
+Successful page reads record their PDF page number and tool-trace position; this
+history is validated and restored across in-memory approval pauses. Reads from
+before the latest review do not count. Older checkpoints without page-level
+history require new source reads rather than inferring pages from a total count.
+Refused corrections preserve the accepted figures and do not consume the remaining
+successful-submission slot. This remains a process-local offline safeguard.
 
 
-def _finite_float(value):
-    number = float(value)
-    if not math.isfinite(number):
-        raise ValueError("NONFINITE_SAVED_REPORT_VALUE")
-    return number
+The free application workflow offers a **Recover after unrelated source read**
+scenario alongside the standard correction rehearsal. It uses three explicit
+approval steps: the wrong initial figures, a correction refused because the cited
+page was not reread, then the same correction after the correct source read.
+The server records source-reread refusals separately from accepted submissions.
+The final sequence audit permits that recovery only when every request is
+accounted for and the accepted correction receives review; other excess attempts
+remain blocked. The audit appendix discloses request/refusal counts. This is a
+fixed local script, not an autonomous-model test, and cannot export a real report.
+
+
+Recovery audits now reconcile the ordered financial tool trace against the
+server's recorded reads, accepted submissions, source-read refusals and reviews.
+Matching submission counts alone are insufficient: missing or reordered reads or
+reviews block completion with `TOOL_TRACE_MISMATCH`. Search and calculator calls
+remain outside this financial sequence check. Figures can still pass evidence
+checks while the overall report remains incomplete because its trace disagrees.
+
+
+Saved report writes use independent temporary files and atomic replacement, so
+simultaneous saves cannot overwrite each other's staging file. The last successful
+replacement wins as one complete report; a failed replacement preserves the prior
+report and removes its temporary file. Serialization rejects non-finite values
+before writing. Loading rejects duplicate JSON fields, non-finite numbers and
+malformed report objects or excessive JSON nesting without rewriting the saved
+file. Cached narratives must be non-empty text before any figures enter the
+session; invalid narratives are not converted into displayable reports. The app
+reports the load failure without starting a model. This storage behavior does not provide
+cross-server approval idempotency or preserve SDK conversations after restart.
+
+
+The free workflow keeps discard available when a pending request cannot be
+previewed. Terminal continuation failures remove approval/rejection controls and
+show a restart message; starting a new rehearsal creates a fresh SDK state.
+Failures before a decision remain visible without an automatic retry. Incomplete
+or rejected rehearsals display a warning rather than a success banner, and none
+of these paths modifies the real report or exposes final-report downloads.
+
+The fixed rejection script is shortened only after the SDK successfully records
+the decision, so a stale preview or pre-decision failure cannot discard the
+remaining rehearsal steps.
+
+
+Approval previews show previous and proposed PDF citations alongside each amount,
+plus previous currency, units and fiscal-year metadata. Reported percentage rows
+cite all of their input figures' pages rather than inventing one primary source.
+Missing optional citations remain missing, and optional figures omitted by a
+correction appear explicitly as removed. The evidence panel includes both old
+and proposed pages for comparison. Previewing these changes does not verify the
+proposal, record approval or invoke a model.
+
+
+The **Remove unsupported cash flow** free rehearsal submits an unsupported optional
+cash-flow figure, pauses for a correction that omits it, and clears both its value
+and citation only when approved. The preview explicitly marks the removal. Missing
+cash flow remains unavailable in diagnostics, including cash conversion and free
+cash flow. Declining the removal preserves the prior unverified figure and blocks
+completion. This is another fixed synthetic script, with no provider calls or
+final-report exports; the standalone evaluation now includes 13 workflow checks.
+
+
+Financial submissions and financial reviews must each occupy a separate model
+turn. A local SDK response hook rejects a function-call batch containing either
+operation before any tool in that batch starts. This prevents a same-response
+review/correction from being treated as if the model had consumed the review
+feedback first. Read-only search/page batches remain supported. The same hook
+runs on fresh investigations and approved offline continuations; a prohibited
+resumed batch leaves its handoff failed and cannot produce a final report.
+These behaviors are tested with local scripted responses and network blocked.
+
+
+A failed or cancelled offline continuation preserves a separate read-only progress
+checkpoint containing the latest accepted figures, page-read trace and review
+counters. This includes a correction accepted just before a later model failure.
+The app displays the retained synthetic revenue and review status alongside its
+failure message. The checkpoint contains no SDK conversation or final report,
+does not replace the original pause checkpoint, and does not permit retry or
+final export. Starting a new rehearsal or discarding the failed one remains the
+recovery action; no automatic model call is made.
+
+
+Structured checkpoints take independent copies of nested financial data, so later
+edits to source-page mappings or reported metrics cannot alter a captured pause.
+Checkpoint versions and counters require real integers, fingerprints require the
+SHA-256 hexadecimal format, and structured-only checkpoints must explicitly state
+that no model conversation was saved. Restoration rejects figures when the
+accepted-submission count is zero. Inconsistent checkpoints are blocked before
+an SDK approval decision or model continuation. These checks validate trusted
+in-memory state; they do not add uploaded-snapshot support.
+
+
+Pending financial requests reject unknown argument names, fractional or
+non-positive page numbers, invalid fiscal years, blank metadata and null required
+values before recording a decision. Optional missing value/page pairs remain
+valid. Deeply nested or malformed JSON produces a controlled preview error,
+leaving discard available and the real analysis untouched. These checks do not
+replace the SDK's full tool schema validation or establish source accuracy.
+
+
+Approval controls now compare proposed citations with the bound PDF's actual page
+count before recording approval. Out-of-document citations leave the decision
+pending without executing tools or consuming the local script; the reviewer can
+still reject the request. This covers both required and optional citations, with
+page-count checks supplied by the offline continuation and real-pause decision
+controls. The preview also displays the primary source page in its metadata.
+No paid continuation is enabled by these decision checks.
+
+
+The real-pause decision screen now shows proposed figures, metadata, previous
+citations and PDF evidence before a decision. Approval and rejection are bound to
+the request last displayed for that document; replacing a pending request requires
+reviewing the refreshed preview before another click can record the decision.
+A changed PDF hides decision controls. These controls only call SDK approve/reject:
+they do not resume the model, execute financial tools or consume additional API
+credits. Automated UI tests create the genuine SDK pause with a local scripted
+model and block network access throughout. Paid continuation remains disabled.
+
+
+Free continuation readiness checks now require the recorded decision receipt to
+match the current pending financial request. Missing receipts, replaced requests
+and missing interruptions cannot qualify as an approved preflight. Cached readiness
+results are rechecked before display and cleared when their underlying state
+changes. Even a successful check explicitly leaves paid resume unavailable and
+makes no model call.
+
+
+A stored real investigation pause blocks starting a fresh analysis until it is
+explicitly discarded, including after approval, rejection or failure. The Analyse
+Company button is disabled and dispatch checks the pause again before model/key
+lookup. Free approval and inspection controls remain available. A full-app UI test
+covers a forced dispatched event, approval without continuation, and discarding
+the pause to re-enable a fresh run; the provider entry point is forbidden and
+network access is blocked throughout.
+
+
+Document session cleanup is centralized for upload changes and removal. Removing
+the PDF clears transient reports, figures, approval queues, SDK pauses, preview
+receipts and readiness results while retaining app preferences. Re-uploading the
+same bytes after removal does not resurrect the old SDK state. An unchanged active
+upload preserves its session; changed content clears it even when filename and
+size match. Persisted reports continue through the normal local evidence recheck.
+Full-app tests cover removal and re-upload with provider execution forbidden.
