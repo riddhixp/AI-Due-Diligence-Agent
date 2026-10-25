@@ -1,6 +1,8 @@
 
 import hashlib
 import json
+import math
+import tempfile
 from pathlib import Path
 
 
@@ -26,12 +28,19 @@ def save_report(pdf_bytes, report, validation, financial_data):
 
     file_path = REPORTS_DIR / f"{report_id}.json"
 
-    temporary_path = file_path.with_suffix(".tmp")
-    temporary_path.write_text(
-        json.dumps(data, indent=2),
-        encoding="utf-8",
-    )
-    temporary_path.replace(file_path)
+    # Serialize before touching the existing file; invalid values never replace it.
+    payload = json.dumps(data, indent=2, allow_nan=False)
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=REPORTS_DIR,
+                                         prefix=f".{report_id}.", suffix=".tmp",
+                                         delete=False) as temporary:
+            temporary_path = Path(temporary.name)
+            temporary.write(payload)
+        temporary_path.replace(file_path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
     return file_path
 
@@ -45,4 +54,29 @@ def load_report(pdf_bytes):
     if not file_path.exists():
         return None
 
-    return json.loads(file_path.read_text(encoding="utf-8"))
+    data = json.loads(file_path.read_text(encoding="utf-8"),
+                      object_pairs_hook=_unique_fields, parse_constant=_reject_constant,
+                      parse_float=_finite_float)
+    if not isinstance(data, dict):
+        raise ValueError("INVALID_SAVED_REPORT")
+    return data
+
+
+def _unique_fields(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("DUPLICATE_SAVED_REPORT_FIELD")
+        result[key] = value
+    return result
+
+
+def _reject_constant(value):
+    raise ValueError("NONFINITE_SAVED_REPORT_VALUE")
+
+
+def _finite_float(value):
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("NONFINITE_SAVED_REPORT_VALUE")
+    return number
