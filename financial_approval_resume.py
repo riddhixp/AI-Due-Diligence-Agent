@@ -63,6 +63,7 @@ def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_r
             model.responses = model.responses[-1:]
         handoff["status"] = "RESUMING_OFFLINE"
 
+    failure_checkpoint = {}
     try:
         from due_diligence_engine import run_due_diligence
         result = run_due_diligence(
@@ -70,6 +71,7 @@ def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_r
             sdk_resume_state=handoff["sdk_state"], offline_scripted_model=model,
             financial_approval_required=True, pause_pdf_bytes=pdf_bytes,
             decision_request_sha256=handoff["decision_request_sha256"],
+            _failure_checkpoint=failure_checkpoint,
         )
     except SDKFinancialApprovalPaused as paused:
         handoff["status"] = "PAUSED_AGAIN"
@@ -77,6 +79,8 @@ def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_r
                 "external_api_calls": 0, "scripted": True}
     except BaseException:
         handoff["status"] = "FAILED"
+        if failure_checkpoint:
+            handoff["failure_checkpoint"] = failure_checkpoint
         raise
     handoff["status"] = "COMPLETED_OFFLINE"
     report, validation, financial, evaluation = result

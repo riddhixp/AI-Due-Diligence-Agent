@@ -219,3 +219,22 @@ class FullCorrectionWorkflowTests(unittest.TestCase):
         self.assertEqual(result['evaluation']['financial_evidence'], 'NEEDS_REVIEW')
         self.assertFalse(result['evaluation']['final_eligible'])
         self.assertIsNone(result['validation'])
+
+    def test_failure_after_accepted_correction_preserves_pending_review_progress(self):
+        paused = self.approve_initial()
+        self.session['model'].responses = []
+        handoff = paused['handoff']
+        with self.assertRaisesRegex(AssertionError, 'Unexpected further model'):
+            decide_and_resume_offline(handoff, self.pdf, True, self.session['model'])
+        self.assertEqual(handoff['status'], 'FAILED')
+        progress = handoff['failure_checkpoint']
+        self.assertEqual(progress['financial_data']['revenue_current'], 120)
+        self.assertEqual(progress['submission_count'], 2)
+        self.assertEqual(progress['reviewed_count'], 1)
+        self.assertIsNone(progress['review_status'])
+        from tool_state_rebinding import prepare_tool_state
+        restored = prepare_tool_state(progress, self.pdf)
+        self.assertEqual(restored['financial_submission']['revenue_current'], 120)
+        with self.assertRaisesRegex(ValueError, 'ALREADY_CLAIMED'):
+            decide_and_resume_offline(handoff, self.pdf, True, self.session['model'])
+        self.assertFalse(progress['model_conversation_saved'])

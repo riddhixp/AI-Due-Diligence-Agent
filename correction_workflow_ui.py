@@ -114,6 +114,14 @@ def render_correction_workflow(st, pdf_bytes):
     else:
         st.error(session.get('workflow_error',
                             'This rehearsal cannot be resumed again. Start a new rehearsal to continue.'))
+        progress = handoff.get('failure_checkpoint')
+        if progress:
+            st.write('Accepted submissions before failure:', progress['submission_count'])
+            st.write('Latest review status:', progress['review_status'] or 'Not completed')
+            st.write('Last accepted synthetic revenue:',
+                     progress['financial_data'].get('revenue_current', 'Not submitted'))
+            st.caption('Read-only progress; accepted figures may still be unverified. '
+                       'This failed state cannot be retried or exported as a final report.')
     _render_discard(st)
 
 

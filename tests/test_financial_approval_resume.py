@@ -205,3 +205,31 @@ class ApprovalResumeTests(unittest.TestCase):
             review.assert_not_called()
         self.assertEqual(self.handoff['status'], 'FAILED')
         self.assertEqual(self.model.calls, 2)
+        progress = self.handoff['failure_checkpoint']
+        self.assertEqual(progress['financial_data']['revenue_current'], 120)
+        self.assertEqual(progress['submission_count'], 1)
+        self.assertEqual(progress['reviewed_count'], 0)
+        self.assertIsNone(progress['review_status'])
+        from tool_state_rebinding import prepare_tool_state
+        self.assertEqual(prepare_tool_state(progress, self.pdf)['submission_attempts']['count'], 1)
+
+    def test_cancelled_runner_keeps_read_only_progress_without_completion(self):
+        import asyncio
+        from agents import Runner
+        from unittest.mock import patch
+        run = Runner.run_sync
+        def cancel_after_tools(*args, **kwargs):
+            run(*args, **kwargs)
+            raise asyncio.CancelledError()
+        with patch('due_diligence_engine.Runner.run_sync', side_effect=cancel_after_tools):
+            with self.assertRaises(asyncio.CancelledError):
+                decide_and_resume_offline(self.handoff, self.pdf, True, self.model)
+        self.assertEqual(self.handoff['status'], 'FAILED')
+        progress = self.handoff['failure_checkpoint']
+        self.assertEqual(progress['financial_data']['revenue_current'], 120)
+        self.assertEqual(progress['reviewed_count'], 1)
+        self.assertEqual(progress['review_status'], 'PRELIMINARY_CHECKS_PASSED')
+        self.assertNotIn('report', progress)
+        self.assertFalse(progress['model_conversation_saved'])
+        with self.assertRaisesRegex(ValueError, 'ALREADY_CLAIMED'):
+            decide_and_resume_offline(self.handoff, self.pdf, True, self.model)

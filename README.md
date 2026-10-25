@@ -479,3 +479,13 @@ feedback first. Read-only search/page batches remain supported. The same hook
 runs on fresh investigations and approved offline continuations; a prohibited
 resumed batch leaves its handoff failed and cannot produce a final report.
 These behaviors are tested with local scripted responses and network blocked.
+
+
+A failed or cancelled offline continuation preserves a separate read-only progress
+checkpoint containing the latest accepted figures, page-read trace and review
+counters. This includes a correction accepted just before a later model failure.
+The app displays the retained synthetic revenue and review status alongside its
+failure message. The checkpoint contains no SDK conversation or final report,
+does not replace the original pause checkpoint, and does not permit retry or
+final export. Starting a new rehearsal or discarding the failed one remains the
+recovery action; no automatic model call is made.

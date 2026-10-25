@@ -119,7 +119,7 @@ def run_due_diligence(
     restored_checkpoint=None, resume_pdf_bytes=None,
     financial_approval_required=False,
     sdk_resume_state=None, offline_scripted_model=None,
-    pause_pdf_bytes=None, decision_request_sha256=None,
+    pause_pdf_bytes=None, decision_request_sha256=None, _failure_checkpoint=None,
 ):
     # Validate before any model call. Real paid SDK resumption is disabled.
     resume_mode = checked_resume_mode(
@@ -969,9 +969,20 @@ or fabricate values merely to submit the data.
         max_turns=permitted_turn_limit(max_turns),
         hooks=FinancialTurnHooks(),
         )
-    except Exception as error:
+    except BaseException as error:
         from agents.exceptions import MaxTurnsExceeded
         if not isinstance(error, MaxTurnsExceeded):
+            if resume_mode == "OFFLINE_SDK_RESUME" and _failure_checkpoint is not None:
+                from investigation_checkpoint import create_checkpoint, document_fingerprint
+                snapshot = create_checkpoint(
+                    document_fingerprint(resume_pdf_bytes), financial_submission,
+                    submission_attempts["count"], review_state["reviewed_count"],
+                    review_state["status"], observed_tool_calls,
+                    page_read_events=page_read_events,
+                )
+                # Preserve only structured progress, never a resumable SDK transcript.
+                from copy import deepcopy
+                _failure_checkpoint.update(deepcopy(snapshot))
             raise
         from types import SimpleNamespace
         interrupted = True
