@@ -15,17 +15,31 @@ def render_correction_workflow(st, pdf_bytes):
                'Results stay separate from your real analysis and final report exports.')
     digest = document_fingerprint(pdf_bytes)
     session = st.session_state.get(SESSION_KEY)
+    if session is not None and (
+            not isinstance(session, dict)
+            or not isinstance(session.get('document_sha256'), str)
+            or not isinstance(session.get('handoff'), dict)
+            or not isinstance(session['handoff'].get('status'), str)
+            or 'model' not in session):
+        st.error('The stored rehearsal is incomplete. Discard it and start a new free rehearsal.')
+        _render_discard(st)
+        return
     if session is not None and session['document_sha256'] != digest:
         st.session_state.pop(SESSION_KEY, None)
         session = None
     scenarios = {'Standard correction': 'standard',
                  'Recover after unrelated source read': 'source_recovery',
-                 'Remove unsupported cash flow': 'optional_removal'}
+                 'Remove unsupported cash flow': 'optional_removal',
+                 'Stop at the request limit': 'request_limit'}
     selected = st.selectbox('Free rehearsal scenario', list(scenarios),
                             key='app_workflow_scenario')
     if st.button('Start FREE application workflow', key='app_workflow_start'):
         try:
-            session = start_offline_correction_workflow(pdf_bytes, scenario=scenarios[selected])
+            limit_practice = scenarios[selected] == 'request_limit'
+            session = start_offline_correction_workflow(
+                pdf_bytes, scenario='standard' if limit_practice else scenarios[selected],
+                request_limit=5 if limit_practice else 12)
+            session['request_limit_practice'] = limit_practice
             session['document_sha256'] = digest
             st.session_state[SESSION_KEY] = session
         except ValueError as error:
@@ -33,6 +47,10 @@ def render_correction_workflow(st, pdf_bytes):
     if session is None:
         st.caption('Upload synthetic_conflict_test.pdf to rehearse both approval steps.')
         return
+    if session.get('request_limit_practice'):
+        st.caption('Active rehearsal: request-limit stop. Approve both proposals to see the '
+                   'corrected figures retained without a completed review when the five-request '
+                   'allowance runs out. This is an expected incomplete result.')
     if session.get('scenario') == 'source_recovery':
         st.caption('Active rehearsal: source-read recovery. The scripted model first reads '
                    'an unrelated page. That correction is blocked; it then reads the cited '
@@ -41,6 +59,12 @@ def render_correction_workflow(st, pdf_bytes):
         st.caption('Active rehearsal: remove unsupported cash flow. The first review flags '
                    'an unsupported optional figure. The correction removes it; unavailable '
                    'cash flow must remain missing, not become zero.')
+    budget = getattr(session['model'], 'request_budget', None)
+    if budget is not None:
+        usage = budget.snapshot()
+        st.caption(f"Scripted requests used: {usage['reserved']} of {usage['maximum']}; "
+                   f"remaining: {usage['remaining']}. The same allowance covers all approval pauses.")
+        st.caption('This is a free rehearsal request limit, not a token or monetary budget.')
     handoff = session['handoff']
     result = session.get('result')
     if result is not None:
@@ -57,16 +81,23 @@ def render_correction_workflow(st, pdf_bytes):
         try:
             preview = financial_approval_preview(handoff)
         except ValueError as error:
+            session.pop('displayed_request_sha256', None)
             st.error(str(error))
             _render_discard(st)
             return
-        shown_fingerprint = session.get('displayed_request_sha256', preview['request_sha256'])
+        shown_fingerprint = session.get('displayed_request_sha256')
         st.warning('Financial submission awaiting your decision. Compare the proposed figures with the PDF.')
         st.write('Submission:', preview['metadata'])
         if handoff['checkpoint']['submission_count']:
             st.write('Previously accepted metadata:', preview['previous_metadata'])
         st.dataframe(preview['metrics'], hide_index=True)
-        pages = read_synthetic_conflict_pages(pdf_bytes)
+        try:
+            pages = read_synthetic_conflict_pages(pdf_bytes)
+        except Exception:
+            session.pop('displayed_request_sha256', None)
+            st.error('PDF evidence could not be read. Discard this rehearsal or retry displaying the preview.')
+            _render_discard(st)
+            return
         cited_pages = sorted({page for row in preview['metrics']
                               for page in row['PDF pages'] + row['Previous PDF pages']})
         with st.expander('Source evidence for pending figures'):
@@ -89,6 +120,8 @@ def render_correction_workflow(st, pdf_bytes):
         rejected = no.button('Reject and end FREE workflow', key='app_workflow_reject')
         if approved or rejected:
             try:
+                if approved and rejected:
+                    raise ValueError('CONFLICTING_APPROVAL_DECISION')
                 if shown_fingerprint != preview['request_sha256']:
                     raise ValueError("FINANCIAL_APPROVAL_REQUEST_CHANGED")
                 resumed = decide_and_resume_offline(
@@ -103,7 +136,11 @@ def render_correction_workflow(st, pdf_bytes):
                 st.rerun()
             except ValueError as error:
                 if handoff.get('status') != 'AWAITING_APPROVAL':
-                    session['workflow_error'] = 'Offline continuation failed. Start a new rehearsal to continue.'
+                    session['workflow_error'] = (
+                        'Request allowance exhausted. Progress is retained for inspection; '
+                        'the latest figures may be unreviewed. Start a new rehearsal to continue.'
+                        if str(error) == 'MODEL_REQUEST_BUDGET_EXHAUSTED' else
+                        'Offline continuation failed. Start a new rehearsal to continue.')
                     st.rerun()
                 st.error(str(error))
             except Exception:

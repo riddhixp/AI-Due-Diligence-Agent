@@ -26,7 +26,13 @@ def render_live_financial_decision(st, handoff, pdf_bytes):
             raise ValueError('READABLE_PDF_REQUIRED')
         preview = financial_approval_preview(handoff)
     except (ValueError, TypeError, KeyError, PdfReadError) as error:
+        st.session_state.pop(DISPLAY_KEY, None)
         st.error(f'Approval preview unavailable: {error}')
+        return
+    except Exception:
+        st.session_state.pop(DISPLAY_KEY, None)
+        st.error('PDF evidence could not be read. Decision controls are unavailable; '
+                 'discard this pause or retry displaying the preview.')
         return
     digest = document_fingerprint(pdf_bytes)
     displayed = st.session_state.get(DISPLAY_KEY) or {}
@@ -54,6 +60,8 @@ def render_live_financial_decision(st, handoff, pdf_bytes):
     rejected = no.button('Reject paused financial submission', key='live_financial_reject')
     if approved or rejected:
         try:
+            if approved and rejected:
+                raise ValueError('CONFLICTING_APPROVAL_DECISION')
             if shown != preview['request_sha256']:
                 raise ValueError('FINANCIAL_APPROVAL_REQUEST_CHANGED')
             decide_live_financial_pause(handoff, pdf_bytes, approved,

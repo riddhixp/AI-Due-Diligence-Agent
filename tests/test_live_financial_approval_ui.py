@@ -104,3 +104,34 @@ render_live_financial_decision(st, st.session_state['fixture']['handoff'], pdf)
         self.assertEqual(handoff['checkpoint']['financial_data']['revenue_current'], 130)
         self.assertEqual(fixture['model'].calls, 5)
         self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
+    def test_unexpected_pdf_error_hides_buttons_and_invalidates_preview(self):
+        from live_financial_approval_ui import DISPLAY_KEY
+        fixture = self.app.session_state['fixture']
+        with patch('live_financial_approval_ui.PdfReader',
+                   side_effect=RuntimeError('sensitive parser detail')):
+            self.app.run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(self.app.error)
+        self.assertNotIn('sensitive parser detail', self.app.error[0].value)
+        self.assertFalse(self.app.button)
+        self.assertNotIn(DISPLAY_KEY, self.app.session_state)
+        self.assertEqual(fixture['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(fixture['model'].calls, 2)
+        self.app.run()
+        self.assertFalse(self.app.error)
+        self.assertTrue(self.app.button)
+        self.assertEqual(fixture['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(fixture['model'].calls, 2)
+
+    def test_conflicting_clicks_leave_real_pause_undecided(self):
+        self.app.button(key='live_financial_approve').click()
+        self.app.button(key='live_financial_reject').click().run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(any('CONFLICTING_APPROVAL_DECISION' in item.value for item in self.app.error))
+        fixture = self.app.session_state['fixture']
+        self.assertEqual(fixture['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(fixture['model'].calls, 2)
+        self.app.button(key='live_financial_reject').click().run()
+        self.assertFalse(self.app.error)
+        self.assertEqual(fixture['handoff']['status'], 'REJECTED')

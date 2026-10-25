@@ -102,6 +102,38 @@ def run_offline_evaluation():
                        and removed['financial']['source_pages']['operating_cash_flow'] is None
                        and removed['evaluation']['final_eligible'] is True
                        and not final_report_eligible(removed['evaluation'])))
+        limited = start_offline_correction_workflow(pdf, request_limit=5)
+        limited_pause = decide_and_resume_offline(limited['handoff'], pdf, True, limited['model'])
+        stopped = limited_pause['handoff']
+        exhausted = False
+        try:
+            decide_and_resume_offline(stopped, pdf, True, limited['model'])
+        except ValueError as error:
+            if str(error) != 'MODEL_REQUEST_BUDGET_EXHAUSTED':
+                raise
+            exhausted = True
+        checks.append(('request_limit_stops_before_sixth_model_dispatch',
+                       exhausted and stopped['status'] == 'FAILED'
+                       and limited['model'].calls == 5
+                       and limited['model'].request_budget.snapshot()['remaining'] == 0))
+        progress = stopped.get('failure_checkpoint', {})
+        checks.append(('request_limit_retains_unreviewed_correction',
+                       progress.get('financial_data', {}).get('revenue_current') == 120
+                       and progress.get('submission_count') == 2
+                       and progress.get('reviewed_count') == 1
+                       and progress.get('review_status') is None))
+        retry_blocked = False
+        remaining_script = list(limited['model'].responses)
+        try:
+            decide_and_resume_offline(stopped, pdf, True, limited['model'])
+        except ValueError as error:
+            if str(error) != 'APPROVAL_RESUME_ALREADY_CLAIMED':
+                raise
+            retry_blocked = True
+        checks.append(('exhausted_rehearsal_cannot_retry_or_consume_script',
+                       retry_blocked and limited['model'].calls == 5
+                       and limited['model'].responses == remaining_script
+                       and stopped['status'] == 'FAILED'))
     return {
         'evaluation': 'PASS' if all(passed for _, passed in checks) else 'FAIL',
         'execution_mode': 'SCRIPTED_OFFLINE_FULL_ENGINE',

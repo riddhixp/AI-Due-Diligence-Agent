@@ -26,3 +26,5 @@ jobs:
         run: python -m offline_evaluation
       - name: Practice incomplete and unsuccessful investigations offline
         run: python -m practice_scenarios
+      - name: Run network-blocked offline acceptance
+        run: python -m offline_acceptance

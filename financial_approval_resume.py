@@ -28,6 +28,8 @@ def decide_and_resume_offline(handoff, pdf_bytes, approved, model, *, expected_r
         raise ValueError("INVALID_APPROVAL_DECISION")
     if type(stop_after_rejection) is not bool:
         raise ValueError("INVALID_REJECTION_STOP_OPTION")
+    if approved and stop_after_rejection:
+        raise ValueError("CONFLICTING_APPROVAL_DECISION")
     if not isinstance(handoff, dict) or handoff.get("live_resume_enabled") is not False:
         raise ValueError("INVALID_OFFLINE_HANDOFF")
     checkpoint = handoff.get("checkpoint")

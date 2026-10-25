@@ -1,0 +1,109 @@
+"""Run scripted acceptance checks with outbound socket operations blocked."""
+import argparse
+import contextlib
+import io
+import json
+import socket
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
+
+
+def _validated_suite(result, rows_key, status_key):
+    """Reject empty or contradictory success evidence before summarising it."""
+    if not isinstance(result, dict):
+        raise ValueError('INVALID_SUITE_RESULT')
+    rows = result.get(rows_key)
+    if not isinstance(rows, list) or not rows:
+        raise ValueError('MISSING_SUITE_CHECKS')
+    if any(not isinstance(row, dict) or type(row.get(status_key)) is not bool for row in rows):
+        raise ValueError('INVALID_SUITE_CHECKS')
+    passed = (result.get('evaluation') == 'PASS'
+              and all(row[status_key] for row in rows)
+              and type(result.get('external_api_calls')) is int
+              and result['external_api_calls'] == 0
+              and result.get('paid_continuation_enabled') is False
+              and result.get('autonomous_model_validation') == 'NOT_RUN')
+    return dict(result, evaluation='PASS' if passed else 'FAIL')
+
+
+def run_acceptance():
+    attempts = []
+
+    def blocked(*args, **kwargs):
+        attempts.append(True)
+        raise RuntimeError('OFFLINE_NETWORK_FORBIDDEN')
+
+    # Keep the guard active during imports as well as execution. The attempt
+    # count makes a swallowed network error a failed acceptance result too.
+    report = {'evaluation': 'FAIL', 'execution_mode': 'SCRIPTED_OFFLINE_ACCEPTANCE',
+              'autonomous_model_validation': 'NOT_RUN',
+              'paid_continuation_enabled': False}
+    try:
+        with patch.object(socket.socket, 'connect', blocked), \
+             patch.object(socket.socket, 'connect_ex', blocked), \
+             patch.object(socket.socket, 'sendto', blocked), \
+             patch.object(socket, 'create_connection', blocked), \
+             patch.object(socket, 'getaddrinfo', blocked), \
+             contextlib.redirect_stdout(io.StringIO()):
+            from offline_evaluation import run_offline_evaluation
+            from practice_scenarios import run_practice_suite
+            from scripts.create_conflict_test_fixture import create_conflict_fixture
+            def capture(check, rows_key, status_key):
+                try:
+                    return _validated_suite(check(), rows_key, status_key)
+                except Exception as error:
+                    return {'evaluation': 'FAIL', 'error_type': type(error).__name__}
+
+            workflow = capture(run_offline_evaluation, 'checks', 'passed')
+
+            def practice():
+                with tempfile.TemporaryDirectory() as folder:
+                    pdf = create_conflict_fixture(Path(folder) / 'synthetic.pdf').read_bytes()
+                return run_practice_suite(pdf)
+
+            failures = capture(practice, 'scenarios', 'expected_behavior_observed')
+            report['suites'] = {'workflow': workflow, 'failure_practice': failures}
+            if all(result.get('evaluation') == 'PASS'
+                   and result.get('external_api_calls') == 0
+                   and result.get('paid_continuation_enabled') is False
+                   for result in (workflow, failures)) and not attempts:
+                report['evaluation'] = 'PASS'
+    except Exception as error:
+        # Do not print exception messages, PDF contents, or credentials.
+        report['error_type'] = type(error).__name__
+    report['blocked_network_attempts'] = len(attempts)
+    return report
+
+
+def acceptance_summary(report):
+    """Keep the full JSON available while offering a readable local checklist."""
+    lines = [f"Offline acceptance: {report['evaluation']}"]
+    for name, suite in report.get('suites', {}).items():
+        rows = suite.get('checks', suite.get('scenarios', []))
+        passed = sum(row.get('passed', row.get('expected_behavior_observed')) is True
+                     for row in rows)
+        lines.append(f"{name}: {suite['evaluation']} ({passed}/{len(rows)} checks)")
+        if suite.get('error_type'):
+            lines.append(f"  Error type: {suite['error_type']}")
+        for row in rows:
+            if row.get('passed', row.get('expected_behavior_observed')) is not True:
+                lines.append(f"  Failed: {row.get('name', row.get('scenario', 'unnamed'))}")
+    if report.get('error_type'):
+        lines.append(f"Error type: {report['error_type']}")
+    lines.append(f"Blocked network attempts: {report['blocked_network_attempts']}")
+    lines.append('Scripted checks only; autonomous model validation NOT_RUN; paid continuation disabled.')
+    return '\n'.join(lines)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--summary', action='store_true', help='Print a short checklist instead of JSON')
+    args = parser.parse_args(argv)
+    report = run_acceptance()
+    print(acceptance_summary(report) if args.summary else json.dumps(report, indent=2))
+    return 0 if report['evaluation'] == 'PASS' else 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

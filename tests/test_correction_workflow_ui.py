@@ -293,3 +293,120 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertFalse(session['result']['evaluation']['final_eligible'])
         self.click('app_workflow_discard')
         self.assertNotIn('offline_application_workflow', self.app.session_state)
+
+    def test_source_read_failure_keeps_discard_and_pending_state(self):
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        handoff = session['handoff']
+        calls = session['model'].calls
+        with patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                   side_effect=RuntimeError('sensitive parser detail')):
+            self.app.run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(self.app.error)
+        self.assertNotIn('sensitive parser detail', self.app.error[0].value)
+        self.assertEqual(handoff['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(session['model'].calls, calls)
+        self.assertNotIn('displayed_request_sha256', session)
+        self.assertFalse(any(button.key == 'app_workflow_approve' for button in self.app.button))
+        self.click('app_workflow_discard')
+        self.assertNotIn('offline_application_workflow', self.app.session_state)
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
+    def test_missing_display_receipt_blocks_click_until_preview_is_shown_again(self):
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        session.pop('displayed_request_sha256')
+        calls = session['model'].calls
+        self.app.button(key='app_workflow_approve').click().run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(any('REQUEST_CHANGED' in item.value for item in self.app.error))
+        self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(session['handoff']['checkpoint']['submission_count'], 0)
+        self.assertEqual(session['model'].calls, calls)
+        self.click('app_workflow_approve')
+        self.assertEqual(session['handoff']['checkpoint']['submission_count'], 1)
+
+    def test_malformed_preview_clears_previously_displayed_receipt(self):
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        with patch('correction_workflow_ui.financial_approval_preview',
+                   side_effect=ValueError('INVALID_PREVIEW')):
+            self.app.run()
+        self.assertFalse(self.app.exception)
+        self.assertNotIn('displayed_request_sha256', session)
+        self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(session['model'].calls, 2)
+        self.assertFalse(any(button.key == 'app_workflow_approve' for button in self.app.button))
+
+    def test_simultaneous_decision_clicks_do_not_approve(self):
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        self.app.button(key='app_workflow_approve').click()
+        self.app.button(key='app_workflow_reject').click().run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(any('CONFLICTING_APPROVAL_DECISION' in item.value for item in self.app.error))
+        self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(session['model'].calls, 2)
+        self.click('app_workflow_reject')
+        self.assertFalse(session['result']['evaluation']['final_eligible'])
+
+    def test_malformed_session_can_be_discarded_without_model_dispatch(self):
+        from correction_workflow_ui import SESSION_KEY
+        for invalid in ([], {}, {'document_sha256': 'x', 'handoff': None},
+                        {'document_sha256': 'x', 'handoff': {}, 'model': object()}):
+            with self.subTest(invalid=invalid):
+                self.app.session_state[SESSION_KEY] = invalid
+                with patch('correction_workflow_ui.start_offline_correction_workflow') as start, \
+                     patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+                    self.app.run()
+                    self.assertFalse(self.app.exception)
+                    self.assertTrue(self.app.error)
+                    self.assertFalse(any(button.key == 'app_workflow_approve' for button in self.app.button))
+                    self.app.button(key='app_workflow_discard').click().run()
+                    self.assertFalse(self.app.exception)
+                    self.assertNotIn(SESSION_KEY, self.app.session_state)
+                    start.assert_not_called()
+                    resume.assert_not_called()
+                self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+        self.click('app_workflow_start')
+        self.assertEqual(self.app.session_state[SESSION_KEY]['handoff']['status'], 'AWAITING_APPROVAL')
+
+    def test_request_allowance_is_visible_and_shared_across_both_approvals(self):
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        budget = session['model'].request_budget
+        self.assertEqual(budget.snapshot(), {'maximum': 12, 'reserved': 2, 'remaining': 10})
+        self.assertTrue(any('Scripted requests used: 2 of 12' in item.value for item in self.app.caption))
+        self.click('app_workflow_approve')
+        self.assertIs(session['model'].request_budget, budget)
+        self.assertEqual(budget.snapshot()['reserved'], 5)
+        self.assertTrue(any('remaining: 7' in item.value for item in self.app.caption))
+        self.click('app_workflow_approve')
+        self.assertEqual(budget.snapshot()['reserved'], 7)
+        self.assertTrue(any('Scripted requests used: 7 of 12' in item.value for item in self.app.caption))
+
+    def test_request_limit_practice_retains_unreviewed_progress_and_can_restart(self):
+        self.app.selectbox(key='app_workflow_scenario').select('Stop at the request limit').run()
+        self.click('app_workflow_start')
+        self.click('app_workflow_approve')
+        self.app.button(key='app_workflow_approve').click().run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(any('Request allowance exhausted' in item.value for item in self.app.error))
+        session = self.app.session_state['offline_application_workflow']
+        self.assertEqual(session['model'].calls, 5)
+        self.assertEqual(session['model'].request_budget.snapshot()['remaining'], 0)
+        self.assertEqual(session['handoff']['status'], 'FAILED')
+        progress = session['handoff']['failure_checkpoint']
+        self.assertEqual(progress['financial_data']['revenue_current'], 120)
+        self.assertIsNone(progress['review_status'])
+        self.assertNotIn('result', session)
+        self.assertFalse(any(button.key == 'app_workflow_approve' for button in self.app.button))
+        self.assertEqual(len(self.app.get('download_button')), 0)
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+        self.app.selectbox(key='app_workflow_scenario').select('Standard correction').run()
+        self.click('app_workflow_start')
+        fresh = self.app.session_state['offline_application_workflow']
+        self.assertIsNot(fresh['model'], session['model'])
+        self.assertEqual(fresh['model'].request_budget.snapshot()['reserved'], 2)
+        self.assertEqual(fresh['model'].request_budget.snapshot()['maximum'], 12)

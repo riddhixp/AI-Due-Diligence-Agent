@@ -67,3 +67,54 @@ If something differs, record the scenario, last clicked button and visible error
 Never include API keys or confidential PDF contents in an error report.
 
 No merge into main or paid test is authorised by this roadmap.
+
+## Repeatable offline acceptance
+
+`python -m offline_acceptance` now combines the workflow and failure-practice
+suites under a Python socket network guard, including imports. Any attempted
+connection fails acceptance even when caught by a scenario. This supports free
+local acceptance and CI; it does not validate autonomous reasoning or authorise
+a paid run. See README for the guard's scope and limitations.
+
+## Synchronous SDK restoration lifecycle
+
+Offline state restoration reuses the thread-default event loop owned by SDK
+`run_sync`, rather than clearing it with a separate `asyncio.run`. Repeated
+approval resumes retain the same loop, including after restoration errors.
+Calling the synchronous restoration helper inside an active async context is
+rejected before creating the restoration coroutine. This does not enable live
+continuation or introduce background execution.
+
+## Visible rehearsal request allowance
+
+The free application rehearsal now uses one 12-request allowance across every
+approval pause and displays used and remaining requests. A fresh rehearsal gets
+a fresh allowance. Standard correction uses seven scripted model requests; the
+source-read recovery scenario uses nine. Exhaustion still blocks further model
+dispatch and preserves failure progress for inspection. This does not meter
+tokens or money and does not enable paid providers.
+
+### Free request-limit stop rehearsal
+
+Select **Stop at the request limit**, start the free workflow, and approve both
+proposals. The five-request allowance then stops the next model dispatch.
+Expected: an allowance-exhausted message, revenue 120 retained as unreviewed
+progress, no decision controls, and no final report export. Starting a new
+standard rehearsal creates a fresh 12-request allowance. Switching the selector
+alone does not change the active rehearsal's allowance.
+
+The one-command acceptance run also checks request-limit exhaustion through the
+real engine: no sixth model dispatch, preservation of the accepted unreviewed
+correction, and refusal to retry the failed handoff without consuming its script.
+These checks run alongside approval, rejection, source-read recovery and optional
+metric removal. They remain scripted evidence only.
+
+## Offline demo handoff
+
+The current free workflow is packaged in [OFFLINE_DEMO.md](OFFLINE_DEMO.md),
+including standard correction, rejection and request-limit stop walkthroughs.
+Automated acceptance passes, but manual usability acceptance is pending. Local
+commits still require permission to publish to the development branch before
+the user's Mac can obtain them from GitHub. Paid-provider integration and token,
+retry and billing controls remain separate unfinished work; the free demo is
+not evidence that those controls are implemented.

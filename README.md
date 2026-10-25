@@ -84,7 +84,7 @@ The prototype was exercised with two FY2025 public-company annual reports. The f
 | Microsoft | Gross margin (reported monetary row) | 193,893 | 171,008 |
 | Microsoft | Net income | 101,832 | 88,136 |
 
-**Observed verification checks:** Four selected financial-statement row/year checks passed against Adobe's FY2025 annual report (PDF page 50), and four passed against Microsoft's FY2025 annual report (PDF page 36). The alternative-label helper also successfully matched Adobe's `Gross profit` and Microsoft's `Gross margin` rows. The project ran **33 passing unit tests** at the latest reported checkpoint.
+**Observed verification checks:** Four selected financial-statement row/year checks passed against Adobe's FY2025 annual report (PDF page 50), and four passed against Microsoft's FY2025 annual report (PDF page 36). The alternative-label helper also successfully matched Adobe's `Gross profit` and Microsoft's `Gross margin` rows. Those figures describe an early validation checkpoint. Run the current test suite below for the current code; test counts change as coverage develops.
 
 These checks establish behavior on the selected examples, **not universal accuracy** across companies or filings.
 
@@ -554,3 +554,26 @@ same bytes after removal does not resurrect the old SDK state. An unchanged acti
 upload preserves its session; changed content clears it even when filename and
 size match. Persisted reports continue through the normal local evidence recheck.
 Full-app tests cover removal and re-upload with provider execution forbidden.
+
+### One-command offline acceptance
+
+Run `python -m offline_acceptance` from the activated environment to execute
+both scripted workflow and failure-practice suites with Python outbound socket
+connections, datagrams and DNS lookup blocked. The command prints JSON and exits
+nonzero for a failed suite or any blocked connection attempt, even if a scenario
+catches the network error. It generates only a temporary synthetic PDF and does
+not need an API key. CI runs this command too.
+
+This is a test-process guard, not an operating-system network sandbox: subprocesses,
+native networking libraries and previously connected sockets are outside its scope.
+Use it in a fresh process. A pass verifies scripted code paths, not autonomous
+reasoning, paid-provider limits or deployment readiness. Paid continuation stays
+disabled.
+
+For a readable checklist, use `python -m offline_acceptance --summary`.
+It lists the passing/total checks per suite, names any failed checks and reports
+blocked connection attempts. Both formats return a nonzero exit status on failure.
+A suite error does not skip the other suite; only the error type is reported.
+The default JSON output remains available for automation.
+
+For the free walkthrough, expected outcomes and tester feedback prompts, see [OFFLINE_DEMO.md](OFFLINE_DEMO.md).
