@@ -85,3 +85,25 @@ class SourceRecoveryAuditTests(unittest.TestCase):
         result = assess_tool_sequence(self.attempted + extra, observed_tool_calls=self.observed + extra)
         self.assertFalse(result['sequence_ok'])
         self.assertIn('EXCESS_SUBMISSION_TOOL_CALLS', result['issues'])
+
+    def test_missing_sdk_review_cannot_use_recorded_review(self):
+        result = assess_tool_sequence(self.attempted[:-1], observed_tool_calls=self.observed)
+        self.assertFalse(result['sequence_ok'])
+        self.assertIn('TOOL_TRACE_MISMATCH', result['issues'])
+
+    def test_reordered_sdk_calls_cannot_pass_on_matching_counts(self):
+        altered = self.attempted.copy()
+        altered[2], altered[3] = altered[3], altered[2]
+        result = assess_tool_sequence(altered, observed_tool_calls=self.observed)
+        self.assertFalse(result['sequence_ok'])
+        self.assertIn('TOOL_TRACE_MISMATCH', result['issues'])
+
+    def test_missing_sdk_source_read_is_detected(self):
+        result = assess_tool_sequence(self.attempted[1:], observed_tool_calls=self.observed)
+        self.assertFalse(result['sequence_ok'])
+        self.assertIn('TOOL_TRACE_MISMATCH', result['issues'])
+
+    def test_search_and_calculator_calls_do_not_change_financial_trace(self):
+        result = assess_tool_sequence(['search_report', 'calculator'] + self.attempted,
+                                      observed_tool_calls=self.observed)
+        self.assertTrue(result['sequence_ok'])

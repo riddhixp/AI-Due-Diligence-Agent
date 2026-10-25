@@ -164,3 +164,24 @@ class FullCorrectionWorkflowTests(unittest.TestCase):
     def test_unknown_rehearsal_scenario_is_rejected(self):
         with self.assertRaisesRegex(ValueError, 'UNKNOWN_OFFLINE_WORKFLOW_SCENARIO'):
             start_offline_correction_workflow(self.pdf, scenario='unknown')
+
+    def test_recovery_with_missing_sdk_review_trace_cannot_complete(self):
+        from agents import Runner
+        from unittest.mock import patch
+        session = start_offline_correction_workflow(self.pdf, scenario='source_recovery')
+        first = decide_and_resume_offline(session['handoff'], self.pdf, True, session['model'])
+        retry = decide_and_resume_offline(first['handoff'], self.pdf, True, session['model'])
+        run = Runner.run_sync
+        def incomplete_trace(*args, **kwargs):
+            result = run(*args, **kwargs)
+            result.new_items = [item for item in result.new_items
+                if not (item.type == 'tool_call_item'
+                        and getattr(item.raw_item, 'name', None) == 'review_submitted_financials')]
+            return result
+        with patch('due_diligence_engine.Runner.run_sync', side_effect=incomplete_trace):
+            result = decide_and_resume_offline(retry['handoff'], self.pdf, True, session['model'])
+        self.assertEqual(result['financial']['revenue_current'], 120)
+        self.assertEqual(result['evaluation']['financial_evidence'], 'PRELIMINARY_CHECKS_PASSED')
+        self.assertIn('TOOL_TRACE_MISMATCH', result['evaluation']['issues'])
+        self.assertFalse(result['evaluation']['final_eligible'])
+        self.assertIsNone(result['validation'])

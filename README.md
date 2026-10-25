@@ -421,3 +421,11 @@ The final sequence audit permits that recovery only when every request is
 accounted for and the accepted correction receives review; other excess attempts
 remain blocked. The audit appendix discloses request/refusal counts. This is a
 fixed local script, not an autonomous-model test, and cannot export a real report.
+
+
+Recovery audits now reconcile the ordered financial tool trace against the
+server's recorded reads, accepted submissions, source-read refusals and reviews.
+Matching submission counts alone are insufficient: missing or reordered reads or
+reviews block completion with `TOOL_TRACE_MISMATCH`. Search and calculator calls
+remain outside this financial sequence check. Figures can still pass evidence
+checks while the overall report remains incomplete because its trace disagrees.

@@ -20,6 +20,15 @@ def assess_tool_sequence(tool_calls, *, observed_tool_calls=None):
             if attempted != accounted:
                 result["issues"].append("UNACCOUNTED_SUBMISSION_TOOL_CALLS")
                 result["sequence_ok"] = False
+            critical = {"read_page", "submit_financial_data", "review_submitted_financials"}
+            aliases = {"source_recheck_refused": "submit_financial_data",
+                       "review_without_submission": "review_submitted_financials"}
+            recorded = [aliases.get(event, event) for event in observed]
+            recorded = [event for event in recorded if event in critical]
+            reported = [event for event in events if event in critical]
+            if reported != recorded:
+                result["issues"].append("TOOL_TRACE_MISMATCH")
+                result["sequence_ok"] = False
             result["source_recheck_refusals"] = refused
             result["submission_attempts"] = attempted
             return result
