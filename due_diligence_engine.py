@@ -296,6 +296,8 @@ reconcile their magnitudes explicitly; do not flip other metrics to positive.
             review_state["page_reads"] - review_state["reads_at_review"],
         )
         if refusal:
+            if refusal.startswith("SOURCE_RECHECK_REQUIRED"):
+                observed_tool_calls.append("source_recheck_refused")
             return refusal
 
         if submission_attempts["count"] == 1:
@@ -304,6 +306,7 @@ reconcile their magnitudes explicitly; do not flip other metrics to positive.
                                if value is not None and page is not None)
             missing = cited_pages - review_state["source_pages_since_review"]
             if missing:
+                observed_tool_calls.append("source_recheck_refused")
                 return ("SOURCE_RECHECK_REQUIRED: Read every cited correction page after "
                         "the failed review. Missing PDF pages: "
                         + ", ".join(str(page) for page in sorted(missing)))
@@ -1044,7 +1047,7 @@ or fabricate values merely to submit the data.
         review_state["status"],
         tool_calls,
     )
-    sequence_audit = assess_tool_sequence(tool_calls)
+    sequence_audit = assess_tool_sequence(tool_calls, observed_tool_calls=observed_tool_calls)
     print("Tool sequence valid:", sequence_audit["sequence_ok"])
     if sequence_audit["issues"]:
         print("Sequence issues:", ", ".join(sequence_audit["issues"]))
@@ -1052,7 +1055,7 @@ or fabricate values merely to submit the data.
     evaluation = evaluate_agent_run(
         pages, financial_submission, tool_calls,
         submission_attempts["count"], review_state["reviewed_count"],
-        review_state["status"],
+        review_state["status"], observed_tool_calls=observed_tool_calls,
     )
     if sdk_pause_capture is not None and sdk_pause_capture["paused"]:
         evaluation["evaluation"] = "SDK_PAUSED_APPROVAL_PENDING"

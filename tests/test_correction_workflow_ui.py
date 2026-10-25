@@ -115,3 +115,20 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertEqual(session['model'].calls, 2)
         self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
         self.assertEqual(session['handoff']['checkpoint']['submission_count'], 0)
+
+    def test_source_recovery_uses_three_approvals_and_preserves_real_report(self):
+        self.app.selectbox(key='app_workflow_scenario').select('Recover after unrelated source read').run()
+        self.click('app_workflow_start')
+        self.click('app_workflow_approve')
+        self.click('app_workflow_approve')
+        session = self.app.session_state['offline_application_workflow']
+        self.assertEqual(session['handoff']['checkpoint']['submission_count'], 1)
+        self.assertEqual(session['handoff']['checkpoint']['financial_data']['revenue_current'], 130)
+        self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
+        self.click('app_workflow_approve')
+        result = session['result']
+        self.assertEqual(result['financial']['revenue_current'], 120)
+        self.assertTrue(result['evaluation']['final_eligible'])
+        self.assertTrue(result['evaluation']['simulation'])
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+        self.assertEqual(len(self.app.get('download_button')), 0)

@@ -9,7 +9,7 @@ from tool_sequence_audit import assess_tool_sequence
 
 
 def evaluate_agent_run(pages, financial_data, tool_calls, submissions,
-                       reviewed_count, review_status):
+                       reviewed_count, review_status, *, observed_tool_calls=None):
     """Evaluate observable, non-sensitive tool and evidence results."""
     tool_calls = list(tool_calls)
     evidence = (
@@ -19,7 +19,7 @@ def evaluate_agent_run(pages, financial_data, tool_calls, submissions,
     outcome = investigation_outcome(
         submissions, reviewed_count, review_status, tool_calls
     )
-    sequence = assess_tool_sequence(tool_calls)
+    sequence = assess_tool_sequence(tool_calls, observed_tool_calls=observed_tool_calls)
 
     latest_reviewed = outcome["latest_submission_reviewed"]
     evidence_passed = (

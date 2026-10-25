@@ -52,3 +52,36 @@ class ToolSequenceAuditTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SourceRecoveryAuditTests(unittest.TestCase):
+    def setUp(self):
+        self.observed = ['read_page', 'submit_financial_data', 'review_submitted_financials',
+                         'read_page', 'source_recheck_refused', 'read_page',
+                         'submit_financial_data', 'review_submitted_financials']
+        self.attempted = ['submit_financial_data' if event == 'source_recheck_refused' else event
+                          for event in self.observed]
+
+    def test_recorded_source_refusal_allows_valid_recovery(self):
+        result = assess_tool_sequence(self.attempted, observed_tool_calls=self.observed)
+        self.assertTrue(result['sequence_ok'])
+        self.assertEqual(result['submissions_called'], 2)
+        self.assertEqual(result['submission_attempts'], 3)
+        self.assertEqual(result['source_recheck_refusals'], 1)
+
+    def test_unaccounted_attempts_remain_blocked(self):
+        result = assess_tool_sequence(self.attempted + ['submit_financial_data'],
+                                      observed_tool_calls=self.observed)
+        self.assertFalse(result['sequence_ok'])
+        self.assertIn('UNACCOUNTED_SUBMISSION_TOOL_CALLS', result['issues'])
+
+    def test_recovery_still_requires_latest_review(self):
+        result = assess_tool_sequence(self.attempted[:-1], observed_tool_calls=self.observed[:-1])
+        self.assertFalse(result['sequence_ok'])
+        self.assertIn('CORRECTION_NOT_FOLLOWED_BY_REVIEW', result['issues'])
+
+    def test_third_accepted_submission_is_still_excessive(self):
+        extra = ['submit_financial_data', 'review_submitted_financials']
+        result = assess_tool_sequence(self.attempted + extra, observed_tool_calls=self.observed + extra)
+        self.assertFalse(result['sequence_ok'])
+        self.assertIn('EXCESS_SUBMISSION_TOOL_CALLS', result['issues'])

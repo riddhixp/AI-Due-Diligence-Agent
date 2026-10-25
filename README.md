@@ -410,3 +410,14 @@ before the latest review do not count. Older checkpoints without page-level
 history require new source reads rather than inferring pages from a total count.
 Refused corrections preserve the accepted figures and do not consume the remaining
 successful-submission slot. This remains a process-local offline safeguard.
+
+
+The free application workflow offers a **Recover after unrelated source read**
+scenario alongside the standard correction rehearsal. It uses three explicit
+approval steps: the wrong initial figures, a correction refused because the cited
+page was not reread, then the same correction after the correct source read.
+The server records source-reread refusals separately from accepted submissions.
+The final sequence audit permits that recovery only when every request is
+accounted for and the accepted correction receives review; other excess attempts
+remain blocked. The audit appendix discloses request/refusal counts. This is a
+fixed local script, not an autonomous-model test, and cannot export a real report.

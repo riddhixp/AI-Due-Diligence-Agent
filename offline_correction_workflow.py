@@ -13,7 +13,9 @@ from scripted_offline_model import ScriptedOfflineModel
 from synthetic_financial_fixture import conflict_submission_arguments
 
 
-def start_offline_correction_workflow(pdf_bytes):
+def start_offline_correction_workflow(pdf_bytes, *, scenario="standard"):
+    if scenario not in ("standard", "source_recovery"):
+        raise ValueError("UNKNOWN_OFFLINE_WORKFLOW_SCENARIO")
     pages = read_synthetic_conflict_pages(pdf_bytes)
     fields = conflict_submission_arguments()
     wrong = dict(fields, revenue_current=130, reported_revenue_growth=30,
@@ -37,6 +39,15 @@ def start_offline_correction_workflow(pdf_bytes):
             annotations=[])])],
     ]
 
+    if scenario == "source_recovery":
+        # Deliberately visit the wrong page, request a correction that the real
+        # application refuses, then read its cited source and request it again.
+        model.responses[3] = call('read_page', {'page_number': 1}, 3)
+        model.responses[5:5] = [
+            call('read_page', {'page_number': 2}, 7),
+            call('submit_financial_data', fields, 8),
+        ]
+
     # Start in the same engine used by Streamlit. The page read, first
     # submission request, checkpoint and SDK pause all come from real tools.
     from due_diligence_engine import run_due_diligence
@@ -46,5 +57,6 @@ def start_offline_correction_workflow(pdf_bytes):
                           financial_approval_required=True, pause_pdf_bytes=pdf_bytes)
     except SDKFinancialApprovalPaused as paused:
         return {'handoff': paused.handoff, 'model': model, 'scripted': True,
+                'scenario': scenario,
                 'external_api_calls': 0}
     raise ValueError('EXPECTED_INITIAL_APPROVAL_PAUSE')

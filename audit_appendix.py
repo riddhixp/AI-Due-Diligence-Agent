@@ -23,4 +23,11 @@ def append_audit_appendix(report, outcome, sequence):
         "It does not establish that the AI independently reasoned correctly "
         "or that the underlying financial data is audited.\n"
     )
+    if sequence.get("source_recheck_refusals"):
+        appendix += (
+            f"\n- Financial submission requests: {sequence['submission_attempts']}\n"
+            f"- Source-reread refusals: {sequence['source_recheck_refusals']}\n"
+            "These refused requests did not replace the accepted figures or consume "
+            "a successful correction slot.\n"
+        )
     return report.rstrip() + appendix

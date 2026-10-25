@@ -1,13 +1,28 @@
 """Evaluate tool-call ordering without claiming that an LLM fixed evidence."""
 
 
-def assess_tool_sequence(tool_calls):
+def assess_tool_sequence(tool_calls, *, observed_tool_calls=None):
     """Report whether the agent followed the required investigation order.
 
     This assesses observed tool names, not tool arguments or figure accuracy.
     Accepted submissions still require server-side guards.
     """
     events = list(tool_calls)
+    if observed_tool_calls is not None:
+        observed = list(observed_tool_calls)
+        refused = observed.count("source_recheck_refused")
+        if refused:
+            # Only server-recorded source reread refusals are recoverable.
+            # Other unaccepted requests retain the conservative audit failure.
+            result = assess_tool_sequence(observed)
+            attempted = events.count("submit_financial_data")
+            accounted = observed.count("submit_financial_data") + refused
+            if attempted != accounted:
+                result["issues"].append("UNACCOUNTED_SUBMISSION_TOOL_CALLS")
+                result["sequence_ok"] = False
+            result["source_recheck_refusals"] = refused
+            result["submission_attempts"] = attempted
+            return result
     submissions = [i for i, name in enumerate(events)
                    if name == "submit_financial_data"]
     reviews = [i for i, name in enumerate(events)

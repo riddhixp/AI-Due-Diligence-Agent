@@ -75,6 +75,21 @@ def run_offline_evaluation():
         checks.append(('third_approved_request_cannot_replace_corrected_figures',
                        protected['financial']['revenue_current'] == 120
                        and protected['evaluation']['final_eligible'] is False))
+        recovery = start_offline_correction_workflow(pdf, scenario='source_recovery')
+        first = decide_and_resume_offline(recovery['handoff'], pdf, True, recovery['model'])
+        retry = decide_and_resume_offline(first['handoff'], pdf, True, recovery['model'])
+        retained = retry['handoff']['checkpoint']
+        checks.append(('refused_correction_preserves_slot_for_source_recovery',
+                       retained['submission_count'] == 1 and retained['reviewed_count'] == 1
+                       and retained['financial_data']['revenue_current'] == 130
+                       and retained['review_status'] == 'NEEDS_REVIEW'
+                       and retained['page_read_events'][-1]['page'] == 2))
+        recovered = decide_and_resume_offline(retry['handoff'], pdf, True, recovery['model'])
+        checks.append(('source_recovery_completes_after_new_approval',
+                       recovered['financial']['revenue_current'] == 120
+                       and recovered['evaluation']['final_eligible'] is True
+                       and not final_report_eligible(recovered['evaluation'])
+                       and recovery['model'].calls == 9))
     return {
         'evaluation': 'PASS' if all(passed for _, passed in checks) else 'FAIL',
         'execution_mode': 'SCRIPTED_OFFLINE_FULL_ENGINE',

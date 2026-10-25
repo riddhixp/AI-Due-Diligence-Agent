@@ -17,9 +17,13 @@ def render_correction_workflow(st, pdf_bytes):
     if session is not None and session['document_sha256'] != digest:
         st.session_state.pop(SESSION_KEY, None)
         session = None
+    scenarios = {'Standard correction': 'standard',
+                 'Recover after unrelated source read': 'source_recovery'}
+    selected = st.selectbox('Free rehearsal scenario', list(scenarios),
+                            key='app_workflow_scenario')
     if st.button('Start FREE application workflow', key='app_workflow_start'):
         try:
-            session = start_offline_correction_workflow(pdf_bytes)
+            session = start_offline_correction_workflow(pdf_bytes, scenario=scenarios[selected])
             session['document_sha256'] = digest
             st.session_state[SESSION_KEY] = session
         except ValueError as error:
@@ -27,6 +31,10 @@ def render_correction_workflow(st, pdf_bytes):
     if session is None:
         st.caption('Upload synthetic_conflict_test.pdf to rehearse both approval steps.')
         return
+    if session.get('scenario') == 'source_recovery':
+        st.caption('Active rehearsal: source-read recovery. The scripted model first reads '
+                   'an unrelated page. That correction is blocked; it then reads the cited '
+                   'page and requests a new approval. Expect three approval steps.')
     handoff = session['handoff']
     result = session.get('result')
     if result is not None:

@@ -143,3 +143,24 @@ class FullCorrectionWorkflowTests(unittest.TestCase):
         result = decide_and_resume_offline(paused['handoff'], self.pdf, True, self.session['model'])
         self.assertEqual(result['financial']['revenue_current'], 120)
         self.assertTrue(result['evaluation']['final_eligible'])
+
+    def test_refused_correction_recovers_without_consuming_slot(self):
+        session = start_offline_correction_workflow(self.pdf, scenario='source_recovery')
+        first = decide_and_resume_offline(session['handoff'], self.pdf, True, session['model'])
+        retry = decide_and_resume_offline(first['handoff'], self.pdf, True, session['model'])
+        checkpoint = retry['handoff']['checkpoint']
+        self.assertEqual(checkpoint['submission_count'], 1)
+        self.assertEqual(checkpoint['reviewed_count'], 1)
+        self.assertEqual(checkpoint['financial_data']['revenue_current'], 130)
+        self.assertEqual(checkpoint['review_status'], 'NEEDS_REVIEW')
+        self.assertEqual(checkpoint['page_read_events'][-2:],
+                         [{'tool_index': 3, 'page': 1}, {'tool_index': 5, 'page': 2}])
+        result = decide_and_resume_offline(retry['handoff'], self.pdf, True, session['model'])
+        self.assertEqual(result['financial']['revenue_current'], 120)
+        self.assertTrue(result['evaluation']['final_eligible'])
+        self.assertFalse(final_report_eligible(result['evaluation']))
+        self.assertEqual(session['model'].calls, 9)
+
+    def test_unknown_rehearsal_scenario_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'UNKNOWN_OFFLINE_WORKFLOW_SCENARIO'):
+            start_offline_correction_workflow(self.pdf, scenario='unknown')
