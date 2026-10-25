@@ -24,7 +24,7 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual(preview['metrics'][0]['Proposed'], 120)
         self.assertEqual(preview['metrics'][0]['PDF page'], 2)
         self.assertEqual(preview['metadata']['currency'], 'USD')
-        self.assertEqual(set(preview), {'request_sha256', 'metadata', 'metrics'})
+        self.assertEqual(set(preview), {'request_sha256', 'metadata', 'previous_metadata', 'metrics'})
         json.dumps(preview, allow_nan=False)
 
     def test_changed_arguments_or_call_identity_cannot_use_previous_approval(self):
@@ -59,3 +59,42 @@ class PreviewTests(unittest.TestCase):
         preview = financial_approval_preview(self.handoff)
         preview['metrics'][0]['Proposed'] = 999
         self.assertEqual(financial_approval_preview(self.handoff)['metrics'][0]['Proposed'], 120)
+
+    def test_ratio_preview_uses_all_input_pages_without_inventing_primary_citation(self):
+        fields = dict(revenue_current=120, revenue_current_page=2, revenue_previous=100,
+                      revenue_previous_page=3, reported_revenue_growth=20, source_page=99)
+        self.raw.arguments = json.dumps(fields)
+        preview = financial_approval_preview(self.handoff)
+        ratio = next(row for row in preview['metrics'] if row['Metric'] == 'Reported revenue growth')
+        self.assertIsNone(ratio['PDF page'])
+        self.assertEqual(ratio['PDF pages'], [2, 3])
+        self.assertEqual(ratio['Evidence'], 'Calculate from cited inputs')
+
+    def test_optional_figure_omitted_by_correction_is_shown_as_removed(self):
+        self.handoff['checkpoint']['financial_data'] = {
+            'operating_cash_flow': 60, 'source_pages': {'operating_cash_flow': 4}}
+        preview = financial_approval_preview(self.handoff)
+        row = next(row for row in preview['metrics'] if row['Metric'] == 'Operating cash flow')
+        self.assertEqual(row['Previous'], 60)
+        self.assertIsNone(row['Proposed'])
+        self.assertEqual(row['Change'], 'Removed')
+        self.assertEqual(row['Previous PDF pages'], [4])
+        self.assertEqual(row['PDF pages'], [])
+
+    def test_previous_metadata_and_changed_citation_are_visible(self):
+        self.handoff['checkpoint']['financial_data'] = dict(currency='GBP', units='thousands',
+            fiscal_year=2024, revenue_current=120, source_pages={'revenue_current': 1})
+        preview = financial_approval_preview(self.handoff)
+        row = preview['metrics'][0]
+        self.assertEqual(row['Previous PDF pages'], [1])
+        self.assertEqual(row['PDF pages'], [2])
+        self.assertEqual(row['Change'], 'Changed')
+        self.assertEqual(preview['previous_metadata']['currency'], 'GBP')
+        self.assertEqual(preview['metadata']['currency'], 'USD')
+
+    def test_missing_optional_citation_does_not_fall_back_to_primary_page(self):
+        self.raw.arguments = json.dumps(dict(revenue_current=120, operating_cash_flow=60, source_page=2))
+        preview = financial_approval_preview(self.handoff)
+        row = next(row for row in preview['metrics'] if row['Metric'] == 'Operating cash flow')
+        self.assertEqual(row['PDF pages'], [])
+        self.assertIsNone(row['PDF page'])

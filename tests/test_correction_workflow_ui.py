@@ -36,6 +36,11 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.click('app_workflow_approve')
         session = self.app.session_state['offline_application_workflow']
         self.assertEqual(session['handoff']['checkpoint']['review_status'], 'NEEDS_REVIEW')
+        frame = self.app.dataframe[0].value
+        row = frame[frame['Metric'] == 'Revenue current'].iloc[0]
+        self.assertEqual(list(row['Previous PDF pages']), [2])
+        self.assertEqual(list(row['PDF pages']), [2])
+        self.assertEqual(row['Change'], 'Changed')
         self.click('app_workflow_approve')
         result = self.app.session_state['offline_application_workflow']['result']
         self.assertEqual(result['financial']['revenue_current'], 120)

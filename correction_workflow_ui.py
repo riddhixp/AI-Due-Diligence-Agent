@@ -57,13 +57,16 @@ def render_correction_workflow(st, pdf_bytes):
         shown_fingerprint = session.get('displayed_request_sha256', preview['request_sha256'])
         st.warning('Financial submission awaiting your decision. Compare the proposed figures with the PDF.')
         st.write('Submission:', preview['metadata'])
+        if handoff['checkpoint']['submission_count']:
+            st.write('Previously accepted metadata:', preview['previous_metadata'])
         st.dataframe(preview['metrics'], hide_index=True)
         pages = read_synthetic_conflict_pages(pdf_bytes)
-        cited_pages = sorted({row['PDF page'] for row in preview['metrics']
-                              if row['PDF page'] is not None})
+        cited_pages = sorted({page for row in preview['metrics']
+                              for page in row['PDF pages'] + row['Previous PDF pages']})
         with st.expander('Source evidence for pending figures'):
             st.caption('Compare the proposed amounts, row labels and fiscal-year columns '
-                       'with the cited PDF text. The proposal has not been verified yet.')
+                       'with the proposed and previous PDF citations. Percentages cite their input '
+                       'figures; removed values are shown explicitly. The proposal is unverified.')
             for page in cited_pages:
                 if type(page) in (int, float) and int(page) == page and 1 <= page <= len(pages):
                     st.markdown(f'**PDF page {int(page)}**')

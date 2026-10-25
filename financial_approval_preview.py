@@ -2,6 +2,7 @@
 import hashlib
 import json
 import math
+from optional_statement_metrics import OPTIONAL_STATEMENT_METRICS
 
 
 def _unique_object(pairs):
@@ -61,16 +62,38 @@ def financial_approval_preview(handoff):
         raise ValueError('NO_PENDING_FINANCIAL_APPROVAL')
     _, values, fingerprint = pending_financial_request(handoff['sdk_state'])
     previous = handoff['checkpoint']['financial_data']
+    metadata_fields = ('company', 'fiscal_year', 'currency', 'units')
+    ratio_inputs = {
+        'reported_revenue_growth': ('revenue_current', 'revenue_previous'),
+        'reported_gross_margin': ('gross_profit', 'revenue_current'),
+        'reported_net_margin': ('net_income', 'revenue_current'),
+    }
+    previous_pages = previous.get('source_pages') or {}
+    fields = [key for key in values
+              if key not in (*metadata_fields, 'source_page') and not key.endswith('_page')]
+    # Omitted optional tool arguments become None in the actual submission.
+    for field, *_ in OPTIONAL_STATEMENT_METRICS:
+        if field not in fields and previous.get(field) is not None:
+            fields.append(field)
     rows = []
-    for key, value in values.items():
-        if key in ('company', 'currency', 'units', 'fiscal_year', 'source_page') or key.endswith('_page'):
-            continue
+    for key in fields:
+        value = values.get(key)
         old = previous.get(key)
-        if key.startswith('reported_'):
+        dependencies = ratio_inputs.get(key, (key,))
+        if key in ratio_inputs:
             old = previous.get('reported', {}).get(key.removeprefix('reported_'))
+        pages = sorted({values.get(field + '_page') for field in dependencies
+                        if values.get(field + '_page') is not None})
+        old_pages = sorted({previous_pages.get(field) for field in dependencies
+                            if previous_pages.get(field) is not None})
         rows.append({'Metric': key.replace('_', ' ').capitalize(),
                      'Previous': old, 'Proposed': value,
-                     'PDF page': values.get(key + '_page', values.get('source_page'))})
+                     'PDF page': values.get(key + '_page') if key not in ratio_inputs else None,
+                     'PDF pages': pages, 'Previous PDF pages': old_pages,
+                     'Change': 'Removed' if old is not None and value is None else
+                               ('Unchanged' if old == value and old_pages == pages else 'Changed'),
+                     'Evidence': 'Calculate from cited inputs' if key in ratio_inputs else 'Statement figure'})
     return {'request_sha256': fingerprint,
-            'metadata': {key: values.get(key) for key in ('company', 'fiscal_year', 'currency', 'units')},
+            'metadata': {key: values.get(key) for key in metadata_fields},
+            'previous_metadata': {key: previous.get(key) for key in metadata_fields},
             'metrics': rows}

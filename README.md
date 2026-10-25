@@ -451,3 +451,12 @@ of these paths modifies the real report or exposes final-report downloads.
 The fixed rejection script is shortened only after the SDK successfully records
 the decision, so a stale preview or pre-decision failure cannot discard the
 remaining rehearsal steps.
+
+
+Approval previews show previous and proposed PDF citations alongside each amount,
+plus previous currency, units and fiscal-year metadata. Reported percentage rows
+cite all of their input figures' pages rather than inventing one primary source.
+Missing optional citations remain missing, and optional figures omitted by a
+correction appear explicitly as removed. The evidence panel includes both old
+and proposed pages for comparison. Previewing these changes does not verify the
+proposal, record approval or invoke a model.
