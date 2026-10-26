@@ -147,6 +147,45 @@ class ModelRequestBudgetTests(unittest.TestCase):
         self.assertEqual(progress['submission_count'], 2)
         self.assertIsNone(progress['review_status'])
 
+    def test_simulated_tokens_accumulate_across_both_approvals(self):
+        with tempfile.TemporaryDirectory() as folder:
+            pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
+        ledger = SimulatedTokenLedger(7, 7)
+        model = ScriptedOfflineModel(simulated_token_ledger=ledger)
+        with patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')), \\
+             patch('offline_correction_workflow.ScriptedOfflineModel', return_value=model):
+            fixture = start_offline_correction_workflow(pdf)
+            self.assertEqual(ledger.snapshot()['requests_recorded'], 2)
+            first = decide_and_resume_offline(fixture['handoff'], pdf, True, model)
+            self.assertEqual(first['status'], 'AWAITING_APPROVAL')
+            self.assertEqual(ledger.snapshot()['requests_recorded'], 5)
+            second = decide_and_resume_offline(first['handoff'], pdf, True, model)
+        self.assertEqual(second['status'], 'COMPLETED_OFFLINE')
+        self.assertEqual(second['financial']['revenue_current'], 120)
+        self.assertEqual(ledger.snapshot()['requests_recorded'], 7)
+        self.assertEqual(ledger.snapshot()['input_tokens'], 7)
+        self.assertEqual(ledger.snapshot()['output_tokens'], 7)
+        self.assertFalse(ledger.snapshot()['provider_usage_verified'])
+        self.assertEqual(second['external_api_calls'], 0)
+
+    def test_simulated_tokens_exhaust_at_final_resume_without_export(self):
+        with tempfile.TemporaryDirectory() as folder:
+            pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
+        ledger = SimulatedTokenLedger(6, 6)
+        model = ScriptedOfflineModel(simulated_token_ledger=ledger)
+        with patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')), \\
+             patch('offline_correction_workflow.ScriptedOfflineModel', return_value=model):
+            fixture = start_offline_correction_workflow(pdf)
+            first = decide_and_resume_offline(fixture['handoff'], pdf, True, model)
+            self.assertEqual(first['status'], 'AWAITING_APPROVAL')
+            with self.assertRaisesRegex(ValueError, 'SIMULATED_TOKEN_LIMIT_EXCEEDED'):
+                decide_and_resume_offline(first['handoff'], pdf, True, model)
+        self.assertEqual(ledger.snapshot()['requests_recorded'], 6)
+        self.assertEqual(model.calls, 6)
+        self.assertEqual(first['handoff']['status'], 'FAILED')
+        self.assertIn('failure_checkpoint', first['handoff'])
+        self.assertIsNone(first['handoff']['failure_checkpoint']['review_status'])
+
     def test_sufficient_shared_quota_completes_scripted_workflow(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
