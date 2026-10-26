@@ -189,6 +189,11 @@ class ModelRequestBudgetTests(unittest.TestCase):
         # The review tool finished, but the final model response never arrived.
         # A passing financial review alone cannot complete or export the report.
         self.assertNotEqual(first['handoff']['status'], 'COMPLETED_OFFLINE')
+        # A failed approval handoff is consumed: retries must not replay tools.
+        with self.assertRaisesRegex(ValueError, 'APPROVAL_RESUME_ALREADY_CLAIMED'):
+            decide_and_resume_offline(first['handoff'], pdf, True, model)
+        self.assertEqual(model.calls, 6)
+        self.assertEqual(ledger.snapshot()['requests_recorded'], 6)
 
     def test_sufficient_shared_quota_completes_scripted_workflow(self):
         with tempfile.TemporaryDirectory() as folder:
