@@ -41,6 +41,15 @@ class ModelRequestBudgetTests(unittest.TestCase):
             self.assertEqual(sum(pool.map(claim, range(32))), 3)
         self.assertEqual(budget.snapshot()['remaining'], 0)
 
+    def test_budget_ceiling_cannot_be_raised_after_creation(self):
+        budget = ModelRequestBudget(1)
+        with self.assertRaisesRegex(ValueError, 'MODEL_REQUEST_BUDGET_LIMIT_IMMUTABLE'):
+            budget._maximum = 20
+        self.assertEqual(budget.reserve(), 1)
+        with self.assertRaisesRegex(ValueError, 'MODEL_REQUEST_BUDGET_EXHAUSTED'):
+            budget.reserve()
+        self.assertEqual(budget.snapshot(), {'maximum': 1, 'reserved': 1, 'remaining': 0})
+
     def test_copy_and_serialization_cannot_reset_or_fork_quota(self):
         budget = ModelRequestBudget(1)
         budget.reserve()
