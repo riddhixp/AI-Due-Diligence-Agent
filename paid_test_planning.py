@@ -51,7 +51,8 @@ def prepare_paid_test_plan(pdf_bytes, *, remaining_credit_usd=None,
     proposed_reserve = (estimated_ceiling * 2).quantize(Decimal('0.01'), rounding=ROUND_CEILING)
     remaining = None if remaining_credit_usd is None else _money(remaining_credit_usd)
     blockers = ['EXPLICIT_PERMISSION_FOR_THIS_TEST_REQUIRED',
-                'PAID_CONTINUATION_DISABLED', 'LIVE_SPEND_ENFORCEMENT_NOT_VALIDATED']
+                'PAID_CONTINUATION_DISABLED', 'LIVE_SPEND_ENFORCEMENT_NOT_VALIDATED',
+                'MODEL_AVAILABILITY_NOT_VERIFIED', 'PRICING_REVALIDATION_REQUIRED']
     if remaining is None:
         blockers.insert(0, 'REMAINING_CREDIT_UNKNOWN')
     elif remaining < proposed_reserve:
@@ -73,6 +74,7 @@ def prepare_paid_test_plan(pdf_bytes, *, remaining_credit_usd=None,
         'cost_estimate_usd': str(estimated_ceiling),
         'proposed_reserve_usd': str(proposed_reserve),
         'estimate_is_enforced_spending_cap': False,
+        'estimate_requires_current_pricing': True,
         'pricing': {'source': PRICING_URL, 'checked_on': PRICING_CHECKED,
                     'input_per_million_usd': str(INPUT_USD_PER_MILLION),
                     'output_per_million_usd': str(OUTPUT_USD_PER_MILLION),
