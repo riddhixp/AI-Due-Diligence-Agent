@@ -10,6 +10,7 @@ from financial_approval_resume import decide_and_resume_offline
 from model_request_budget import ModelRequestBudget
 from offline_correction_workflow import start_offline_correction_workflow
 from scripted_offline_model import ScriptedOfflineModel
+from simulated_token_ledger import SimulatedTokenLedger
 from scripts.create_conflict_test_fixture import create_conflict_fixture
 
 
@@ -82,6 +83,28 @@ class ModelRequestBudgetTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'MODEL_REQUEST_BUDGET_EXHAUSTED'):
             asyncio.run(model.get_response())
         self.assertEqual(model.calls, 1)
+
+    def test_optional_simulated_tokens_across_model_requests(self):
+        ledger = SimulatedTokenLedger(2, 2)
+        model = ScriptedOfflineModel(simulated_token_ledger=ledger)
+        asyncio.run(model.get_response())
+        asyncio.run(model.get_response())
+        self.assertEqual(ledger.snapshot()['requests_recorded'], 2)
+        self.assertEqual(ledger.snapshot()['input_tokens'], 2)
+        self.assertEqual(ledger.snapshot()['output_tokens'], 2)
+        self.assertFalse(ledger.snapshot()['provider_usage_verified'])
+        with self.assertRaisesRegex(ValueError, 'SIMULATED_TOKEN_LIMIT_EXCEEDED'):
+            asyncio.run(model.get_response())
+        self.assertEqual(model.calls, 2)
+
+    def test_simulated_ledger_cannot_be_replaced(self):
+        ledger = SimulatedTokenLedger(2, 2)
+        model = ScriptedOfflineModel(simulated_token_ledger=ledger)
+        with self.assertRaisesRegex(ValueError, 'MODEL_REQUEST_BUDGET_IMMUTABLE'):
+            model.simulated_token_ledger = None
+        self.assertIs(model.simulated_token_ledger, ledger)
+        with self.assertRaisesRegex(ValueError, 'INVALID_SIMULATED_TOKEN_LEDGER'):
+            ScriptedOfflineModel(simulated_token_ledger=object())
 
     def test_failed_dispatch_keeps_reservation(self):
         budget = ModelRequestBudget(1)
