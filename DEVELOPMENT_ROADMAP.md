@@ -57,6 +57,16 @@ current pricing and remaining credit, then request explicit test-specific
 authorization. Live token, request, retry and billing enforcement remain
 unfinished.
 
+## Offline simulated token ledger
+
+A separate `SimulatedTokenLedger` can now accumulate explicitly simulated
+input/output token counts atomically and reject an over-limit record without
+partially updating totals. It includes concurrency and validation tests. It is
+not yet connected to the SDK scripted model, so these counts are not inferred
+from model responses or automatically displayed in the app. It cannot account
+for network retries, missing usage responses or provider billing; real model
+execution remains disabled pending permission and verified enforcement.
+
 ## Free manual acceptance check
 
 Use the generated synthetic conflict PDF, not a confidential company document.
