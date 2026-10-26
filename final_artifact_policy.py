@@ -15,7 +15,8 @@ def final_report_eligible(evaluation, sdk_handoff=None):
         and evaluation.get("evaluation") == "PRELIMINARY_PASS"
         and evaluation.get("financial_evidence") == "PRELIMINARY_CHECKS_PASSED"
         and evaluation.get("sequence_ok") is True
-        and not evaluation.get("issues")
+        and type(evaluation.get("issues")) is list
+        and len(evaluation["issues"]) == 0
         and evaluation.get("final_response_complete") is True
         and evaluation.get("final_eligible") is True
         and evaluation.get("simulation") is False
