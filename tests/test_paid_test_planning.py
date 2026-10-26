@@ -45,6 +45,14 @@ class PaidTestPlanningTests(unittest.TestCase):
         self.assertEqual(Decimal(plan['cost_estimate_usd']), Decimal('0.064768'))
         self.assertEqual(Decimal(plan['proposed_reserve_usd']), Decimal('0.13'))
         self.assertFalse(plan['planned_limits']['reset_on_approval'])
+        self.assertEqual(plan['planned_limits']['max_input_tokens_total_planned'], 128000)
+        self.assertEqual(plan['planned_limits']['max_output_tokens_total_planned'], 16384)
+        smaller = prepare_paid_test_plan(self.pdf, max_requests=2,
+                                         max_input_tokens_per_request=500,
+                                         max_output_tokens_per_request=100)
+        self.assertEqual(smaller['planned_limits']['max_input_tokens_total_planned'], 1000)
+        self.assertEqual(smaller['planned_limits']['max_output_tokens_total_planned'], 200)
+        self.assertFalse(smaller['can_execute'])
 
     def test_not_enough_remaining_credit_blocks_planning_readiness(self):
         for balance in ['0', '0.12']:
