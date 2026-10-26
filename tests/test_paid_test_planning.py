@@ -30,6 +30,16 @@ class PaidTestPlanningTests(unittest.TestCase):
         self.assertIn('PAID_CONTINUATION_DISABLED', plan['blockers'])
         self.assertFalse(plan['estimate_is_enforced_spending_cap'])
 
+    def test_unverified_model_and_stale_pricing_always_block_readiness(self):
+        plan = prepare_paid_test_plan(self.pdf, remaining_credit_usd='100.00')
+        self.assertFalse(plan['can_execute'])
+        self.assertFalse(plan['model_availability_verified'])
+        self.assertIn('MODEL_AVAILABILITY_NOT_VERIFIED', plan['blockers'])
+        self.assertIn('PRICING_REVALIDATION_REQUIRED', plan['blockers'])
+        self.assertTrue(plan['estimate_requires_current_pricing'])
+        self.assertFalse(plan['estimate_is_enforced_spending_cap'])
+        self.assertEqual(plan['api_calls'], 0)
+
     def test_estimate_accounts_for_input_and_output_on_every_request(self):
         plan = prepare_paid_test_plan(self.pdf)
         self.assertEqual(Decimal(plan['cost_estimate_usd']), Decimal('0.064768'))
