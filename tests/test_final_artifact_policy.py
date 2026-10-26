@@ -40,6 +40,14 @@ class FinalArtifactPolicyTests(unittest.TestCase):
         self.passed["issues"] = ["LATEST_SUBMISSION_NOT_REVIEWED"]
         self.assertFalse(final_report_eligible(self.passed))
 
+    def test_issue_list_must_be_explicitly_empty_list(self):
+        for value in (None, False, "", {}, (), 0, "none"):
+            with self.subTest(value=value):
+                self.passed["issues"] = value
+                self.assertFalse(final_report_eligible(self.passed))
+        self.passed.pop("issues")
+        self.assertFalse(final_report_eligible(self.passed))
+
     def test_positive_review_cannot_override_incomplete_continuation(self):
         # Financial evidence may pass before a final model response is produced.
         # Export must still fail for an interrupted or pending SDK handoff.
