@@ -64,7 +64,10 @@ input/output token counts atomically and reject an over-limit record without
 partially updating totals. It includes concurrency and validation tests. It is now optionally wired into the SDK scripted model using fictional one-input\nand one-output token per scripted response; the connection is exercised in unit\ntests. Counts are neither measured from SDK responses nor displayed in the app.
 Two offline integration tests now exercise the same ledger through the full
 approval/correction sequence (seven fictional requests) and a six-token stop
-at the last resume. An exhausted rehearsal remains incomplete, not exported.
+at the last resume. An exhausted rehearsal remains incomplete, not exported. The final review tool
+may already have returned PRELIMINARY_CHECKS_PASSED before the scripted token
+limit stops the final model response; a passing review never substitutes for a
+completed investigation and must not unlock a final artifact.
  It cannot account
 for network retries, missing usage responses or provider billing; real model
 execution remains disabled pending permission and verified enforcement.
