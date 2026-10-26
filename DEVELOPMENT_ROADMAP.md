@@ -61,9 +61,7 @@ unfinished.
 
 A separate `SimulatedTokenLedger` can now accumulate explicitly simulated
 input/output token counts atomically and reject an over-limit record without
-partially updating totals. It includes concurrency and validation tests. It is
-not yet connected to the SDK scripted model, so these counts are not inferred
-from model responses or automatically displayed in the app. It cannot account
+partially updating totals. It includes concurrency and validation tests. It is now optionally wired into the SDK scripted model using fictional one-input\nand one-output token per scripted response; the connection is exercised in unit\ntests. Counts are neither measured from SDK responses nor displayed in the app. It cannot account
 for network retries, missing usage responses or provider billing; real model
 execution remains disabled pending permission and verified enforcement.
 
