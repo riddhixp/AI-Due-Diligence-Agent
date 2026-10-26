@@ -184,7 +184,11 @@ class ModelRequestBudgetTests(unittest.TestCase):
         self.assertEqual(model.calls, 6)
         self.assertEqual(first['handoff']['status'], 'FAILED')
         self.assertIn('failure_checkpoint', first['handoff'])
-        self.assertIsNone(first['handoff']['failure_checkpoint']['review_status'])
+        self.assertEqual(first['handoff']['failure_checkpoint']['review_status'],
+                         'PRELIMINARY_CHECKS_PASSED')
+        # The review tool finished, but the final model response never arrived.
+        # A passing financial review alone cannot complete or export the report.
+        self.assertNotEqual(first['handoff']['status'], 'COMPLETED_OFFLINE')
 
     def test_sufficient_shared_quota_completes_scripted_workflow(self):
         with tempfile.TemporaryDirectory() as folder:
