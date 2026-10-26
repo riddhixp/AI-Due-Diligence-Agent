@@ -35,6 +35,11 @@ class ScriptedOfflineModel(Model):
         ]
         self.calls = 0
 
+    def __setattr__(self, name, value):
+        if name == "request_budget" and "request_budget" in self.__dict__:
+            raise ValueError("MODEL_REQUEST_BUDGET_IMMUTABLE")
+        super().__setattr__(name, value)
+
     async def get_response(self, *args, **kwargs):
         if self.request_budget is not None:
             self.request_budget.reserve()
