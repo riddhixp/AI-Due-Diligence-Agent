@@ -152,7 +152,7 @@ class ModelRequestBudgetTests(unittest.TestCase):
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
         ledger = SimulatedTokenLedger(7, 7)
         model = ScriptedOfflineModel(simulated_token_ledger=ledger)
-        with patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')), \\
+        with patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')), \
              patch('offline_correction_workflow.ScriptedOfflineModel', return_value=model):
             fixture = start_offline_correction_workflow(pdf)
             self.assertEqual(ledger.snapshot()['requests_recorded'], 2)
@@ -173,7 +173,7 @@ class ModelRequestBudgetTests(unittest.TestCase):
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
         ledger = SimulatedTokenLedger(6, 6)
         model = ScriptedOfflineModel(simulated_token_ledger=ledger)
-        with patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')), \\
+        with patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')), \
              patch('offline_correction_workflow.ScriptedOfflineModel', return_value=model):
             fixture = start_offline_correction_workflow(pdf)
             first = decide_and_resume_offline(fixture['handoff'], pdf, True, model)
