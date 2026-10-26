@@ -1,4 +1,6 @@
 import asyncio
+import copy
+import pickle
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -37,6 +39,17 @@ class ModelRequestBudgetTests(unittest.TestCase):
                 return False
         with ThreadPoolExecutor(max_workers=32) as pool:
             self.assertEqual(sum(pool.map(claim, range(32))), 3)
+        self.assertEqual(budget.snapshot()['remaining'], 0)
+
+    def test_copy_and_serialization_cannot_reset_or_fork_quota(self):
+        budget = ModelRequestBudget(1)
+        budget.reserve()
+        for operation in (copy.copy, copy.deepcopy):
+            with self.subTest(operation=operation.__name__), self.assertRaisesRegex(
+                    ValueError, 'MODEL_REQUEST_BUDGET_CANNOT_BE_COPIED'):
+                operation(budget)
+        with self.assertRaisesRegex(ValueError, 'MODEL_REQUEST_BUDGET_CANNOT_BE_SERIALIZED'):
+            pickle.dumps(budget)
         self.assertEqual(budget.snapshot()['remaining'], 0)
 
     def test_failed_dispatch_keeps_reservation(self):
