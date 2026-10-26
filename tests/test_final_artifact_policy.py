@@ -56,6 +56,20 @@ class FinalArtifactPolicyTests(unittest.TestCase):
                 handoff = {"status": status, "live_resume_enabled": False}
                 self.assertFalse(final_report_eligible(self.passed, handoff))
 
+    def test_sdk_completed_handoff_requires_all_independent_proofs(self):
+        valid = {"status": "COMPLETED", "model_resumed": True,
+                 "financial_review_completed": True, "document_match": True}
+        self.assertTrue(final_report_eligible(self.passed, valid))
+        for field in valid:
+            for replacement in (None, False, 1, "true"):
+                with self.subTest(field=field, replacement=replacement):
+                    corrupted = dict(valid, **{field: replacement})
+                    self.assertFalse(final_report_eligible(self.passed, corrupted))
+            with self.subTest(field=field, replacement="missing"):
+                corrupted = dict(valid)
+                corrupted.pop(field)
+                self.assertFalse(final_report_eligible(self.passed, corrupted))
+
     def test_missing_final_response_cannot_export_after_passed_review(self):
         self.passed["final_response_complete"] = False
         self.assertFalse(final_report_eligible(self.passed))
