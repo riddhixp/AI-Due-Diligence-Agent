@@ -52,6 +52,14 @@ class FinalArtifactPolicyTests(unittest.TestCase):
         self.passed["final_response_complete"] = False
         self.assertFalse(final_report_eligible(self.passed))
 
+    def test_final_response_completion_requires_strict_true(self):
+        for value in (None, False, 1, "true", [], {}):
+            with self.subTest(value=value):
+                self.passed["final_response_complete"] = value
+                self.assertFalse(final_report_eligible(self.passed))
+        self.passed.pop("final_response_complete")
+        self.assertFalse(final_report_eligible(self.passed))
+
     def test_completion_must_be_explicit_boolean_true(self):
         for value in [None, 1, 'true', {}, []]:
             with self.subTest(value=value):
