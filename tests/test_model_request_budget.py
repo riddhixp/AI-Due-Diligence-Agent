@@ -52,6 +52,19 @@ class ModelRequestBudgetTests(unittest.TestCase):
             pickle.dumps(budget)
         self.assertEqual(budget.snapshot()['remaining'], 0)
 
+    def test_model_cannot_replace_or_disable_bound_request_budget(self):
+        budget = ModelRequestBudget(1)
+        model = ScriptedOfflineModel(request_budget=budget)
+        for replacement in (None, ModelRequestBudget(20), budget):
+            with self.subTest(replacement=replacement), self.assertRaisesRegex(
+                    ValueError, 'MODEL_REQUEST_BUDGET_IMMUTABLE'):
+                model.request_budget = replacement
+        self.assertIs(model.request_budget, budget)
+        asyncio.run(model.get_response())
+        with self.assertRaisesRegex(ValueError, 'MODEL_REQUEST_BUDGET_EXHAUSTED'):
+            asyncio.run(model.get_response())
+        self.assertEqual(model.calls, 1)
+
     def test_failed_dispatch_keeps_reservation(self):
         budget = ModelRequestBudget(1)
         model = ScriptedOfflineModel(request_budget=budget)
