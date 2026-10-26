@@ -16,6 +16,11 @@ class ModelRequestBudget:
         self._used = 0
         self._lock = Lock()
 
+    def __setattr__(self, name, value):
+        if name == "_maximum" and "_maximum" in self.__dict__:
+            raise ValueError("MODEL_REQUEST_BUDGET_LIMIT_IMMUTABLE")
+        super().__setattr__(name, value)
+
     def __copy__(self):
         raise ValueError('MODEL_REQUEST_BUDGET_CANNOT_BE_COPIED')
 
