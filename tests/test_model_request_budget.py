@@ -50,6 +50,15 @@ class ModelRequestBudgetTests(unittest.TestCase):
             budget.reserve()
         self.assertEqual(budget.snapshot(), {'maximum': 1, 'reserved': 1, 'remaining': 0})
 
+    def test_request_counter_cannot_be_reset_after_reservation(self):
+        budget = ModelRequestBudget(1)
+        self.assertEqual(budget.reserve(), 1)
+        with self.assertRaisesRegex(ValueError, 'MODEL_REQUEST_BUDGET_LIMIT_IMMUTABLE'):
+            budget._used = 0
+        with self.assertRaisesRegex(ValueError, 'MODEL_REQUEST_BUDGET_EXHAUSTED'):
+            budget.reserve()
+        self.assertEqual(budget.snapshot(), {'maximum': 1, 'reserved': 1, 'remaining': 0})
+
     def test_copy_and_serialization_cannot_reset_or_fork_quota(self):
         budget = ModelRequestBudget(1)
         budget.reserve()
