@@ -41,6 +41,18 @@ authorisation remain outstanding before any paid continuation can be considered.
 Creating a fresh budget object resets its quota; trusted orchestration must keep
 one object for the entire test. Restart/server durability remains separate work.
 
+## Paid-test planning verification gate
+
+The offline cost planner now always identifies unverified model availability
+and pricing requiring revalidation as explicit blockers, even when a large
+remaining credit amount is entered. Its cached USD estimate is illustrative
+only, not a current price quote or spend cap. This does not call a provider,
+enable paid continuation, or grant permission to spend the original GBP budget.
+Before any paid test, independently verify the currently supported model,
+current pricing and remaining credit, then request explicit test-specific
+authorization. Live token, request, retry and billing enforcement remain
+unfinished.
+
 ## Free manual acceptance check
 
 Use the generated synthetic conflict PDF, not a confidential company document.
