@@ -72,6 +72,15 @@ completed investigation and must not unlock a final artifact.
 for network retries, missing usage responses or provider billing; real model
 execution remains disabled pending permission and verified enforcement.
 
+## Explicit final-response export gate
+
+Final artifact eligibility now requires `final_response_complete is True`
+in addition to successful preliminary financial review, clean tool sequence,
+non-simulation status and explicit final eligibility. This prevents reviewed
+financials from being exported as a finished investigation when the final model
+response was interrupted or absent. The gate is tested with missing, false and
+non-boolean completion claims; passing financial checks are insufficient.
+
 ## Free manual acceptance check
 
 Use the generated synthetic conflict PDF, not a confidential company document.
