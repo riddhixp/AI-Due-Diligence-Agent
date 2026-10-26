@@ -16,6 +16,15 @@ class ModelRequestBudget:
         self._used = 0
         self._lock = Lock()
 
+    def __copy__(self):
+        raise ValueError('MODEL_REQUEST_BUDGET_CANNOT_BE_COPIED')
+
+    def __deepcopy__(self, memo):
+        raise ValueError('MODEL_REQUEST_BUDGET_CANNOT_BE_COPIED')
+
+    def __reduce_ex__(self, protocol):
+        raise ValueError('MODEL_REQUEST_BUDGET_CANNOT_BE_SERIALIZED')
+
     def reserve(self):
         with self._lock:
             if self._used >= self._maximum:
