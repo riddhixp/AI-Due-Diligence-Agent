@@ -43,6 +43,10 @@ one object for the entire test. Restart/server durability remains separate work.
 
 ## Paid-test planning verification gate
 
+The offline plan displays whole-workflow input/output token totals calculated
+from the selected request count and per-request assumptions. These totals are
+planning figures only; they are not measured usage or enforced provider limits.
+
 The offline cost planner now always identifies unverified model availability
 and pricing requiring revalidation as explicit blockers, even when a large
 remaining credit amount is entered. Its cached USD estimate is illustrative
