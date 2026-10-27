@@ -31,6 +31,19 @@ class SimulatedTokenLedgerTests(unittest.TestCase):
         self.assertEqual(ledger.snapshot()["requests_recorded"], 1)
         self.assertEqual(ledger.record(1, 1)["input_remaining"], 0)
 
+    def test_normal_reassignment_cannot_reset_shared_state(self):
+        ledger = SimulatedTokenLedger(2, 2)
+        ledger.record(1, 1)
+        replacements = {"_limits": (200, 200), "_totals": [0, 0],
+                        "_requests": 0, "_lock": None}
+        for field, value in replacements.items():
+            with self.subTest(field=field), self.assertRaisesRegex(
+                    ValueError, "SIMULATED_TOKEN_LEDGER_STATE_IMMUTABLE"):
+                setattr(ledger, field, value)
+        self.assertEqual(ledger.record(1, 1)["requests_recorded"], 2)
+        with self.assertRaisesRegex(ValueError, "SIMULATED_TOKEN_LIMIT_EXCEEDED"):
+            ledger.record(1, 1)
+
     def test_atomic_accounting_and_no_partial_charge(self):
         ledger = SimulatedTokenLedger(5, 3)
         snapshot = ledger.record(2, 2)
