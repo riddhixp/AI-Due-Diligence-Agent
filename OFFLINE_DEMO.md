@@ -33,7 +33,8 @@ network attempts. An API key is not needed for these scripted exercises.
 For current GitHub verification, check all three jobs in the PR's **Python tests**
 workflow: `unit-tests`, `offline-integration`, and `offline-network-acceptance`.
 A green integration job alone is not sufficient to claim the whole pipeline
-passed. Cancelled, queued and in-progress jobs remain unverified. The
+passed. The CI workflow clears OpenAI API credentials before running all jobs;
+no paid model credentials are required for the scripted checks. Cancelled, queued and in-progress jobs remain unverified. The
 network-blocked check is a scripted Python socket guard, not a guarantee that
 an unrelated production analysis path cannot access the internet.
 Open the local URL printed by Streamlit and upload `synthetic_conflict_test.pdf`.
