@@ -368,6 +368,16 @@ class OfflineAcceptanceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'DUPLICATE_SANITIZED_CHECK_LABEL'):
             _validated_suite(data, 'scenarios', 'expected_behavior_observed')
 
+    def test_displayed_check_labels_are_unique_after_trimming(self):
+        from offline_acceptance import _validated_suite
+        data = {'evaluation': 'PASS', 'checks': [
+                    {'name': 'unnamed', 'passed': True},
+                    {'name': 'SECRET:original', 'passed': True}],
+                'external_api_calls': 0, 'paid_continuation_enabled': False,
+                'autonomous_model_validation': 'NOT_RUN'}
+        with self.assertRaisesRegex(ValueError, 'DUPLICATE_SANITIZED_CHECK_LABEL'):
+            _validated_suite(data, 'checks', 'passed')
+
     def test_duplicate_practice_scenarios_are_rejected(self):
         from offline_acceptance import _validated_suite
         result = {'evaluation': 'PASS',
