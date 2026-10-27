@@ -578,6 +578,43 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
             self.assertNotIn('offline_approval_queue', app.session_state)
             model.assert_not_called()
 
+    def test_rejected_queue_is_cleared_on_content_change_same_filename(self):
+        from approval_queue import approval_public_status
+        with tempfile.TemporaryDirectory() as folder:
+            pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
+        original = BytesIO(pdf)
+        original.name = 'report.pdf'
+        revised = BytesIO(pdf + b'\n% revised financial notes')
+        revised.name = 'report.pdf'
+        app = AppTest.from_file(
+            str(Path(__file__).resolve().parents[1] / 'app.py'),
+            default_timeout=20)
+        with (
+            patch('streamlit.file_uploader', return_value=original) as uploader,
+            patch('due_diligence_engine.extract_pages',
+                  return_value=['Total revenue 120 million']),
+            patch('report_storage.load_report', return_value=None),
+            patch('socket.socket.connect',
+                  side_effect=AssertionError('NETWORK_FORBIDDEN')),
+            patch('due_diligence_engine.run_due_diligence',
+                  side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model,
+        ):
+            app.run()
+            self.assertFalse(app.exception)
+            next(b for b in app.button
+                 if b.label == 'Start FREE approval demo').click().run()
+            next(b for b in app.button
+                 if b.label == 'Reject demo submission').click().run()
+            self.assertFalse(app.exception)
+            self.assertEqual(
+                approval_public_status(app.session_state['offline_approval_queue'])['approvals'][0],
+                'REJECTED')
+            uploader.return_value = revised
+            app.run()
+            self.assertFalse(app.exception)
+            self.assertNotIn('offline_approval_queue', app.session_state)
+            model.assert_not_called()
+
     def test_pause_blocks_analysis_until_discard_without_model_calls(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
