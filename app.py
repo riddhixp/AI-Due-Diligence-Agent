@@ -165,6 +165,8 @@ if uploaded_file is not None:
     )
 
     if readable == 0:
+        # An image-only or empty document must not retain a previous analysis.
+        set_active_document(st.session_state, None)
         st.error(
             "No readable text found. "
             "Scanned PDFs will need OCR support."
