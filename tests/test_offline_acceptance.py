@@ -5,12 +5,6 @@ from offline_acceptance import run_acceptance
 
 
 class OfflineAcceptanceTests(unittest.TestCase):
-    def test_real_scripted_suites_pass_with_network_blocked(self):
-        result = run_acceptance()
-        self.assertEqual(result['evaluation'], 'PASS')
-        self.assertEqual(result['blocked_network_attempts'], 0)
-        self.assertEqual(result['autonomous_model_validation'], 'NOT_RUN')
-
     def test_acceptance_summary_lists_both_offline_suites(self):
         from offline_acceptance import acceptance_summary
         # The real suite is exercised once above and again by the CI acceptance step.
