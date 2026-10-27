@@ -22,6 +22,25 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertIn('Blocked network attempts: 0', summary)
         self.assertIn('autonomous model validation NOT_RUN', summary)
 
+    def test_real_cli_json_and_summary_exit_success_without_paid_calls(self):
+        import contextlib
+        import io
+        import json
+        from offline_acceptance import main
+
+        for args in ([], ['--summary']):
+            with self.subTest(args=args), contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(main(args), 0)
+            if args:
+                self.assertIn('Offline acceptance: PASS', output.getvalue())
+                self.assertIn('Blocked network attempts: 0', output.getvalue())
+            else:
+                report = json.loads(output.getvalue())
+                self.assertEqual(report['evaluation'], 'PASS')
+                self.assertEqual(report['blocked_network_attempts'], 0)
+                self.assertIs(report['paid_continuation_enabled'], False)
+                self.assertEqual(report['autonomous_model_validation'], 'NOT_RUN')
+
     def test_caught_network_attempt_still_fails_and_guard_is_restored(self):
         original = socket.create_connection
         def attempt():
