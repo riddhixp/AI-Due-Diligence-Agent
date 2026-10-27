@@ -130,8 +130,9 @@ if uploaded_file is not None:
 
     try:
         pages = extract_pages(pdf_bytes)
-    except Exception as error:
-        st.error(f"Could not read PDF: {error}")
+    except Exception:
+        # Parser exceptions can echo document contents or local file details.
+        st.error("Could not read this PDF. Please check that it is a valid, text-based PDF.")
         st.stop()
 
     readable = sum(bool(page.strip()) for page in pages)
@@ -891,10 +892,9 @@ if uploaded_file is not None:
                     width="stretch",
                 )
 
-            except Exception as exc:
-                st.error(
-                    f"PDF export unavailable: {exc}"
-                )
+            except Exception:
+                # Keep internal exception details out of the user-facing report.
+                st.error("PDF export is unavailable. The report remains viewable above.")
 
 
             st.download_button(
