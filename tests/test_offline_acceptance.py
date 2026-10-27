@@ -336,6 +336,18 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(_validated_suite(baseline, 'scenarios',
                          'expected_behavior_observed')['evaluation'], 'PASS')
 
+    def test_duplicate_or_missing_check_names_cannot_claim_success(self):
+        from offline_acceptance import _validated_suite
+        base = {'evaluation': 'PASS', 'external_api_calls': 0,
+                'paid_continuation_enabled': False,
+                'autonomous_model_validation': 'NOT_RUN'}
+        for labels in (['same', 'same'], ['valid', ''], ['valid', None]):
+            with self.subTest(labels=labels):
+                report = dict(base, checks=[{'name': label, 'passed': True}
+                                            for label in labels])
+                with self.assertRaisesRegex(ValueError, 'DUPLICATE_OR_MISSING_CHECK_LABEL'):
+                    _validated_suite(report, 'checks', 'passed')
+
     def test_contradictory_pass_or_missing_safety_metadata_fails(self):
         from offline_acceptance import _validated_suite
         good = {'evaluation': 'PASS', 'checks': [{'passed': True}],
