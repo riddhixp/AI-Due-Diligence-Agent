@@ -130,6 +130,26 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['blocked_network_attempts'], 1)
         self.assertIs(socket.socket.connect, original)
 
+    def test_local_asyncio_socketpair_send_is_not_counted_as_network(self):
+        def exercise_local_signal():
+            left, right = socket.socketpair()
+            try:
+                left.send(b'ping')
+                received = right.recv(4)
+            finally:
+                left.close()
+                right.close()
+            return {'evaluation': 'PASS' if received == b'ping' else 'FAIL',
+                    'checks': [{'name': 'local_signal', 'passed': received == b'ping'}],
+                    'external_api_calls': 0, 'paid_continuation_enabled': False,
+                    'autonomous_model_validation': 'NOT_RUN'}
+
+        with patch('offline_evaluation.run_offline_evaluation',
+                   side_effect=exercise_local_signal):
+            result = run_acceptance()
+        self.assertEqual(result['evaluation'], 'PASS')
+        self.assertEqual(result['blocked_network_attempts'], 0)
+
     def test_swallowed_dns_lookup_still_fails_acceptance(self):
         original = socket.getaddrinfo
 
