@@ -56,6 +56,16 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertIn('Failed: invalid check result', summary)
         self.assertIn('invalid: FAIL (0/0 checks)', summary)
 
+    def test_summary_handles_missing_top_level_metadata(self):
+        from offline_acceptance import acceptance_summary
+        for report in (None, [], {}, {"suites": None}):
+            with self.subTest(report=report):
+                summary = acceptance_summary(report)
+                self.assertIn("Offline acceptance: FAIL", summary)
+                self.assertIn("Blocked network attempts: UNKNOWN", summary)
+        self.assertIn("invalid suite collection",
+                      acceptance_summary({"suites": None}))
+
     def test_cli_failure_has_nonzero_exit_status(self):
         import contextlib
         import io
