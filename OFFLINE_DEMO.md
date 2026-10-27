@@ -6,9 +6,17 @@ paid model. Autonomous reasoning and paid continuation remain unvalidated.
 
 ## Prepare the current development version
 
-Use branch `feature/controlled-financial-corrections`. Recent local commits must
-be published before another computer can obtain them from GitHub. Do not assume
-an existing checkout includes this walkthrough's newest controls.
+Use branch `feature/controlled-financial-corrections`. Development changes
+are committed to the GitHub branch; an older Mac checkout needs to fetch them
+before running the latest checks. From the project folder, first run:
+
+```bash
+git fetch origin
+git switch feature/controlled-financial-corrections
+git pull --ff-only origin feature/controlled-financial-corrections
+```
+
+Do not merge PR #1 or switch to `main` for this rehearsal.
 
 From the project folder with its dependencies installed:
 
