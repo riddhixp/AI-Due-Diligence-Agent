@@ -58,6 +58,26 @@ class SimulatedTokenLedgerTests(unittest.TestCase):
         self.assertFalse(ledger.snapshot()["billing_cap_enforced"])
         self.assertFalse(ledger.snapshot()["provider_usage_verified"])
 
+    def test_output_limit_blocks_without_consuming_input_allowance(self):
+        ledger = SimulatedTokenLedger(10, 2)
+        ledger.record(3, 2)
+        before = ledger.snapshot()
+        with self.assertRaisesRegex(ValueError, "SIMULATED_TOKEN_LIMIT_EXCEEDED"):
+            ledger.record(4, 1)
+        self.assertEqual(ledger.snapshot(), before)
+        self.assertEqual(ledger.record(7, 0)["input_remaining"], 0)
+        self.assertEqual(ledger.snapshot()["requests_recorded"], 2)
+
+    def test_exact_zero_usage_and_independent_snapshot(self):
+        ledger = SimulatedTokenLedger(1, 1)
+        first = ledger.record(0, 0)
+        self.assertEqual(first["requests_recorded"], 1)
+        first["requests_recorded"] = 200
+        self.assertEqual(ledger.snapshot()["requests_recorded"], 1)
+        self.assertEqual(ledger.record(1, 1)["requests_recorded"], 2)
+        with self.assertRaisesRegex(ValueError, "SIMULATED_TOKEN_LIMIT_EXCEEDED"):
+            ledger.record(0, 1)
+
     def test_concurrent_reports_cannot_exceed_limit(self):
         ledger = SimulatedTokenLedger(10, 10)
 
