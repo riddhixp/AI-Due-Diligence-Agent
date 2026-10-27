@@ -79,6 +79,15 @@ Include the exact error text if safe to share. Do not include API keys or privat
 company documents. The useful question is whether the decision, supporting
 source and remaining review work are understandable without reading the code.
 
+## Verified CI checkpoint
+
+Commit `a1d6b99` passed all three GitHub Actions jobs in run #264:
+unit tests, scripted offline integration, and network-blocked acceptance.
+The network guard permits Unix-domain socketpair notifications used internally
+by Python's event loop while rejecting IP socket traffic. This is a scripted
+offline verification milestone, not evidence that autonomous paid-model
+analysis has been validated.
+
 ## Honest portfolio description
 
 Built a Python/Streamlit due-diligence prototype with PDF extraction, financial
