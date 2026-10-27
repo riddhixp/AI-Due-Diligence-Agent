@@ -111,7 +111,7 @@ uploaded_file = st.file_uploader(
 if uploaded_file is not None:
 
     # Check the uploaded file's reported size before copying it into memory.
-    if uploaded_file.size > 15 * 1024 * 1024:
+    if getattr(uploaded_file, 'size', 0) > 15 * 1024 * 1024:
         set_active_document(st.session_state, None)
         st.error("Please upload a PDF smaller than 15 MB.")
         st.stop()
