@@ -80,14 +80,22 @@ def acceptance_summary(report):
     """Keep the full JSON available while offering a readable local checklist."""
     lines = [f"Offline acceptance: {report['evaluation']}"]
     for name, suite in report.get('suites', {}).items():
+        if not isinstance(suite, dict):
+            lines.append(f"{name}: FAIL (invalid suite result)")
+            continue
         rows = suite.get('checks', suite.get('scenarios', []))
-        passed = sum(row.get('passed', row.get('expected_behavior_observed')) is True
+        if not isinstance(rows, list):
+            rows = []
+        passed = sum(isinstance(row, dict) and
+                     row.get('passed', row.get('expected_behavior_observed')) is True
                      for row in rows)
-        lines.append(f"{name}: {suite['evaluation']} ({passed}/{len(rows)} checks)")
+        lines.append(f"{name}: {suite.get('evaluation', 'FAIL')} ({passed}/{len(rows)} checks)")
         if suite.get('error_type'):
             lines.append(f"  Error type: {suite['error_type']}")
         for row in rows:
-            if row.get('passed', row.get('expected_behavior_observed')) is not True:
+            if not isinstance(row, dict):
+                lines.append("  Failed: invalid check result")
+            elif row.get('passed', row.get('expected_behavior_observed')) is not True:
                 lines.append(f"  Failed: {row.get('name', row.get('scenario', 'unnamed'))}")
     if report.get('error_type'):
         lines.append(f"Error type: {report['error_type']}")
