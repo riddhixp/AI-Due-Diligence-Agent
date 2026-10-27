@@ -11,6 +11,17 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['blocked_network_attempts'], 0)
         self.assertEqual(result['autonomous_model_validation'], 'NOT_RUN')
 
+    def test_real_acceptance_summary_lists_both_offline_suites(self):
+        from offline_acceptance import acceptance_summary
+        result = run_acceptance()
+        summary = acceptance_summary(result)
+        self.assertEqual(result['evaluation'], 'PASS')
+        self.assertIn('Offline acceptance: PASS', summary)
+        self.assertIn('workflow: PASS', summary)
+        self.assertIn('failure_practice: PASS', summary)
+        self.assertIn('Blocked network attempts: 0', summary)
+        self.assertIn('autonomous model validation NOT_RUN', summary)
+
     def test_caught_network_attempt_still_fails_and_guard_is_restored(self):
         original = socket.create_connection
         def attempt():
