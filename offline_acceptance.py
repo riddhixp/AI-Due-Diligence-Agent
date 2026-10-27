@@ -52,6 +52,16 @@ def run_acceptance():
         attempts.append(True)
         raise RuntimeError('OFFLINE_NETWORK_FORBIDDEN')
 
+    # asyncio uses AF_UNIX socket pairs for its local wake-up notifications.
+    # Blocking those internal writes can deadlock the event loop. Only allow
+    # local-domain socket I/O; AF_INET / AF_INET6 traffic stays prohibited.
+    def local_socket_send(original):
+        def guarded(sock, *args, **kwargs):
+            if sock.family == socket.AF_UNIX:
+                return original(sock, *args, **kwargs)
+            return blocked(sock, *args, **kwargs)
+        return guarded
+
     # Keep the guard active during imports as well as execution. The attempt
     # count makes a swallowed network error a failed acceptance result too.
     report = {'evaluation': 'FAIL', 'execution_mode': 'SCRIPTED_OFFLINE_ACCEPTANCE',
@@ -60,10 +70,10 @@ def run_acceptance():
     try:
         with patch.object(socket.socket, 'connect', blocked), \
              patch.object(socket.socket, 'connect_ex', blocked), \
-             patch.object(socket.socket, 'sendto', blocked), \
-             patch.object(socket.socket, 'send', blocked), \
-             patch.object(socket.socket, 'sendall', blocked), \
-             patch.object(socket.socket, 'sendmsg', blocked, create=True), \
+             patch.object(socket.socket, 'sendto', local_socket_send(socket.socket.sendto)), \
+             patch.object(socket.socket, 'send', local_socket_send(socket.socket.send)), \
+             patch.object(socket.socket, 'sendall', local_socket_send(socket.socket.sendall)), \
+             patch.object(socket.socket, 'sendmsg', local_socket_send(getattr(socket.socket, 'sendmsg', blocked)), create=True), \
              patch.object(socket, 'create_connection', blocked), \
              patch.object(socket, 'getaddrinfo', blocked), \
              contextlib.redirect_stdout(io.StringIO()):
