@@ -45,6 +45,17 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertIn('Failed: citation', summary)
         self.assertIn('autonomous model validation NOT_RUN', summary)
 
+    def test_summary_survives_malformed_suite_rows(self):
+        from offline_acceptance import acceptance_summary
+        report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
+                  'suites': {'broken': None, 'partial': {'checks': [None, {'passed': False}]},
+                             'invalid': {'evaluation': 'FAIL', 'checks': 'unavailable'}}}
+        summary = acceptance_summary(report)
+        self.assertIn('broken: FAIL (invalid suite result)', summary)
+        self.assertIn('partial: FAIL (0/2 checks)', summary)
+        self.assertIn('Failed: invalid check result', summary)
+        self.assertIn('invalid: FAIL (0/0 checks)', summary)
+
     def test_cli_failure_has_nonzero_exit_status(self):
         import contextlib
         import io
