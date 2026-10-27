@@ -99,6 +99,23 @@ class SimulatedTokenLedgerTests(unittest.TestCase):
         self.assertEqual(snapshot["input_remaining"] + snapshot["input_tokens"], 40)
         self.assertEqual(snapshot["output_remaining"] + snapshot["output_tokens"], 20)
 
+    def test_parallel_snapshots_do_not_mutate_accounting(self):
+        ledger = SimulatedTokenLedger(25, 25)
+
+        def record_and_inspect(_):
+            snapshot = ledger.record(1, 1)
+            snapshot["input_tokens"] = -100
+            snapshot["output_remaining"] = 9999
+            return snapshot["requests_recorded"]
+
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            positions = list(pool.map(record_and_inspect, range(25)))
+        self.assertEqual(sorted(positions), list(range(1, 26)))
+        self.assertEqual(ledger.snapshot()["input_tokens"], 25)
+        self.assertEqual(ledger.snapshot()["output_tokens"], 25)
+        self.assertEqual(ledger.snapshot()["input_remaining"], 0)
+        self.assertEqual(ledger.snapshot()["output_remaining"], 0)
+
     def test_concurrent_reports_cannot_exceed_limit(self):
         ledger = SimulatedTokenLedger(10, 10)
 
