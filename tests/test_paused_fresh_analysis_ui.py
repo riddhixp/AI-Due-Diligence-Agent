@@ -331,10 +331,8 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
             button.click().run()
             self.assertFalse(app.exception)
             self.assertIn('offline_approval_queue', app.session_state)
-            self.assertTrue(any('Approval status:' in str(item.value)
-                                for item in app.get('text'))
-                            or any('Approve demo submission' == b.label
-                                   for b in app.button))
+            self.assertTrue(any(b.label == 'Approve demo submission'
+                                for b in app.button))
             model.assert_not_called()
 
     def test_pause_blocks_analysis_until_discard_without_model_calls(self):
