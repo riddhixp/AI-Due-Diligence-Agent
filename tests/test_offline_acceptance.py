@@ -104,6 +104,23 @@ class OfflineAcceptanceTests(unittest.TestCase):
                 self.assertEqual(result['blocked_network_attempts'], 1)
                 self.assertIs(getattr(socket.socket, method), original)
 
+    def test_practice_suite_network_attempt_invalidates_whole_run(self):
+        def attempt(_pdf):
+            try:
+                socket.getaddrinfo('example.invalid', 443)
+            except RuntimeError:
+                pass
+            return {'evaluation': 'PASS', 'scenarios': [
+                {'scenario': 'fake', 'expected_behavior_observed': True}],
+                'external_api_calls': 0, 'paid_continuation_enabled': False,
+                'autonomous_model_validation': 'NOT_RUN'}
+
+        with patch('practice_scenarios.run_practice_suite', side_effect=attempt):
+            result = run_acceptance()
+        self.assertEqual(result['evaluation'], 'FAIL')
+        self.assertEqual(result['blocked_network_attempts'], 1)
+        self.assertEqual(result['suites']['workflow']['evaluation'], 'PASS')
+
     def test_errors_are_reported_without_sensitive_messages(self):
         with patch('offline_evaluation.run_offline_evaluation', side_effect=ValueError('secret')):
             result = run_acceptance()
