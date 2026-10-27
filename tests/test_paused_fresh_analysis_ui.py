@@ -18,7 +18,7 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
         app = AppTest.from_file(str(app_path), default_timeout=20)
         app.session_state['file_id'] = ('prior.pdf', 123, 'old')
         app.session_state['report'] = 'CONFIDENTIAL_OLD_REPORT'
-        with patch('streamlit.file_uploader', return_value=upload), \\
+        with patch('streamlit.file_uploader', return_value=upload), \
              patch('due_diligence_engine.run_due_diligence',
                    side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model:
             app.run()
