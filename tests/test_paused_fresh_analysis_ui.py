@@ -47,6 +47,31 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
         self.assertNotIn('file_id', app.session_state)
         model.assert_not_called()
 
+    def test_pdf_parser_failure_clears_old_report_without_model(self):
+        upload = BytesIO(b'%PDF-1.7')
+        upload.name = 'broken.pdf'
+        app = AppTest.from_file(
+            str(Path(__file__).resolve().parents[1] / 'app.py'),
+            default_timeout=20)
+        app.session_state['file_id'] = ('prior.pdf', 123, 'old')
+        app.session_state['report'] = 'OLD_PRIVATE_REPORT'
+        with (
+            patch('streamlit.file_uploader', return_value=upload),
+            patch('due_diligence_engine.extract_pages',
+                  side_effect=ValueError('SECRET_DOCUMENT_ERROR')),
+            patch('due_diligence_engine.run_due_diligence',
+                  side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model,
+        ):
+            app.run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('Could not read this PDF' in item.value
+                            for item in app.error))
+        self.assertFalse(any('SECRET_DOCUMENT_ERROR' in item.value
+                             for item in app.error))
+        self.assertNotIn('report', app.session_state)
+        self.assertNotIn('file_id', app.session_state)
+        model.assert_not_called()
+
     def test_pause_blocks_analysis_until_discard_without_model_calls(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
