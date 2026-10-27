@@ -146,6 +146,11 @@ class ModelRequestBudgetTests(unittest.TestCase):
         self.assertEqual(progress['reviewed_count'], 1)
         self.assertEqual(progress['submission_count'], 2)
         self.assertIsNone(progress['review_status'])
+        # The request quota cannot be refreshed by replaying a failed handoff.
+        with self.assertRaisesRegex(ValueError, 'APPROVAL_RESUME_ALREADY_CLAIMED'):
+            decide_and_resume_offline(correction, pdf, True, model)
+        self.assertEqual(model.calls, 5)
+        self.assertEqual(budget.snapshot()['reserved'], 5)
 
     def test_simulated_tokens_accumulate_across_both_approvals(self):
         with tempfile.TemporaryDirectory() as folder:
