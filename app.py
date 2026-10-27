@@ -241,8 +241,8 @@ if uploaded_file is not None:
                     st.session_state["live_continuation_preflight"] = (
                         preflight_live_continuation(live_handoff, pdf_bytes)
                     )
-                except ValueError as error:
-                    st.error(str(error))
+                except ValueError:
+                    st.error("Continuation readiness check failed. Verify the document and approval state.")
             ready = st.session_state.get("live_continuation_preflight")
             if ready is not None:
                 try:
@@ -342,8 +342,8 @@ if uploaded_file is not None:
                 "Interruption with an unreviewed financial submission "
                 "simulated. No OpenAI API credits used."
             )
-        except ValueError as error:
-            st.error(str(error))
+        except ValueError:
+            st.error("The offline demonstration could not complete. Verify the synthetic PDF and try again.")
 
     if st.button("Run FREE offline correction demo"):
         try:
