@@ -43,6 +43,8 @@ def run_acceptance():
         with patch.object(socket.socket, 'connect', blocked), \
              patch.object(socket.socket, 'connect_ex', blocked), \
              patch.object(socket.socket, 'sendto', blocked), \
+             patch.object(socket.socket, 'send', blocked), \
+             patch.object(socket.socket, 'sendall', blocked), \
              patch.object(socket, 'create_connection', blocked), \
              patch.object(socket, 'getaddrinfo', blocked), \
              contextlib.redirect_stdout(io.StringIO()):
