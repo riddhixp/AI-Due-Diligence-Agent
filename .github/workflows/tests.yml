@@ -26,8 +26,8 @@ jobs:
           # An explicit timeout fails diagnostically instead of silently exhausting CI.
           timeout --signal=INT --kill-after=15s 600s python -u -m unittest discover -s tests -t . -v
       - name: Evaluate complete offline application workflow
-        run: python -m offline_evaluation
+        run: timeout --signal=INT --kill-after=15s 180s python -u -m offline_evaluation
       - name: Practice incomplete and unsuccessful investigations offline
-        run: python -m practice_scenarios
+        run: timeout --signal=INT --kill-after=15s 180s python -u -m practice_scenarios
       - name: Run network-blocked offline acceptance
-        run: python -m offline_acceptance
+        run: timeout --signal=INT --kill-after=15s 180s python -u -m offline_acceptance
