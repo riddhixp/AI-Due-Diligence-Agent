@@ -308,6 +308,35 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
         self.assertNotIn('report', app.session_state)
         model.assert_not_called()
 
+    def test_free_approval_demo_button_creates_pending_queue_offline(self):
+        with tempfile.TemporaryDirectory() as folder:
+            pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
+        upload = BytesIO(pdf)
+        upload.name = 'fixture.pdf'
+        app = AppTest.from_file(
+            str(Path(__file__).resolve().parents[1] / 'app.py'),
+            default_timeout=20)
+        with (
+            patch('streamlit.file_uploader', return_value=upload),
+            patch('report_storage.load_report', return_value=None),
+            patch('socket.socket.connect',
+                  side_effect=AssertionError('NETWORK_FORBIDDEN')),
+            patch('due_diligence_engine.run_due_diligence',
+                  side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model,
+        ):
+            app.run()
+            self.assertFalse(app.exception)
+            button = next(b for b in app.button
+                          if b.label == 'Start FREE approval demo')
+            button.click().run()
+            self.assertFalse(app.exception)
+            self.assertIn('offline_approval_queue', app.session_state)
+            self.assertTrue(any('Approval status:' in str(item.value)
+                                for item in app.get('text'))
+                            or any('Approve demo submission' == b.label
+                                   for b in app.button))
+            model.assert_not_called()
+
     def test_pause_blocks_analysis_until_discard_without_model_calls(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
