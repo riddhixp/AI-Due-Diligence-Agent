@@ -11,6 +11,24 @@ from investigation_checkpoint import document_fingerprint
 
 
 class PausedFreshAnalysisUITests(unittest.TestCase):
+    def test_non_pdf_upload_clears_stale_report_without_model_call(self):
+        upload = BytesIO(b'not a pdf at all')
+        upload.name = 'renamed.pdf'
+        app_path = Path(__file__).resolve().parents[1] / 'app.py'
+        app = AppTest.from_file(str(app_path), default_timeout=20)
+        app.session_state['file_id'] = ('prior.pdf', 123, 'old')
+        app.session_state['report'] = 'CONFIDENTIAL_OLD_REPORT'
+        with patch('streamlit.file_uploader', return_value=upload), \\
+             patch('due_diligence_engine.run_due_diligence',
+                   side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model:
+            app.run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('valid PDF' in entry.message or 'valid PDF' in entry.value
+                            for entry in app.error))
+        self.assertNotIn('report', app.session_state)
+        self.assertNotIn('file_id', app.session_state)
+        model.assert_not_called()
+
     def test_pause_blocks_analysis_until_discard_without_model_calls(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
