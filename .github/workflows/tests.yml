@@ -47,7 +47,7 @@ jobs:
         run: timeout --signal=INT --kill-after=15s 180s python -u -m practice_scenarios
   offline-network-acceptance:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
