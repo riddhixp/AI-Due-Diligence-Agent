@@ -39,4 +39,4 @@ jobs:
       - name: Practice incomplete and unsuccessful investigations offline
         run: timeout --signal=INT --kill-after=15s 180s python -u -m practice_scenarios
       - name: Run network-blocked offline acceptance
-        run: timeout --signal=INT --kill-after=15s 180s python -u -m offline_acceptance
+        run: timeout --signal=INT --kill-after=15s 180s python -u -m offline_acceptance --summary
