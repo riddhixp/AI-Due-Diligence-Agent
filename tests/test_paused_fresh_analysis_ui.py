@@ -166,6 +166,28 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
         parser.assert_not_called()
         model.assert_not_called()
 
+    def test_empty_upload_rejected_before_parser_and_clears_state(self):
+        upload = BytesIO(b'')
+        upload.name = 'empty.pdf'
+        app = AppTest.from_file(
+            str(Path(__file__).resolve().parents[1] / 'app.py'),
+            default_timeout=20)
+        app.session_state['file_id'] = ('prior.pdf', 123, 'old')
+        app.session_state['report'] = 'OLD_REPORT'
+        with (
+            patch('streamlit.file_uploader', return_value=upload),
+            patch('due_diligence_engine.extract_pages',
+                  side_effect=AssertionError('SHOULD_NOT_PARSE')) as parser,
+            patch('due_diligence_engine.run_due_diligence',
+                  side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model,
+        ):
+            app.run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('valid PDF' in item.value for item in app.error))
+        self.assertNotIn('report', app.session_state)
+        parser.assert_not_called()
+        model.assert_not_called()
+
     def test_pause_blocks_analysis_until_discard_without_model_calls(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
