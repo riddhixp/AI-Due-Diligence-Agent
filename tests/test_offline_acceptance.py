@@ -11,7 +11,7 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['blocked_network_attempts'], 0)
         self.assertEqual(result['autonomous_model_validation'], 'NOT_RUN')
 
-    def test_real_acceptance_summary_lists_both_offline_suites(self):
+    def test_acceptance_summary_lists_both_offline_suites(self):
         from offline_acceptance import acceptance_summary
         # The real suite is exercised once above and again by the CI acceptance step.
         # Check the presentation contract without rerunning expensive investigations.
@@ -27,7 +27,7 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertIn('Blocked network attempts: 0', summary)
         self.assertIn('autonomous model validation NOT_RUN', summary)
 
-    def test_real_cli_json_and_summary_exit_success_without_paid_calls(self):
+    def test_cli_json_and_summary_exit_success_without_paid_calls(self):
         import contextlib
         import io
         import json
