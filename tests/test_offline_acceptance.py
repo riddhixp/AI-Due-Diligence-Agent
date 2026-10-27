@@ -341,7 +341,7 @@ class OfflineAcceptanceTests(unittest.TestCase):
         base = {'evaluation': 'PASS', 'external_api_calls': 0,
                 'paid_continuation_enabled': False,
                 'autonomous_model_validation': 'NOT_RUN'}
-        for labels in (['same', 'same'], ['valid', ''], ['valid', None]):
+        for labels in (['same', 'same'], ['valid', ''], ['valid', '   '], ['valid', None]):
             with self.subTest(labels=labels):
                 report = dict(base, checks=[{'name': label, 'passed': True}
                                             for label in labels])
