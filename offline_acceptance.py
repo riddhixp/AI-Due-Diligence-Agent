@@ -78,8 +78,14 @@ def run_acceptance():
 
 def acceptance_summary(report):
     """Keep the full JSON available while offering a readable local checklist."""
-    lines = [f"Offline acceptance: {report['evaluation']}"]
-    for name, suite in report.get('suites', {}).items():
+    if not isinstance(report, dict):
+        report = {}
+    lines = [f"Offline acceptance: {report.get('evaluation', 'FAIL')}"]
+    suites = report.get('suites', {})
+    if not isinstance(suites, dict):
+        suites = {}
+        lines.append('Suites: FAIL (invalid suite collection)')
+    for name, suite in suites.items():
         if not isinstance(suite, dict):
             lines.append(f"{name}: FAIL (invalid suite result)")
             continue
@@ -99,7 +105,7 @@ def acceptance_summary(report):
                 lines.append(f"  Failed: {row.get('name', row.get('scenario', 'unnamed'))}")
     if report.get('error_type'):
         lines.append(f"Error type: {report['error_type']}")
-    lines.append(f"Blocked network attempts: {report['blocked_network_attempts']}")
+    lines.append(f"Blocked network attempts: {report.get('blocked_network_attempts', 'UNKNOWN')}")
     lines.append('Scripted checks only; autonomous model validation NOT_RUN; paid continuation disabled.')
     return '\n'.join(lines)
 
