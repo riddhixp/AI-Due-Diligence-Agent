@@ -5,6 +5,23 @@ from offline_acceptance import run_acceptance
 
 
 class OfflineAcceptanceTests(unittest.TestCase):
+    def setUp(self):
+        # Keep unit tests fast and deterministic. Real integration suites run
+        # separately in the offline-integration and network-acceptance CI jobs.
+        workflow = {'evaluation': 'PASS', 'checks': [{'name': 'fixture', 'passed': True}],
+                    'external_api_calls': 0, 'paid_continuation_enabled': False,
+                    'autonomous_model_validation': 'NOT_RUN'}
+        practice = {'evaluation': 'PASS', 'scenarios': [
+            {'scenario': 'fixture', 'expected_behavior_observed': True}],
+            'external_api_calls': 0, 'paid_continuation_enabled': False,
+            'autonomous_model_validation': 'NOT_RUN'}
+        for target, result in (
+                ('offline_evaluation.run_offline_evaluation', workflow),
+                ('practice_scenarios.run_practice_suite', practice)):
+            fixture = patch(target, return_value=result)
+            fixture.start()
+            self.addCleanup(fixture.stop)
+
     def test_acceptance_summary_lists_both_offline_suites(self):
         from offline_acceptance import acceptance_summary
         # The real suite is exercised once above and again by the CI acceptance step.
