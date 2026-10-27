@@ -112,6 +112,13 @@ if uploaded_file is not None:
 
     pdf_bytes = uploaded_file.getvalue()
 
+    # A PDF extension alone does not verify the file contents. Reject other
+    # formats before allocating parser resources or starting an investigation.
+    if not pdf_bytes.startswith(b"%PDF-"):
+        set_active_document(st.session_state, None)
+        st.error("This file does not appear to be a valid PDF.")
+        st.stop()
+
     # Reject oversized uploads before fingerprinting or binding a new document.
     # Clear prior document-bound results rather than accidentally retaining them.
     if len(pdf_bytes) > 15 * 1024 * 1024:
