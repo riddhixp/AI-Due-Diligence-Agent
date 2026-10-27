@@ -417,11 +417,9 @@ if uploaded_file is not None:
                         "was preserved in this session. Paid resume is disabled. "
                         "No finished due diligence report was created."
                     )
-                except Exception as error:
-                    st.error(
-                        "Analysis failed: "
-                        f"{type(error).__name__}: {error}"
-                    )
+                except Exception:
+                    # Analysis exceptions may contain extracted PDF text or secrets.
+                    st.error("Analysis failed. No final report was created. Check the input PDF and try again.")
 
         
 
