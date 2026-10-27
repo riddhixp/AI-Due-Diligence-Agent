@@ -272,6 +272,21 @@ class OfflineAcceptanceTests(unittest.TestCase):
             {'scenario': 'wrong_year', 'expected_behavior_observed': False}])
         self.assertNotIn('CONFIDENTIAL_SCENARIO_DETAIL', str(result))
 
+    def test_rejects_nonboolean_failure_practice_result_even_if_suite_claims_pass(self):
+        from offline_acceptance import _validated_suite
+        baseline = {'evaluation': 'PASS', 'scenarios': [
+            {'scenario': 'wrong_year', 'expected_behavior_observed': True}],
+            'external_api_calls': 0, 'paid_continuation_enabled': False,
+            'autonomous_model_validation': 'NOT_RUN'}
+        for wrong in (1, 'true', None, []):
+            with self.subTest(wrong=wrong):
+                altered = dict(baseline, scenarios=[
+                    {'scenario': 'wrong_year', 'expected_behavior_observed': wrong}])
+                with self.assertRaisesRegex(ValueError, 'INVALID_SUITE_CHECKS'):
+                    _validated_suite(altered, 'scenarios', 'expected_behavior_observed')
+        self.assertEqual(_validated_suite(baseline, 'scenarios',
+                         'expected_behavior_observed')['evaluation'], 'PASS')
+
     def test_contradictory_pass_or_missing_safety_metadata_fails(self):
         from offline_acceptance import _validated_suite
         good = {'evaluation': 'PASS', 'checks': [{'passed': True}],
