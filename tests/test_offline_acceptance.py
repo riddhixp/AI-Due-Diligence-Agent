@@ -242,6 +242,23 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertNotIn('CONFIDENTIAL_DOCUMENT_MARKER', str(validated))
         self.assertNotIn('API_KEY_MARKER', str(validated))
 
+    def test_suite_rows_exclude_sensitive_details_and_unsafe_labels(self):
+        from offline_acceptance import _validated_suite
+        result = {'evaluation': 'PASS',
+                  'checks': [{'name': 'SAFE_CHECK', 'passed': True,
+                              'pdf_text': 'PRIVATE_PDF_MARKER'},
+                             {'name': 'SECRET:token=abc', 'passed': True,
+                              'debug': 'SECRET_DEBUG_MARKER'}],
+                  'external_api_calls': 0, 'paid_continuation_enabled': False,
+                  'autonomous_model_validation': 'NOT_RUN'}
+        validated = _validated_suite(result, 'checks', 'passed')
+        self.assertEqual(validated['evaluation'], 'PASS')
+        self.assertEqual(validated['checks'],
+                         [{'name': 'SAFE_CHECK', 'passed': True},
+                          {'name': 'unnamed', 'passed': True}])
+        for marker in ('PRIVATE_PDF_MARKER', 'SECRET_DEBUG_MARKER', 'token=abc'):
+            self.assertNotIn(marker, str(validated))
+
     def test_contradictory_pass_or_missing_safety_metadata_fails(self):
         from offline_acceptance import _validated_suite
         good = {'evaluation': 'PASS', 'checks': [{'passed': True}],
