@@ -45,6 +45,7 @@ def run_acceptance():
              patch.object(socket.socket, 'sendto', blocked), \
              patch.object(socket.socket, 'send', blocked), \
              patch.object(socket.socket, 'sendall', blocked), \
+             patch.object(socket.socket, 'sendmsg', blocked, create=True), \
              patch.object(socket, 'create_connection', blocked), \
              patch.object(socket, 'getaddrinfo', blocked), \
              contextlib.redirect_stdout(io.StringIO()):
