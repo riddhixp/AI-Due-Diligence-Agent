@@ -947,6 +947,42 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
             self.assertTrue(any(b.label == 'Reject demo submission' for b in app.button))
             model.assert_not_called()
 
+    def test_restart_after_rejection_stays_pending_across_rerun(self):
+        from approval_queue import approval_public_status
+        with tempfile.TemporaryDirectory() as folder:
+            pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
+        upload = BytesIO(pdf)
+        upload.name = 'fixture.pdf'
+        app = AppTest.from_file(
+            str(Path(__file__).resolve().parents[1] / 'app.py'),
+            default_timeout=20)
+        with (
+            patch('streamlit.file_uploader', return_value=upload),
+            patch('report_storage.load_report', return_value=None),
+            patch('socket.socket.connect',
+                  side_effect=AssertionError('NETWORK_FORBIDDEN')),
+            patch('due_diligence_engine.run_due_diligence',
+                  side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model,
+        ):
+            app.run()
+            self.assertFalse(app.exception)
+            next(b for b in app.button
+                 if b.label == 'Start FREE approval demo').click().run()
+            next(b for b in app.button
+                 if b.label == 'Reject demo submission').click().run()
+            rejected = app.session_state['offline_approval_queue']
+            self.assertEqual(approval_public_status(rejected)['approvals'][0], 'REJECTED')
+            next(b for b in app.button
+                 if b.label == 'Start FREE approval demo').click().run()
+            fresh = app.session_state['offline_approval_queue']
+            app.run()
+            self.assertFalse(app.exception)
+            self.assertIs(app.session_state['offline_approval_queue'], fresh)
+            self.assertEqual(approval_public_status(fresh)['approvals'][0], 'PENDING')
+            self.assertTrue(any(b.label == 'Approve demo submission'
+                                for b in app.button))
+            model.assert_not_called()
+
     def test_pause_blocks_analysis_until_discard_without_model_calls(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
