@@ -350,10 +350,10 @@ class OfflineAcceptanceTests(unittest.TestCase):
 
     def test_contradictory_pass_or_missing_safety_metadata_fails(self):
         from offline_acceptance import _validated_suite
-        good = {'evaluation': 'PASS', 'checks': [{'passed': True}],
+        good = {'evaluation': 'PASS', 'checks': [{'name': 'fixture', 'passed': True}],
                 'external_api_calls': 0, 'paid_continuation_enabled': False,
                 'autonomous_model_validation': 'NOT_RUN'}
-        for changed in ({'checks': [{'passed': False}]}, {'external_api_calls': False},
+        for changed in ({'checks': [{'name': 'fixture', 'passed': False}]}, {'external_api_calls': False},
                         {'paid_continuation_enabled': True},
                         {'autonomous_model_validation': None}):
             with self.subTest(changed=changed):
