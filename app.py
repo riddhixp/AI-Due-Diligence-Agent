@@ -112,6 +112,13 @@ if uploaded_file is not None:
 
     pdf_bytes = uploaded_file.getvalue()
 
+    # Reject oversized uploads before fingerprinting or binding a new document.
+    # Clear prior document-bound results rather than accidentally retaining them.
+    if len(pdf_bytes) > 15 * 1024 * 1024:
+        set_active_document(st.session_state, None)
+        st.error("Please upload a PDF smaller than 15 MB.")
+        st.stop()
+
     # Clear the previous report if the file changes
     file_id = (
         uploaded_file.name,
@@ -123,10 +130,6 @@ if uploaded_file is not None:
 
 
     set_active_document(st.session_state, file_id)
-
-    if len(pdf_bytes) > 15 * 1024 * 1024:
-        st.error("Please upload a PDF smaller than 15 MB.")
-        st.stop()
 
     try:
         pages = extract_pages(pdf_bytes)
