@@ -24,11 +24,21 @@ def _validated_suite(result, rows_key, status_key):
               and result['external_api_calls'] == 0
               and result.get('paid_continuation_enabled') is False
               and result.get('autonomous_model_validation') == 'NOT_RUN')
+    # Row-level details also may contain PDF text, credentials or verbose errors.
+    safe_rows = []
+    for row in rows:
+        label_key = 'name' if rows_key == 'checks' else 'scenario'
+        label = row.get(label_key)
+        # Only controlled, short plain-text labels can appear in public output.
+        if type(label) is not str or len(label) > 100 or not label.isascii() or not all(
+                char.isalnum() or char in ' _-.' for char in label):
+            label = 'unnamed'
+        safe_rows.append({label_key: label, status_key: row[status_key]})
     # Preserve only the fields needed by the local summary and machine checks.
     # Arbitrary suite metadata can include document text or secret-bearing errors.
     return {
         'evaluation': 'PASS' if passed else 'FAIL',
-        rows_key: rows,
+        rows_key: safe_rows,
         'external_api_calls': result.get('external_api_calls'),
         'paid_continuation_enabled': result.get('paid_continuation_enabled'),
         'autonomous_model_validation': result.get('autonomous_model_validation'),
