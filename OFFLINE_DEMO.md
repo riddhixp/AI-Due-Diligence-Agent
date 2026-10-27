@@ -98,6 +98,21 @@ showing this to an interviewer, complete this checklist with the synthetic PDF:
 Mark each item only after observing the actual interface. A passing GitHub CI
 run does **not** substitute for this UI walkthrough.
 
+## Demo readiness decision
+
+**Automated checks:** GitHub Actions run #266 passed all three jobs at commit
+`6270c8b`. This establishes a repeatable, credential-free scripted baseline.
+
+**Manual browser checks:** Pending. The checklist above is intentionally
+unchecked because CI does not exercise Streamlit buttons or screen rendering.
+
+**Paid-model investigation:** Not started and not authorised. A passing offline
+rehearsal must never be described as a fully validated AI due-diligence report.
+
+The demo is ready for a **local synthetic-data walkthrough**, but do not claim
+production readiness or completed UI acceptance until the manual observations
+are recorded.
+
 ## Feedback to return
 
 Record the scenario, last button clicked, expected outcome and what appeared.
