@@ -24,6 +24,12 @@ def _validated_suite(result, rows_key, status_key):
               and result['external_api_calls'] == 0
               and result.get('paid_continuation_enabled') is False
               and result.get('autonomous_model_validation') == 'NOT_RUN')
+    # A PASS cannot be credited to duplicate check labels that might disguise
+    # omitted validation coverage. This is evidence hygiene, not model scoring.
+    labels = [row.get('name' if rows_key == 'checks' else 'scenario') for row in rows]
+    if any(type(label) is not str or not label for label in labels) or len(set(labels)) != len(labels):
+        raise ValueError('DUPLICATE_OR_MISSING_CHECK_LABEL')
+
     # Row-level details also may contain PDF text, credentials or verbose errors.
     safe_rows = []
     for row in rows:
