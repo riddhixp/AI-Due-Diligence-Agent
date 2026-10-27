@@ -1,6 +1,7 @@
 """Offline-only, process-local ledger for simulated token usage.
 
-Not wired to a provider. Does not meter unreported tokens or enforce billing.
+Optionally wired to a scripted offline model only. Does not meter provider
+usage, unreported tokens or enforce billing.
 """
 from threading import Lock
 
@@ -16,6 +17,15 @@ class SimulatedTokenLedger:
         self._totals = [0, 0]
         self._requests = 0
         self._lock = Lock()
+
+    def __copy__(self):
+        raise ValueError("SIMULATED_TOKEN_LEDGER_CANNOT_BE_COPIED")
+
+    def __deepcopy__(self, memo):
+        raise ValueError("SIMULATED_TOKEN_LEDGER_CANNOT_BE_COPIED")
+
+    def __reduce_ex__(self, protocol):
+        raise ValueError("SIMULATED_TOKEN_LEDGER_CANNOT_BE_SERIALIZED")
 
     def record(self, input_tokens, output_tokens):
         """Fail closed before accounting a request that exceeds either cap."""
