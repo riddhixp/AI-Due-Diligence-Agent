@@ -72,6 +72,28 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
         self.assertNotIn('file_id', app.session_state)
         model.assert_not_called()
 
+    def test_malformed_parser_page_data_clears_session_without_paid_call(self):
+        upload = BytesIO(b'%PDF-1.7')
+        upload.name = 'malformed.pdf'
+        app = AppTest.from_file(
+            str(Path(__file__).resolve().parents[1] / 'app.py'),
+            default_timeout=20)
+        app.session_state['file_id'] = ('prior.pdf', 123, 'old')
+        app.session_state['report'] = 'STALE_REPORT'
+        with (
+            patch('streamlit.file_uploader', return_value=upload),
+            patch('due_diligence_engine.extract_pages', return_value=['valid', None]),
+            patch('due_diligence_engine.run_due_diligence',
+                  side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model,
+        ):
+            app.run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('Could not read PDF pages' in item.value
+                            for item in app.error))
+        self.assertNotIn('report', app.session_state)
+        self.assertNotIn('file_id', app.session_state)
+        model.assert_not_called()
+
     def test_pause_blocks_analysis_until_discard_without_model_calls(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
