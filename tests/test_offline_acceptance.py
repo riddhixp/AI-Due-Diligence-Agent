@@ -259,6 +259,19 @@ class OfflineAcceptanceTests(unittest.TestCase):
         for marker in ('PRIVATE_PDF_MARKER', 'SECRET_DEBUG_MARKER', 'token=abc'):
             self.assertNotIn(marker, str(validated))
 
+    def test_practice_scenario_rows_preserve_outcomes_without_details(self):
+        from offline_acceptance import _validated_suite
+        data = {'evaluation': 'FAIL', 'scenarios': [
+            {'scenario': 'wrong_year', 'expected_behavior_observed': False,
+             'description': 'CONFIDENTIAL_SCENARIO_DETAIL', 'financial_data': {'revenue': 999}}],
+            'external_api_calls': 0, 'paid_continuation_enabled': False,
+            'autonomous_model_validation': 'NOT_RUN'}
+        result = _validated_suite(data, 'scenarios', 'expected_behavior_observed')
+        self.assertEqual(result['evaluation'], 'FAIL')
+        self.assertEqual(result['scenarios'], [
+            {'scenario': 'wrong_year', 'expected_behavior_observed': False}])
+        self.assertNotIn('CONFIDENTIAL_SCENARIO_DETAIL', str(result))
+
     def test_contradictory_pass_or_missing_safety_metadata_fails(self):
         from offline_acceptance import _validated_suite
         good = {'evaluation': 'PASS', 'checks': [{'passed': True}],
