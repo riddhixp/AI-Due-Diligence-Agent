@@ -23,8 +23,7 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
                    side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model:
             app.run()
         self.assertFalse(app.exception)
-        self.assertTrue(any('valid PDF' in entry.message or 'valid PDF' in entry.value
-                            for entry in app.error))
+        self.assertTrue(any('valid PDF' in entry.value for entry in app.error))
         self.assertNotIn('report', app.session_state)
         self.assertNotIn('file_id', app.session_state)
         model.assert_not_called()
