@@ -24,7 +24,15 @@ def _validated_suite(result, rows_key, status_key):
               and result['external_api_calls'] == 0
               and result.get('paid_continuation_enabled') is False
               and result.get('autonomous_model_validation') == 'NOT_RUN')
-    return dict(result, evaluation='PASS' if passed else 'FAIL')
+    # Preserve only the fields needed by the local summary and machine checks.
+    # Arbitrary suite metadata can include document text or secret-bearing errors.
+    return {
+        'evaluation': 'PASS' if passed else 'FAIL',
+        rows_key: rows,
+        'external_api_calls': result.get('external_api_calls'),
+        'paid_continuation_enabled': result.get('paid_continuation_enabled'),
+        'autonomous_model_validation': result.get('autonomous_model_validation'),
+    }
 
 
 def run_acceptance():
