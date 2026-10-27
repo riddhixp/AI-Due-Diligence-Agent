@@ -148,6 +148,8 @@ if uploaded_file is not None:
         pages = extract_pages(pdf_bytes)
     except Exception:
         # Parser exceptions can echo document contents or local file details.
+        # Invalidate the unreadable upload so older report state cannot survive.
+        set_active_document(st.session_state, None)
         st.error("Could not read this PDF. Please check that it is a valid, text-based PDF.")
         st.stop()
 
