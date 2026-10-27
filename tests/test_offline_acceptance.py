@@ -348,6 +348,17 @@ class OfflineAcceptanceTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'DUPLICATE_OR_MISSING_CHECK_LABEL'):
                     _validated_suite(report, 'checks', 'passed')
 
+    def test_duplicate_practice_scenarios_are_rejected(self):
+        from offline_acceptance import _validated_suite
+        result = {'evaluation': 'PASS',
+                  'scenarios': [
+                      {'scenario': 'repeated_case', 'expected_behavior_observed': True},
+                      {'scenario': 'repeated_case', 'expected_behavior_observed': True}],
+                  'external_api_calls': 0, 'paid_continuation_enabled': False,
+                  'autonomous_model_validation': 'NOT_RUN'}
+        with self.assertRaisesRegex(ValueError, 'DUPLICATE_OR_MISSING_CHECK_LABEL'):
+            _validated_suite(result, 'scenarios', 'expected_behavior_observed')
+
     def test_contradictory_pass_or_missing_safety_metadata_fails(self):
         from offline_acceptance import _validated_suite
         good = {'evaluation': 'PASS', 'checks': [{'name': 'fixture', 'passed': True}],
