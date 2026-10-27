@@ -94,6 +94,29 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
         self.assertNotIn('file_id', app.session_state)
         model.assert_not_called()
 
+    def test_oversized_pdf_clears_stale_state_before_copying_bytes(self):
+        class OversizedUpload:
+            size = 15 * 1024 * 1024 + 1
+            name = 'oversized.pdf'
+            def getvalue(self):
+                raise AssertionError('OVERSIZED_FILE_WAS_COPIED')
+        app = AppTest.from_file(
+            str(Path(__file__).resolve().parents[1] / 'app.py'),
+            default_timeout=20)
+        app.session_state['file_id'] = ('prior.pdf', 123, 'old')
+        app.session_state['report'] = 'STALE_REPORT'
+        with (
+            patch('streamlit.file_uploader', return_value=OversizedUpload()),
+            patch('due_diligence_engine.run_due_diligence',
+                  side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model,
+        ):
+            app.run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('smaller than 15 MB' in item.value for item in app.error))
+        self.assertNotIn('report', app.session_state)
+        self.assertNotIn('file_id', app.session_state)
+        model.assert_not_called()
+
     def test_pause_blocks_analysis_until_discard_without_model_calls(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
