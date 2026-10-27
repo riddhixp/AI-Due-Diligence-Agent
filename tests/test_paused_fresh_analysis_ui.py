@@ -679,6 +679,41 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
                                  for b in app.button))
             model.assert_not_called()
 
+    def test_new_free_approval_demo_starts_fresh_queue_after_rejection(self):
+        from approval_queue import approval_public_status
+        with tempfile.TemporaryDirectory() as folder:
+            pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
+        upload = BytesIO(pdf)
+        upload.name = 'fixture.pdf'
+        app = AppTest.from_file(
+            str(Path(__file__).resolve().parents[1] / 'app.py'),
+            default_timeout=20)
+        with (
+            patch('streamlit.file_uploader', return_value=upload),
+            patch('report_storage.load_report', return_value=None),
+            patch('socket.socket.connect',
+                  side_effect=AssertionError('NETWORK_FORBIDDEN')),
+            patch('due_diligence_engine.run_due_diligence',
+                  side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model,
+        ):
+            app.run()
+            self.assertFalse(app.exception)
+            start = lambda: next(b for b in app.button
+                                 if b.label == 'Start FREE approval demo')
+            start().click().run()
+            first_queue = app.session_state['offline_approval_queue']
+            next(b for b in app.button
+                 if b.label == 'Reject demo submission').click().run()
+            self.assertEqual(
+                approval_public_status(first_queue)['approvals'][0], 'REJECTED')
+            start().click().run()
+            self.assertFalse(app.exception)
+            fresh_queue = app.session_state['offline_approval_queue']
+            self.assertIsNot(fresh_queue, first_queue)
+            self.assertEqual(
+                approval_public_status(fresh_queue)['approvals'][0], 'PENDING')
+            model.assert_not_called()
+
     def test_pause_blocks_analysis_until_discard_without_model_calls(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
