@@ -348,6 +348,16 @@ class OfflineAcceptanceTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'DUPLICATE_OR_MISSING_CHECK_LABEL'):
                     _validated_suite(report, 'checks', 'passed')
 
+    def test_distinct_private_labels_cannot_collapse_to_same_public_check(self):
+        from offline_acceptance import _validated_suite
+        data = {'evaluation': 'PASS', 'checks': [
+                    {'name': 'SECRET:one', 'passed': True},
+                    {'name': 'SECRET:two', 'passed': True}],
+                'external_api_calls': 0, 'paid_continuation_enabled': False,
+                'autonomous_model_validation': 'NOT_RUN'}
+        with self.assertRaisesRegex(ValueError, 'DUPLICATE_SANITIZED_CHECK_LABEL'):
+            _validated_suite(data, 'checks', 'passed')
+
     def test_duplicate_practice_scenarios_are_rejected(self):
         from offline_acceptance import _validated_suite
         result = {'evaluation': 'PASS',
