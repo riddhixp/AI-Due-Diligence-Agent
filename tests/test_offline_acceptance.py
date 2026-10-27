@@ -24,7 +24,7 @@ class OfflineAcceptanceTests(unittest.TestCase):
 
     def test_acceptance_summary_lists_both_offline_suites(self):
         from offline_acceptance import acceptance_summary
-        # The real suite is exercised once above and again by the CI acceptance step.
+        # Real suites run in separate CI integration and acceptance jobs.
         # Check the presentation contract without rerunning expensive investigations.
         result = {'evaluation': 'PASS', 'blocked_network_attempts': 0,
                   'suites': {'workflow': {'evaluation': 'PASS', 'checks': [{'passed': True}]},
