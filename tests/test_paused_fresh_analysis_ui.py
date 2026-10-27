@@ -117,6 +117,29 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
         self.assertNotIn('file_id', app.session_state)
         model.assert_not_called()
 
+    def test_pdf_at_exact_size_limit_reaches_parser(self):
+        # The 15 MB threshold is inclusive; size checks must not reject
+        # an exactly-on-limit upload before invoking the PDF parser.
+        class BoundaryUpload:
+            size = 15 * 1024 * 1024
+            name = 'boundary.pdf'
+            def getvalue(self):
+                return b'%PDF-1.7'
+        app = AppTest.from_file(
+            str(Path(__file__).resolve().parents[1] / 'app.py'),
+            default_timeout=20)
+        with (
+            patch('streamlit.file_uploader', return_value=BoundaryUpload()),
+            patch('due_diligence_engine.extract_pages', return_value=[]) as parser,
+            patch('due_diligence_engine.run_due_diligence',
+                  side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model,
+        ):
+            app.run()
+        self.assertFalse(app.exception)
+        parser.assert_called_once_with(b'%PDF-1.7')
+        self.assertTrue(any('No readable text' in item.value for item in app.error))
+        model.assert_not_called()
+
     def test_pause_blocks_analysis_until_discard_without_model_calls(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
