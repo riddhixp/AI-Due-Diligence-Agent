@@ -78,6 +78,27 @@ class SimulatedTokenLedgerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "SIMULATED_TOKEN_LIMIT_EXCEEDED"):
             ledger.record(0, 1)
 
+    def test_parallel_mixed_usage_never_partially_updates_totals(self):
+        ledger = SimulatedTokenLedger(40, 20)
+
+        def submit(index):
+            try:
+                ledger.record(2, 1 if index % 2 == 0 else 2)
+                return True
+            except ValueError as error:
+                self.assertEqual(str(error), "SIMULATED_TOKEN_LIMIT_EXCEEDED")
+                return False
+
+        with ThreadPoolExecutor(max_workers=24) as pool:
+            outcomes = list(pool.map(submit, range(80)))
+        snapshot = ledger.snapshot()
+        self.assertEqual(snapshot["requests_recorded"], sum(outcomes))
+        self.assertLessEqual(snapshot["input_tokens"], 40)
+        self.assertLessEqual(snapshot["output_tokens"], 20)
+        self.assertEqual(snapshot["input_tokens"], snapshot["requests_recorded"] * 2)
+        self.assertEqual(snapshot["input_remaining"] + snapshot["input_tokens"], 40)
+        self.assertEqual(snapshot["output_remaining"] + snapshot["output_tokens"], 20)
+
     def test_concurrent_reports_cannot_exceed_limit(self):
         ledger = SimulatedTokenLedger(10, 10)
 
