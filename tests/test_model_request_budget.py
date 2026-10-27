@@ -200,6 +200,23 @@ class ModelRequestBudgetTests(unittest.TestCase):
         self.assertEqual(model.calls, 6)
         self.assertEqual(ledger.snapshot()['requests_recorded'], 6)
 
+    def test_dual_offline_limits_preserve_request_reservation_on_token_failure(self):
+        budget = ModelRequestBudget(2)
+        ledger = SimulatedTokenLedger(1, 1)
+        model = ScriptedOfflineModel(request_budget=budget,
+                                     simulated_token_ledger=ledger)
+        asyncio.run(model.get_response())
+        with self.assertRaisesRegex(ValueError, 'SIMULATED_TOKEN_LIMIT_EXCEEDED'):
+            asyncio.run(model.get_response())
+        # Reserve-first semantics are deliberately conservative: the failed
+        # model dispatch still consumes a request slot, not an extra token.
+        self.assertEqual(budget.snapshot()['reserved'], 2)
+        self.assertEqual(ledger.snapshot()['requests_recorded'], 1)
+        self.assertEqual(model.calls, 1)
+        with self.assertRaisesRegex(ValueError, 'MODEL_REQUEST_BUDGET_EXHAUSTED'):
+            asyncio.run(model.get_response())
+        self.assertEqual(ledger.snapshot()['requests_recorded'], 1)
+
     def test_sufficient_shared_quota_completes_scripted_workflow(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
