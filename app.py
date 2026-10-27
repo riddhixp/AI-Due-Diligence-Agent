@@ -153,6 +153,8 @@ if uploaded_file is not None:
         st.error("Could not read this PDF. Please check that it is a valid, text-based PDF.")
         st.stop()
 
+    # Treat an empty parser result as unreadable, without trusting callers
+    # to provide a nonempty page list.
     readable = sum(bool(page.strip()) for page in pages)
 
     col1, col2, col3 = st.columns(3)
