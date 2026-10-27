@@ -79,6 +79,31 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['blocked_network_attempts'], 1)
         self.assertIs(socket.getaddrinfo, original)
 
+    def test_other_socket_paths_are_blocked_and_restored(self):
+        operations = (
+            ('connect_ex', lambda sock: sock.connect_ex(('127.0.0.1', 9))),
+            ('sendall', lambda sock: sock.sendall(b'test')),
+            ('sendto', lambda sock: sock.sendto(b'test', ('127.0.0.1', 9))),
+        )
+        for method, operation in operations:
+            with self.subTest(method=method):
+                original = getattr(socket.socket, method)
+
+                def attempt():
+                    try:
+                        with socket.socket() as client:
+                            operation(client)
+                    except RuntimeError:
+                        pass
+                    return {'evaluation': 'PASS', 'external_api_calls': 0,
+                            'paid_continuation_enabled': False}
+
+                with patch('offline_evaluation.run_offline_evaluation', side_effect=attempt):
+                    result = run_acceptance()
+                self.assertEqual(result['evaluation'], 'FAIL')
+                self.assertEqual(result['blocked_network_attempts'], 1)
+                self.assertIs(getattr(socket.socket, method), original)
+
     def test_errors_are_reported_without_sensitive_messages(self):
         with patch('offline_evaluation.run_offline_evaluation', side_effect=ValueError('secret')):
             result = run_acceptance()
