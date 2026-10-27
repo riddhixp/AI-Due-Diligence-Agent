@@ -72,6 +72,32 @@ Changing the scenario selector alone does not replace an active run. Press Start
 for a new run. Request allowances are process-local controls for the scripted
 model; they are not token counts, billing caps or a durable production budget.
 
+## Manual Streamlit acceptance checklist
+
+The automated CI tests do not click through the Streamlit interface. Before
+showing this to an interviewer, complete this checklist with the synthetic PDF:
+
+- [ ] **Standard correction:** initial proposed revenue 130 is visible with its
+  source, and the reviewer must explicitly approve it.
+- [ ] **Correction preview:** revenue changes to proposed 120 only after
+  reading the authoritative second page; previously approved figures remain
+  unchanged until the second approval.
+- [ ] **Approval:** the finished rehearsal retains revenue 120 and explicitly
+  identifies itself as simulated, not a final investment recommendation.
+- [ ] **Rejection:** declining a correction leaves the earlier accepted values
+  intact and marks the latest review incomplete.
+- [ ] **Request limit:** hitting five scripted model requests produces an
+  incomplete state with no retry of the consumed handoff.
+- [ ] **Source recovery and optional removal:** wrong-page evidence cannot
+  resolve the conflict; approved cash-flow removal clears both value and source.
+- [ ] **Session cleanup:** discard or remove the PDF, and confirm the pending
+  rehearsal does not reappear on rerun or a new upload.
+- [ ] **Export guard:** an incomplete or simulated rehearsal cannot be
+  downloaded as a final verified due-diligence report.
+
+Mark each item only after observing the actual interface. A passing GitHub CI
+run does **not** substitute for this UI walkthrough.
+
 ## Feedback to return
 
 Record the scenario, last button clicked, expected outcome and what appeared.
