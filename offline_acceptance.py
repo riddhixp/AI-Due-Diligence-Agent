@@ -40,6 +40,11 @@ def _validated_suite(result, rows_key, status_key):
                 char.isalnum() or char in ' _-.' for char in label):
             label = 'unnamed'
         safe_rows.append({label_key: label, status_key: row[status_key]})
+    # Different unsafe labels may both be redacted to 'unnamed'. Do not
+    # misrepresent them as distinguishable independent checks in a PASS report.
+    output_labels = [row['name' if rows_key == 'checks' else 'scenario'] for row in safe_rows]
+    if len(set(output_labels)) != len(output_labels):
+        raise ValueError('DUPLICATE_SANITIZED_CHECK_LABEL')
     # Preserve only the fields needed by the local summary and machine checks.
     # Arbitrary suite metadata can include document text or secret-bearing errors.
     return {
