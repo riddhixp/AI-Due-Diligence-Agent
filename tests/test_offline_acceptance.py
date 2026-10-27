@@ -44,6 +44,24 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['blocked_network_attempts'], 1)
         self.assertIs(socket.socket.send, original)
 
+    def test_caught_socket_sendmsg_attempt_still_fails_acceptance(self):
+        original = getattr(socket.socket, 'sendmsg', None)
+
+        def attempt():
+            try:
+                with socket.socket() as client:
+                    client.sendmsg([b"test"])
+            except RuntimeError:
+                pass
+            return {'evaluation': 'PASS', 'external_api_calls': 0,
+                    'paid_continuation_enabled': False}
+
+        with patch('offline_evaluation.run_offline_evaluation', side_effect=attempt):
+            result = run_acceptance()
+        self.assertEqual(result['evaluation'], 'FAIL')
+        self.assertEqual(result['blocked_network_attempts'], 1)
+        self.assertIs(getattr(socket.socket, 'sendmsg', None), original)
+
     def test_errors_are_reported_without_sensitive_messages(self):
         with patch('offline_evaluation.run_offline_evaluation', side_effect=ValueError('secret')):
             result = run_acceptance()
