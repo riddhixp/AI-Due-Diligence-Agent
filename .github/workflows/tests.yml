@@ -21,7 +21,10 @@ jobs:
       - name: Check Python syntax
         run: python -m compileall -q .
       - name: Run offline unit tests
-        run: python -m unittest discover -s tests -t . -q
+        run: |
+          # Verbose test names identify the test at which a slow run stalls.
+          # An explicit timeout fails diagnostically instead of silently exhausting CI.
+          timeout --signal=INT --kill-after=15s 600s python -u -m unittest discover -s tests -t . -v
       - name: Evaluate complete offline application workflow
         run: python -m offline_evaluation
       - name: Practice incomplete and unsuccessful investigations offline
