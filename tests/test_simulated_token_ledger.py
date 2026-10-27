@@ -1,3 +1,5 @@
+import copy
+import pickle
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 
@@ -16,6 +18,18 @@ class SimulatedTokenLedgerTests(unittest.TestCase):
                     ValueError, "INVALID_SIMULATED_TOKEN_USAGE"):
                 ledger.record(*usage)
         self.assertEqual(ledger.snapshot()["requests_recorded"], 0)
+
+    def test_copy_and_pickle_cannot_fork_accounting(self):
+        ledger = SimulatedTokenLedger(2, 2)
+        ledger.record(1, 1)
+        for operation in (copy.copy, copy.deepcopy):
+            with self.subTest(operation=operation.__name__), self.assertRaisesRegex(
+                    ValueError, "SIMULATED_TOKEN_LEDGER_CANNOT_BE_COPIED"):
+                operation(ledger)
+        with self.assertRaisesRegex(ValueError, "SIMULATED_TOKEN_LEDGER_CANNOT_BE_SERIALIZED"):
+            pickle.dumps(ledger)
+        self.assertEqual(ledger.snapshot()["requests_recorded"], 1)
+        self.assertEqual(ledger.record(1, 1)["input_remaining"], 0)
 
     def test_atomic_accounting_and_no_partial_charge(self):
         ledger = SimulatedTokenLedger(5, 3)
