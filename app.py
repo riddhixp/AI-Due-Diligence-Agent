@@ -192,6 +192,7 @@ if uploaded_file is not None:
                 refreshed = recheck_cached_analysis(saved, pages)
                 for name in ("report", "validation", "financial_data", "agent_evaluation"):
                     st.session_state[name] = refreshed[name]
+                st.session_state["report_smoke_test"] = False
                 st.info("Saved analysis loaded and evidence rechecked locally. "
                         "Original investigation history is unavailable. No API call was made.")
         except (ValueError, OSError):
@@ -426,9 +427,10 @@ if uploaded_file is not None:
                     st.session_state["validation"] = validation
                     st.session_state["financial_data"] = financial_data
                     st.session_state["agent_evaluation"] = agent_evaluation
+                    st.session_state["report_smoke_test"] = bool(st.session_state.get("smoke_test_mode"))
                     if (should_cache_report(bool(st.session_state.get("smoke_test_mode")))
                             and final_report_eligible(agent_evaluation, st.session_state.get("live_financial_pause"),
-                                                      smoke_test=bool(st.session_state.get("smoke_test_mode")))):
+                                                      smoke_test=st.session_state.get("report_smoke_test", True))):
                         save_report(
                             pdf_bytes,
                             report,
@@ -904,7 +906,7 @@ if uploaded_file is not None:
 
 
         if final_report_eligible(agent_evaluation, st.session_state.get("live_financial_pause"),
-                                                      smoke_test=bool(st.session_state.get("smoke_test_mode"))):
+                                                      smoke_test=st.session_state.get("report_smoke_test", True)):
             # Export the preliminary report only after verification checks.
             try:
                 report_pdf_bytes = generate_pdf_report(
