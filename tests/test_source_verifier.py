@@ -44,6 +44,15 @@ class TestSourceVerifier(unittest.TestCase):
         self.assertEqual(check_statement_row_and_year(
             pages, 120, 1, 'Revenue', 2025, False)['status'], 'NEEDS_REVIEW')
 
+    def test_boolean_financial_amount_never_matches_numeric_pdf_token(self):
+        from source_verifier import normalise_number, extract_evidence_context
+        for value in (True, False):
+            with self.subTest(value=value):
+                self.assertIsNone(normalise_number(value))
+                self.assertEqual(verify_figure(self.pages, value, 1)['status'],
+                                 'NEEDS_REVIEW')
+                self.assertIsNone(extract_evidence_context(self.pages, value, 1))
+
     def test_invalid_page(self):
         result = verify_figure(self.pages, 23769, 100)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
