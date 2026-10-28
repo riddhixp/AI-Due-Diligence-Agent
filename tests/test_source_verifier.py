@@ -115,6 +115,14 @@ class TestSourceVerifier(unittest.TestCase):
         self.assertEqual(result['status'], 'NEEDS_REVIEW')
         self.assertIn('FY2025', result['reason'])
 
+    def test_same_amount_on_different_metric_row_cannot_verify_revenue(self):
+        from source_verifier import check_statement_row_and_year
+        pages = ['Fiscal years 2025 2024\nGross profit 120 100\nRevenue 90 80']
+        result = check_statement_row_and_year(
+            pages, 120, 1, 'Revenue', 2025, 0)
+        self.assertEqual(result['status'], 'NEEDS_REVIEW')
+        self.assertIn('value 90', result['reason'])
+
     def test_invalid_page(self):
         result = verify_figure(self.pages, 23769, 100)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
