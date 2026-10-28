@@ -33,7 +33,11 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
 
     def test_corrupted_result_shows_safe_discard_instead_of_crashing(self):
         for broken in ([], {}, {'evaluation': None, 'financial': {}},
-                       {'evaluation': {}, 'financial': None}):
+                       {'evaluation': {}, 'financial': None},
+                       {'evaluation': {}, 'financial': {}},
+                       {'evaluation': {'final_eligible': True}, 'financial': {}},
+                       {'evaluation': {'final_eligible': 'true', 'financial_evidence': 'PASS'}, 'financial': {}},
+                       {'evaluation': {'final_eligible': False, 'financial_evidence': None}, 'financial': {}}):
             with self.subTest(broken=broken):
                 self.click('app_workflow_start')
                 session = self.app.session_state['offline_application_workflow']
