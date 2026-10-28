@@ -244,6 +244,10 @@ def check_statement_row_and_year(
     column_index starts at 0 for the first year column.
     """
 
+    if not isinstance(row_label, str) or not row_label.strip():
+        return {"status": "NEEDS_REVIEW",
+                "reason": "Invalid financial row label."}
+
     if type(page_number) is not int:
         return {"status": "NEEDS_REVIEW",
                 "reason": "Invalid PDF page."}
