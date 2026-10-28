@@ -1,6 +1,7 @@
 """Clear document-bound results and SDK state without changing app preferences."""
 DOCUMENT_STATE_KEYS = (
     'file_id', 'report', 'validation', 'financial_data', 'agent_evaluation',
+    'report_smoke_test',
     'offline_approval_queue', 'sdk_offline_approval', 'financial_resume_demo',
     'financial_resume_result', 'offline_application_workflow', 'paid_test_plan_preview',
     'offline_practice_suite', 'live_financial_pause', 'live_financial_displayed_request',
