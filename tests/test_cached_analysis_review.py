@@ -109,6 +109,21 @@ class CachedAnalysisReviewTests(unittest.TestCase):
                 self.assertIn('INVALID_CACHED_FINANCIALS', result['agent_evaluation']['issues'])
                 self.assertTrue(result['report'].endswith('# Findings'))
 
+    def test_blank_cached_financial_labels_do_not_reach_dashboard(self):
+        for field in ('company', 'currency', 'units'):
+            for value in ('', '   ', '\\n\\t'):
+                with self.subTest(field=field, value=repr(value)):
+                    financial = supported_submission()
+                    financial[field] = value
+                    result = recheck_cached_analysis(
+                        {'report': '# Retained narrative', 'financial_data': financial}, PAGES)
+                    self.assertEqual(result['financial_data'], {})
+                    self.assertIsNone(result['validation'])
+                    self.assertIn('INVALID_CACHED_FINANCIALS',
+                                  result['agent_evaluation']['issues'])
+                    self.assertTrue(result['report'].endswith('# Retained narrative'))
+                    self.assertFalse(final_report_eligible(result['agent_evaluation']))
+
     def test_all_optional_cached_metrics_require_finite_numeric_values(self):
         from optional_statement_metrics import OPTIONAL_STATEMENT_METRICS
         for field, *_ in OPTIONAL_STATEMENT_METRICS:
