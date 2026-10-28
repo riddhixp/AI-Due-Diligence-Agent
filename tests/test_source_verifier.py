@@ -53,6 +53,15 @@ class TestSourceVerifier(unittest.TestCase):
                                  'NEEDS_REVIEW')
                 self.assertIsNone(extract_evidence_context(self.pages, value, 1))
 
+    def test_missing_financial_row_label_cannot_match_arbitrary_numbers(self):
+        from source_verifier import check_statement_row_and_year
+        pages = ['Fiscal years 2025 2024\\nRevenue 120 100']
+        for label in (None, False, 1, '', '   '):
+            with self.subTest(label=label):
+                result = check_statement_row_and_year(
+                    pages, 120, 1, label, 2025, 0)
+                self.assertEqual(result['status'], 'NEEDS_REVIEW')
+
     def test_invalid_page(self):
         result = verify_figure(self.pages, 23769, 100)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
