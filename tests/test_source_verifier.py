@@ -56,7 +56,7 @@ class TestSourceVerifier(unittest.TestCase):
     def test_missing_financial_row_label_cannot_match_arbitrary_numbers(self):
         from source_verifier import check_statement_row_and_year
         pages = ['Fiscal years 2025 2024\\nRevenue 120 100']
-        for label in (None, False, 1, '', '   '):
+        for label in (None, False, 1, '', '   ', ' Revenue', 'Revenue ', 'Revenue\\n', 'Revenue\\t'):
             with self.subTest(label=label):
                 result = check_statement_row_and_year(
                     pages, 120, 1, label, 2025, 0)
