@@ -57,7 +57,7 @@ def verify_figure(pages, value, page_number):
     page numbers inside the annual report.
     """
 
-    if not isinstance(page_number, int):
+    if type(page_number) is not int:
         return {
             "status": "NEEDS_REVIEW",
             "reason": "Page number must be an integer.",
@@ -162,7 +162,7 @@ def extract_evidence_context(
     This does not verify the metric or fiscal year.
     """
 
-    if not isinstance(page_number, int):
+    if type(page_number) is not int:
         return None
 
     if not 1 <= page_number <= len(pages):
@@ -242,7 +242,7 @@ def check_statement_row_and_year(
     column_index starts at 0 for the first year column.
     """
 
-    if not isinstance(page_number, int):
+    if type(page_number) is not int:
         return {"status": "NEEDS_REVIEW",
                 "reason": "Invalid PDF page."}
 
@@ -250,9 +250,12 @@ def check_statement_row_and_year(
         return {"status": "NEEDS_REVIEW",
                 "reason": "Page outside PDF."}
 
-    if not isinstance(column_index, int) or column_index < 0:
+    if type(column_index) is not int or column_index < 0:
         return {"status": "NEEDS_REVIEW",
                 "reason": "Invalid column index."}
+
+    if type(fiscal_year) is not int or not 1 <= fiscal_year <= 9999:
+        return {"status": "NEEDS_REVIEW", "reason": "Invalid fiscal year."}
 
     text = pages[page_number - 1]
 
