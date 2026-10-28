@@ -163,13 +163,21 @@ def render_correction_workflow(st, pdf_bytes):
         st.error(session.get('workflow_error',
                             'This rehearsal cannot be resumed again. Start a new rehearsal to continue.'))
         progress = handoff.get('failure_checkpoint')
-        if progress:
-            st.write('Accepted submissions before failure:', progress['submission_count'])
-            st.write('Latest review status:', progress['review_status'] or 'Not completed')
-            st.write('Last accepted synthetic revenue:',
-                     progress['financial_data'].get('revenue_current', 'Not submitted'))
-            st.caption('Read-only progress; accepted figures may still be unverified. '
-                       'This failed state cannot be retried or exported as a final report.')
+        if progress is not None:
+            if (not isinstance(progress, dict)
+                    or type(progress.get('submission_count')) is not int
+                    or progress['submission_count'] < 0
+                    or not isinstance(progress.get('financial_data'), dict)
+                    or (progress.get('review_status') is not None
+                        and not isinstance(progress['review_status'], str))):
+                st.warning('Saved failure progress is incomplete. Discard this rehearsal to reset it.')
+            else:
+                st.write('Accepted submissions before failure:', progress['submission_count'])
+                st.write('Latest review status:', progress['review_status'] or 'Not completed')
+                st.write('Last accepted synthetic revenue:',
+                         progress['financial_data'].get('revenue_current', 'Not submitted'))
+                st.caption('Read-only progress; accepted figures may still be unverified. '
+                           'This failed state cannot be retried or exported as a final report.')
     _render_discard(st)
 
 
