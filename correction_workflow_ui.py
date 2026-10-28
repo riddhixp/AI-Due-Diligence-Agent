@@ -68,6 +68,12 @@ def render_correction_workflow(st, pdf_bytes):
     handoff = session['handoff']
     result = session.get('result')
     if result is not None:
+        if (not isinstance(result, dict)
+                or not isinstance(result.get('evaluation'), dict)
+                or not isinstance(result.get('financial'), dict)):
+            st.error('The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+            _render_discard(st)
+            return
         if result['evaluation'].get('final_eligible') is True:
             st.success('Offline workflow completed its scripted checks. External API calls: 0.')
         else:
