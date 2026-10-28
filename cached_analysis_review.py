@@ -11,7 +11,8 @@ def recheck_cached_analysis(saved, pages):
             or not isinstance(saved.get('report'), str)
             or not saved['report'].strip()):
         raise ValueError('INVALID_SAVED_ANALYSIS')
-    financial = deepcopy(saved.get('financial_data') or {})
+    raw_financial = saved.get('financial_data', {})
+    financial = deepcopy(raw_financial)
     issues = ['ORIGINAL_TOOL_HISTORY_UNAVAILABLE']
     try:
         if not isinstance(financial, dict):
