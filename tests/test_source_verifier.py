@@ -94,7 +94,7 @@ class TestSourceVerifier(unittest.TestCase):
 
     def test_1990s_fiscal_year_columns_are_recognized(self):
         from source_verifier import check_statement_row_and_year
-        pages = ['Fiscal years 1999 1998\\nRevenue 120 100']
+        pages = ['Fiscal years 1999 1998\nRevenue 120 100']
         result = check_statement_row_and_year(pages, 120, 1, 'Revenue', 1999, 0)
         self.assertEqual(result['status'], 'ROW_YEAR_MATCH')
 
