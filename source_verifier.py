@@ -307,9 +307,9 @@ def check_statement_row_and_year(
             "reason": "Fiscal-year column cannot be established.",
         }
 
-    if len(values) > len(distinct_years):
+    if len(values) != len(distinct_years):
         return {"status": "NEEDS_REVIEW",
-                "reason": "Extra numeric tokens prevent reliable year-column alignment."}
+                "reason": "Statement values and fiscal-year columns are not aligned."}
 
     extracted_year = int(distinct_years[column_index])
     extracted_value = values[column_index]
