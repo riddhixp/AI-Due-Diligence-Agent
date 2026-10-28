@@ -264,6 +264,8 @@ def check_statement_row_and_year(
         return {"status": "NEEDS_REVIEW", "reason": "Invalid fiscal year."}
 
     text = pages[page_number - 1]
+    if not isinstance(text, str):
+        return {"status": "NEEDS_REVIEW", "reason": "PDF page text is unavailable."}
 
     # Require the full approved label followed by monetary data. A label
     # prefix alone must not accept "Net income per share" or a margin row.
