@@ -244,7 +244,10 @@ def check_statement_row_and_year(
     column_index starts at 0 for the first year column.
     """
 
-    if not isinstance(row_label, str) or not row_label.strip():
+    if (not isinstance(row_label, str)
+            or not row_label.strip()
+            or row_label != row_label.strip()
+            or any(char in row_label for char in "\\r\\n\\t")):
         return {"status": "NEEDS_REVIEW",
                 "reason": "Invalid financial row label."}
 
