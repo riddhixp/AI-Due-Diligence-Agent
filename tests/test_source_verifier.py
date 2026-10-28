@@ -98,6 +98,13 @@ class TestSourceVerifier(unittest.TestCase):
         result = check_statement_row_and_year(pages, 120, 1, 'Revenue', 1999, 0)
         self.assertEqual(result['status'], 'ROW_YEAR_MATCH')
 
+    def test_unrelated_earlier_year_does_not_shift_statement_columns(self):
+        from source_verifier import check_statement_row_and_year
+        pages = ['Published in 2023\nFiscal years 2025 2024\nRevenue 120 100']
+        result = check_statement_row_and_year(
+            pages, 120, 1, 'Revenue', 2025, 0)
+        self.assertEqual(result['status'], 'ROW_YEAR_MATCH')
+
     def test_invalid_page(self):
         result = verify_figure(self.pages, 23769, 100)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
