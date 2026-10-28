@@ -26,6 +26,7 @@ def recheck_cached_analysis(saved, pages):
             if type(year) is not int or not 1 <= year <= 9999:
                 raise ValueError('INVALID_CACHED_FINANCIALS')
             if any(not isinstance(financial.get(key), str)
+                   or not financial[key].strip()
                    for key in ('company', 'currency', 'units')):
                 raise ValueError('INVALID_CACHED_FINANCIALS')
             if any(financial.get(key) is not None and not finite_number(financial[key])
