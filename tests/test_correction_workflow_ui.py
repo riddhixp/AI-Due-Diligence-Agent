@@ -31,6 +31,23 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertFalse(self.app.exception)
         self.assertFalse(self.app.error)
 
+    def test_corrupted_result_shows_safe_discard_instead_of_crashing(self):
+        for broken in ([], {}, {'evaluation': None, 'financial': {}},
+                       {'evaluation': {}, 'financial': None}):
+            with self.subTest(broken=broken):
+                self.click('app_workflow_start')
+                session = self.app.session_state['offline_application_workflow']
+                session['result'] = broken
+                self.app.run()
+                self.assertFalse(self.app.exception)
+                self.assertTrue(any('stored rehearsal result is invalid' in e.value
+                                    for e in self.app.error))
+                self.assertFalse(any(button.key == 'app_workflow_approve'
+                                     for button in self.app.button))
+                self.click('app_workflow_discard')
+                self.assertNotIn('offline_application_workflow', self.app.session_state)
+                self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
     def test_two_approval_clicks_complete_without_touching_existing_analysis(self):
         self.click('app_workflow_start')
         self.click('app_workflow_approve')
