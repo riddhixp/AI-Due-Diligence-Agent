@@ -81,7 +81,7 @@ class TestSourceVerifier(unittest.TestCase):
 
     def test_repeated_fiscal_year_headings_require_review(self):
         from source_verifier import check_statement_row_and_year
-        pages = ['Fiscal years 2025 2024\nNotes for FY2025\nRevenue 120 100']
+        pages = ['Fiscal years 2025 2024\nNotes for fiscal year 2025\nRevenue 120 100']
         result = check_statement_row_and_year(pages, 120, 1, 'Revenue', 2025, 0)
         self.assertEqual(result['status'], 'NEEDS_REVIEW')
         self.assertIn('Repeated fiscal-year headings', result['reason'])
