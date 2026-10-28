@@ -176,6 +176,28 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
                 self.assertFalse(self.app.error)
                 self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
 
+    def test_corrupted_failed_checkpoint_is_safe_and_discardable(self):
+        for broken in ([], {'submission_count': 1},
+                       {'submission_count': '1', 'financial_data': {}},
+                       {'submission_count': -1, 'financial_data': {}},
+                       {'submission_count': 1, 'financial_data': None},
+                       {'submission_count': 1, 'financial_data': {},
+                        'review_status': []}):
+            with self.subTest(broken=broken):
+                self.click('app_workflow_start')
+                session = self.app.session_state['offline_application_workflow']
+                session['handoff']['status'] = 'FAILED'
+                session['handoff']['failure_checkpoint'] = broken
+                self.app.run()
+                self.assertFalse(self.app.exception)
+                self.assertTrue(any('Saved failure progress is incomplete' in item.value
+                                    for item in self.app.warning))
+                self.assertFalse(any(button.key in ('app_workflow_approve', 'app_workflow_reject')
+                                     for button in self.app.button))
+                self.assertEqual(len(self.app.get('download_button')), 0)
+                self.click('app_workflow_discard')
+                self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
     def test_terminal_continuation_failure_removes_decision_controls(self):
         self.click('app_workflow_start')
         session = self.app.session_state['offline_application_workflow']
