@@ -415,6 +415,29 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.click('app_workflow_start')
         self.assertEqual(self.app.session_state[SESSION_KEY]['handoff']['status'], 'AWAITING_APPROVAL')
 
+    def test_corrupt_request_counter_blocks_decisions_and_allows_discard(self):
+        from unittest.mock import Mock
+        invalid = (
+            None, {}, {'maximum': 12, 'reserved': 3, 'remaining': 10},
+            {'maximum': 12, 'reserved': -1, 'remaining': 13},
+            {'maximum': True, 'reserved': 0, 'remaining': 1},
+        )
+        for snapshot in invalid:
+            with self.subTest(snapshot=snapshot):
+                self.click('app_workflow_start')
+                session = self.app.session_state['offline_application_workflow']
+                calls = session['model'].calls
+                session['model'].request_budget = Mock(snapshot=Mock(return_value=snapshot))
+                self.app.run()
+                self.assertFalse(self.app.exception)
+                self.assertTrue(any('request counter is invalid' in e.value
+                                    for e in self.app.error))
+                self.assertFalse(any(button.key in ('app_workflow_approve', 'app_workflow_reject')
+                                     for button in self.app.button))
+                self.assertEqual(session['model'].calls, calls)
+                self.click('app_workflow_discard')
+                self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
     def test_request_allowance_is_visible_and_shared_across_both_approvals(self):
         self.click('app_workflow_start')
         session = self.app.session_state['offline_application_workflow']
