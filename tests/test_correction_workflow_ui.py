@@ -416,7 +416,7 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertEqual(self.app.session_state[SESSION_KEY]['handoff']['status'], 'AWAITING_APPROVAL')
 
     def test_corrupt_request_counter_blocks_decisions_and_allows_discard(self):
-        from unittest.mock import Mock
+        from model_request_budget import ModelRequestBudget
         invalid = (
             None, {}, {'maximum': 12, 'reserved': 3, 'remaining': 10},
             {'maximum': 12, 'reserved': -1, 'remaining': 13},
@@ -427,8 +427,8 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
                 self.click('app_workflow_start')
                 session = self.app.session_state['offline_application_workflow']
                 calls = session['model'].calls
-                session['model'].request_budget = Mock(snapshot=Mock(return_value=snapshot))
-                self.app.run()
+                with patch.object(ModelRequestBudget, 'snapshot', return_value=snapshot):
+                    self.app.run()
                 self.assertFalse(self.app.exception)
                 self.assertTrue(any('request counter is invalid' in e.value
                                     for e in self.app.error))
