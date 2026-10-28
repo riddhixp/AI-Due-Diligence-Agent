@@ -25,6 +25,25 @@ class TestSourceVerifier(unittest.TestCase):
         result = verify_figure(self.pages, 99999, 1)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
 
+    def test_boolean_page_references_are_not_valid_pdf_positions(self):
+        from source_verifier import extract_evidence_context, check_statement_row_and_year
+        for page in (True, False):
+            with self.subTest(page=page):
+                self.assertEqual(verify_figure(self.pages, 23769, page)['status'],
+                                 'NEEDS_REVIEW')
+                self.assertIsNone(extract_evidence_context(self.pages, 23769, page))
+                self.assertEqual(check_statement_row_and_year(
+                    self.pages, 23769, page, 'Revenue', 2025, 0)['status'],
+                    'NEEDS_REVIEW')
+
+    def test_boolean_statement_year_and_column_are_rejected(self):
+        from source_verifier import check_statement_row_and_year
+        pages = ['Fiscal years 2025 2024\\nRevenue 120 100']
+        self.assertEqual(check_statement_row_and_year(
+            pages, 120, 1, 'Revenue', True, 0)['status'], 'NEEDS_REVIEW')
+        self.assertEqual(check_statement_row_and_year(
+            pages, 120, 1, 'Revenue', 2025, False)['status'], 'NEEDS_REVIEW')
+
     def test_invalid_page(self):
         result = verify_figure(self.pages, 23769, 100)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
