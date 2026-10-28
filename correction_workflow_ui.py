@@ -61,7 +61,22 @@ def render_correction_workflow(st, pdf_bytes):
                    'cash flow must remain missing, not become zero.')
     budget = getattr(session['model'], 'request_budget', None)
     if budget is not None:
-        usage = budget.snapshot()
+        try:
+            usage = budget.snapshot()
+            valid = (
+                isinstance(usage, dict)
+                and all(type(usage.get(key)) is int for key in
+                        ('reserved', 'maximum', 'remaining'))
+                and usage['maximum'] > 0
+                and 0 <= usage['reserved'] <= usage['maximum']
+                and usage['remaining'] == usage['maximum'] - usage['reserved']
+            )
+        except Exception:
+            valid = False
+        if not valid:
+            st.error('The stored rehearsal request counter is invalid. Discard and restart this rehearsal.')
+            _render_discard(st)
+            return
         st.caption(f"Scripted requests used: {usage['reserved']} of {usage['maximum']}; "
                    f"remaining: {usage['remaining']}. The same allowance covers all approval pauses.")
         st.caption('This is a free rehearsal request limit, not a token or monetary budget.')
