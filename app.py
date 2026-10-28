@@ -368,6 +368,7 @@ if uploaded_file is not None:
             st.session_state["validation"] = validation
             st.session_state["financial_data"] = financial_data
             st.session_state["agent_evaluation"] = agent_evaluation
+            st.session_state["report_smoke_test"] = True
             st.info(
                 "Interruption with an unreviewed financial submission "
                 "simulated. No OpenAI API credits used."
@@ -384,6 +385,7 @@ if uploaded_file is not None:
             st.session_state["validation"] = validation
             st.session_state["financial_data"] = financial_data
             st.session_state["agent_evaluation"] = agent_evaluation
+            st.session_state["report_smoke_test"] = True
             st.success(
                 "Scripted offline correction completed. No OpenAI API "
                 "credits were used. This does not test autonomous AI."
