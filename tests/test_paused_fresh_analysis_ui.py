@@ -1206,9 +1206,9 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
         upload.name = 'fixture.pdf'
         app = AppTest.from_file(
             str(Path(__file__).resolve().parents[1] / 'app.py'), default_timeout=20)
-        with patch('streamlit.file_uploader', return_value=upload), \\
-             patch('report_storage.load_report', return_value=None), \\
-             patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')), \\
+        with patch('streamlit.file_uploader', return_value=upload), \
+             patch('report_storage.load_report', return_value=None), \
+             patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')), \
              patch('due_diligence_engine.run_due_diligence',
                    side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model:
             app.run()
