@@ -62,6 +62,15 @@ class TestSourceVerifier(unittest.TestCase):
                     pages, 120, 1, label, 2025, 0)
                 self.assertEqual(result['status'], 'NEEDS_REVIEW')
 
+    def test_unreadable_page_text_requires_review_instead_of_crashing(self):
+        from source_verifier import check_statement_row_and_year
+        for page in (None, 123, [], {'text': 'Revenue 120'}):
+            with self.subTest(page=page):
+                result = check_statement_row_and_year(
+                    [page], 120, 1, 'Revenue', 2025, 0)
+                self.assertEqual(result['status'], 'NEEDS_REVIEW')
+                self.assertEqual(result['reason'], 'PDF page text is unavailable.')
+
     def test_invalid_page(self):
         result = verify_figure(self.pages, 23769, 100)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
