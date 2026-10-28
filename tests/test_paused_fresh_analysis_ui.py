@@ -1199,6 +1199,34 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
                 self.assertFalse(app.button(key='analyse_company').disabled)
                 run.assert_not_called()
 
+    def test_offline_report_provenance_blocks_export_after_smoke_toggle_changes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
+        upload = BytesIO(pdf)
+        upload.name = 'fixture.pdf'
+        app = AppTest.from_file(
+            str(Path(__file__).resolve().parents[1] / 'app.py'), default_timeout=20)
+        with patch('streamlit.file_uploader', return_value=upload), \\
+             patch('report_storage.load_report', return_value=None), \\
+             patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')), \\
+             patch('due_diligence_engine.run_due_diligence',
+                   side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model:
+            app.run()
+            self.assertFalse(app.exception)
+            app.checkbox(key='smoke_test_mode').check().run()
+            next(button for button in app.button
+                 if button.label == 'Run FREE offline correction demo').click().run()
+            self.assertFalse(app.exception)
+            self.assertTrue(app.session_state['report_smoke_test'])
+            self.assertIn('report', app.session_state)
+            app.checkbox(key='smoke_test_mode').uncheck().run()
+            self.assertFalse(app.exception)
+            self.assertTrue(app.session_state['report_smoke_test'])
+            self.assertFalse(any(button.label in (
+                'Download Professional PDF Report', 'Download Due Diligence Report')
+                for button in app.get('download_button')))
+            model.assert_not_called()
+
     def test_corrupt_saved_analysis_warns_without_model_or_partial_session(self):
         import report_storage
         with tempfile.TemporaryDirectory() as folder:
