@@ -70,7 +70,10 @@ def render_correction_workflow(st, pdf_bytes):
     if result is not None:
         if (not isinstance(result, dict)
                 or not isinstance(result.get('evaluation'), dict)
-                or not isinstance(result.get('financial'), dict)):
+                or not isinstance(result.get('financial'), dict)
+                or type(result['evaluation'].get('final_eligible')) is not bool
+                or not isinstance(result['evaluation'].get('financial_evidence'), str)
+                or not result['evaluation']['financial_evidence']):
             st.error('The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
             _render_discard(st)
             return
