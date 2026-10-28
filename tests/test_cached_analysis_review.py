@@ -111,7 +111,7 @@ class CachedAnalysisReviewTests(unittest.TestCase):
 
     def test_blank_cached_financial_labels_do_not_reach_dashboard(self):
         for field in ('company', 'currency', 'units'):
-            for value in ('', '   ', '\\n\\t'):
+            for value in ('', '   ', '\n\t'):
                 with self.subTest(field=field, value=repr(value)):
                     financial = supported_submission()
                     financial[field] = value
