@@ -17,6 +17,12 @@ class FinalArtifactPolicyTests(unittest.TestCase):
     def test_preliminary_pass(self):
         self.assertTrue(final_report_eligible(self.passed))
 
+    def test_smoke_test_cannot_export_even_with_otherwise_valid_checks(self):
+        self.assertTrue(final_report_eligible(self.passed, smoke_test=False))
+        for flag in (True, None, 1, 'false', [], {}):
+            with self.subTest(flag=flag):
+                self.assertFalse(final_report_eligible(self.passed, smoke_test=flag))
+
     def test_missing_evaluation_is_not_final(self):
         self.assertFalse(final_report_eligible(None))
 
