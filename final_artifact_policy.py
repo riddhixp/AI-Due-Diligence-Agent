@@ -7,8 +7,8 @@ and caching require observed verification, not just a model-produced narrative.
 """
 
 
-def final_report_eligible(evaluation, sdk_handoff=None):
-    if not isinstance(evaluation, dict):
+def final_report_eligible(evaluation, sdk_handoff=None, *, smoke_test=False):
+    if not isinstance(evaluation, dict) or smoke_test is not False:
         return False
     return (
         sdk_continuation_complete(evaluation, sdk_handoff)
