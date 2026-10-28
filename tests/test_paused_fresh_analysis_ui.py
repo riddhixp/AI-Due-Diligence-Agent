@@ -1199,6 +1199,41 @@ class PausedFreshAnalysisUITests(unittest.TestCase):
                 self.assertFalse(app.button(key='analyse_company').disabled)
                 run.assert_not_called()
 
+    def test_smoke_run_provenance_blocks_otherwise_passed_report_after_toggle(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as folder:
+            pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
+        upload = BytesIO(pdf)
+        upload.name = 'fixture.pdf'
+        app = AppTest.from_file(
+            str(Path(__file__).resolve().parents[1] / 'app.py'), default_timeout=20)
+        passed = {
+            'evaluation': 'PRELIMINARY_PASS',
+            'financial_evidence': 'PRELIMINARY_CHECKS_PASSED',
+            'sequence_ok': True, 'issues': [],
+            'final_response_complete': True,
+            'final_eligible': True, 'simulation': False,
+        }
+        with patch('streamlit.file_uploader', return_value=upload), \
+             patch('report_storage.load_report', return_value=None), \
+             patch('socket.socket.connect', side_effect=AssertionError('NETWORK_FORBIDDEN')), \
+             patch('due_diligence_engine.run_due_diligence',
+                   side_effect=AssertionError('PAID_MODEL_FORBIDDEN')) as model:
+            app.run()
+            self.assertFalse(app.exception)
+            app.session_state['report'] = '# Test report'
+            app.session_state['agent_evaluation'] = passed
+            app.session_state['report_smoke_test'] = True
+            app.session_state['smoke_test_mode'] = False
+            app.run()
+            self.assertFalse(app.exception)
+            self.assertFalse(any(button.label in (
+                'Download Professional PDF Report', 'Download Due Diligence Report')
+                for button in app.get('download_button')))
+            self.assertTrue(any('Final report exports are disabled' in item.value
+                                for item in app.warning))
+            model.assert_not_called()
+
     def test_offline_report_provenance_blocks_export_after_smoke_toggle_changes(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = create_conflict_fixture(Path(folder) / 'fixture.pdf').read_bytes()
