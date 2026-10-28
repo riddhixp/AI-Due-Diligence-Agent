@@ -292,6 +292,9 @@ def check_statement_row_and_year(
     heading = "\n".join(lines[:row_index])
     years = re.findall(r"\b20\d{2}\b", heading)
     distinct_years = list(dict.fromkeys(years))
+    if len(years) != len(distinct_years):
+        return {"status": "NEEDS_REVIEW",
+                "reason": "Repeated fiscal-year headings prevent reliable column alignment."}
 
     values = extract_numbers(row)
 
