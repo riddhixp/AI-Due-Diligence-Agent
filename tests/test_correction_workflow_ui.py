@@ -438,6 +438,25 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
                 self.click('app_workflow_discard')
                 self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
 
+    def test_request_counter_exception_fails_closed_without_leaking_details(self):
+        from model_request_budget import ModelRequestBudget
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        calls = session['model'].calls
+        with patch.object(ModelRequestBudget, 'snapshot',
+                          side_effect=RuntimeError('PRIVATE_BUDGET_FAILURE')):
+            self.app.run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(any('request counter is invalid' in e.value
+                            for e in self.app.error))
+        self.assertNotIn('PRIVATE_BUDGET_FAILURE',
+                         ' '.join(e.value for e in self.app.error))
+        self.assertFalse(any(button.key in ('app_workflow_approve', 'app_workflow_reject')
+                             for button in self.app.button))
+        self.assertEqual(session['model'].calls, calls)
+        self.click('app_workflow_discard')
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
     def test_request_allowance_is_visible_and_shared_across_both_approvals(self):
         self.click('app_workflow_start')
         session = self.app.session_state['offline_application_workflow']
