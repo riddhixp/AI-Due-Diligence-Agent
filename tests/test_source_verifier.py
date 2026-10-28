@@ -107,6 +107,14 @@ class TestSourceVerifier(unittest.TestCase):
             pages, 120, 1, 'Revenue', 2025, 0)
         self.assertEqual(result['status'], 'ROW_YEAR_MATCH')
 
+    def test_wrong_fiscal_year_does_not_pass_even_if_amount_is_on_row(self):
+        from source_verifier import check_statement_row_and_year
+        pages = ['Published 2023\nFiscal years 2025 2024\nRevenue 120 100']
+        result = check_statement_row_and_year(
+            pages, 120, 1, 'Revenue', 2024, 0)
+        self.assertEqual(result['status'], 'NEEDS_REVIEW')
+        self.assertIn('FY2025', result['reason'])
+
     def test_invalid_page(self):
         result = verify_figure(self.pages, 23769, 100)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
