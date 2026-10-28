@@ -73,7 +73,7 @@ class TestSourceVerifier(unittest.TestCase):
 
     def test_statement_year_header_with_missing_column_requires_review(self):
         from source_verifier import check_statement_row_and_year
-        pages = ['Fiscal years 2025 2024 2023\\nRevenue 120 100']
+        pages = ['Fiscal years 2025 2024 2023\nRevenue 120 100']
         result = check_statement_row_and_year(
             pages, 120, 1, 'Revenue', 2025, 0)
         self.assertEqual(result['status'], 'NEEDS_REVIEW')
