@@ -84,7 +84,9 @@ class TestSourceVerifier(unittest.TestCase):
         pages = ['Fiscal years 2025 2024\nNotes for fiscal year 2025\nRevenue 120 100']
         result = check_statement_row_and_year(pages, 120, 1, 'Revenue', 2025, 0)
         self.assertEqual(result['status'], 'NEEDS_REVIEW')
-        self.assertIn('Repeated fiscal-year headings', result['reason'])
+        self.assertIn(result['reason'], (
+            'Repeated fiscal-year headings prevent reliable column alignment.',
+            'Statement values and fiscal-year columns are not aligned.'))
 
     def test_year_embedded_in_identifier_does_not_define_statement_column(self):
         from source_verifier import check_statement_row_and_year
