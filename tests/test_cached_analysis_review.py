@@ -32,6 +32,17 @@ class CachedAnalysisReviewTests(unittest.TestCase):
         self.assertFalse(final_report_eligible(evaluation))
         self.assertEqual(evaluation['api_calls'], 0)
 
+    def test_falsy_malformed_cached_financials_are_flagged_not_silently_missing(self):
+        for financial in (None, False, 0, '', [], ()):
+            with self.subTest(financial=financial):
+                result = recheck_cached_analysis(
+                    {'report': '# Preserved narrative', 'financial_data': financial}, PAGES)
+                self.assertEqual(result['financial_data'], {})
+                self.assertIsNone(result['validation'])
+                self.assertIn('INVALID_CACHED_FINANCIALS', result['agent_evaluation']['issues'])
+                self.assertFalse(final_report_eligible(result['agent_evaluation']))
+                self.assertTrue(result['report'].endswith('# Preserved narrative'))
+
     def test_malformed_saved_figures_cannot_restore_verified_status(self):
         for financial in [{'revenue_current': 120}, ['invalid']]:
             with self.subTest(financial=financial):
