@@ -290,7 +290,7 @@ def check_statement_row_and_year(
     # Use only text before the actual matched row, independent of label case.
     # Later notes or statements cannot supply this row's year heading.
     heading = "\n".join(lines[:row_index])
-    years = re.findall(r"\b20\d{2}\b", heading)
+    years = re.findall(r"(?<![\w])20\d{2}(?![\w])", heading)
     distinct_years = list(dict.fromkeys(years))
     if len(years) != len(distinct_years):
         return {"status": "NEEDS_REVIEW",
