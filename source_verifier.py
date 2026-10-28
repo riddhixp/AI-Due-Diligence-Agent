@@ -13,6 +13,8 @@ _NUMBER_PATTERN = re.compile(
 
 def normalise_number(value):
     """Convert a financial number into a comparable format."""
+    if isinstance(value, bool):
+        return None
     text = str(value).strip().replace("−", "-")
     text = re.sub(r"\s+", "", text)
     for symbol in (",", "$", "£", "€"):
