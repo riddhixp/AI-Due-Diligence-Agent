@@ -86,6 +86,12 @@ class TestSourceVerifier(unittest.TestCase):
         self.assertEqual(result['status'], 'NEEDS_REVIEW')
         self.assertIn('Repeated fiscal-year headings', result['reason'])
 
+    def test_year_embedded_in_identifier_does_not_define_statement_column(self):
+        from source_verifier import check_statement_row_and_year
+        pages = ['Document identifier AB2025CD and year 2024\\nRevenue 120']
+        result = check_statement_row_and_year(pages, 120, 1, 'Revenue', 2025, 0)
+        self.assertEqual(result['status'], 'NEEDS_REVIEW')
+
     def test_invalid_page(self):
         result = verify_figure(self.pages, 23769, 100)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
