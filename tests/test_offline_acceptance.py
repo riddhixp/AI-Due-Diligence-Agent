@@ -351,7 +351,7 @@ class OfflineAcceptanceTests(unittest.TestCase):
             self.assertEqual(main(['--summary']), 1)
         self.assertIn('Offline acceptance: FAIL', output.getvalue())
 
-    def test_cli_default_preserves_machine_readable_json(self):
+    def test_cli_default_rejects_unverified_json_pass(self):
         import contextlib
         import io
         import json
@@ -359,7 +359,7 @@ class OfflineAcceptanceTests(unittest.TestCase):
         result = {'evaluation': 'PASS', 'blocked_network_attempts': 0}
         with patch('offline_acceptance.run_acceptance', return_value=result), \
              contextlib.redirect_stdout(io.StringIO()) as output:
-            self.assertEqual(main([]), 0)
+            self.assertEqual(main([]), 1)
         self.assertEqual(json.loads(output.getvalue())['evaluation'], 'FAIL')
         self.assertEqual(result['evaluation'], 'PASS')  # No mutation of source evidence.
 
