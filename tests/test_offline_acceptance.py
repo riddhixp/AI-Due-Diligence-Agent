@@ -309,6 +309,15 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['suites']['failure_practice']['evaluation'], 'PASS')
         self.assertNotIn('secret', str(result))
 
+    def test_summary_does_not_echo_malformed_network_count(self):
+        from offline_acceptance import acceptance_summary
+        for bad in ('token=SECRET_MARKER', True, -1, None):
+            with self.subTest(bad=bad):
+                summary = acceptance_summary({
+                    'evaluation': 'FAIL', 'blocked_network_attempts': bad})
+                self.assertIn('Blocked network attempts: UNKNOWN', summary)
+                self.assertNotIn('SECRET_MARKER', summary)
+
     def test_summary_sanitizes_untrusted_error_types_and_check_labels(self):
         from offline_acceptance import acceptance_summary
         secret = 'token=SECRET_MARKER'
