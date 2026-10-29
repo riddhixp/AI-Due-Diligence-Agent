@@ -360,7 +360,27 @@ class OfflineAcceptanceTests(unittest.TestCase):
         with patch('offline_acceptance.run_acceptance', return_value=result), \
              contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(main([]), 0)
-        self.assertEqual(json.loads(output.getvalue()), result)
+        self.assertEqual(json.loads(output.getvalue())['evaluation'], 'FAIL')
+        self.assertEqual(result['evaluation'], 'PASS')  # No mutation of source evidence.
+
+    def test_cli_rejects_unsubstantiated_pass_in_both_output_modes(self):
+        import contextlib
+        import io
+        import json
+        from offline_acceptance import main
+
+        contradictory = {'evaluation': 'PASS', 'blocked_network_attempts': 0,
+                         'paid_continuation_enabled': False,
+                         'autonomous_model_validation': 'NOT_RUN',
+                         'suites': {}}
+        for args in ([], ['--summary']):
+            with self.subTest(args=args), patch('offline_acceptance.run_acceptance',
+                    return_value=contradictory), contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(main(args), 1)
+            if args:
+                self.assertIn('Offline acceptance: FAIL', output.getvalue())
+            else:
+                self.assertEqual(json.loads(output.getvalue())['evaluation'], 'FAIL')
 
     def test_empty_or_malformed_results_cannot_pass(self):
         from offline_acceptance import _validated_suite
