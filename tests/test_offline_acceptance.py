@@ -309,6 +309,21 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['suites']['failure_practice']['evaluation'], 'PASS')
         self.assertNotIn('secret', str(result))
 
+    def test_suite_summary_rejects_forged_pass_and_private_status(self):
+        from offline_acceptance import acceptance_summary
+        report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
+                  'suites': {'workflow': {'evaluation': 'PASS',
+                                         'checks': [{'name': 'failed', 'passed': False}],
+                                         'external_api_calls': 0,
+                                         'paid_continuation_enabled': False,
+                                         'autonomous_model_validation': 'NOT_RUN'},
+                             'failure_practice': {'evaluation': 'token=PRIVATE_MARKER',
+                                                  'scenarios': []}}}
+        summary = acceptance_summary(report)
+        self.assertIn('workflow: FAIL (0/1 checks)', summary)
+        self.assertIn('failure_practice: FAIL (0/0 checks)', summary)
+        self.assertNotIn('PRIVATE_MARKER', summary)
+
     def test_summary_does_not_echo_malformed_network_count(self):
         from offline_acceptance import acceptance_summary
         for bad in ('token=SECRET_MARKER', True, -1, None):
