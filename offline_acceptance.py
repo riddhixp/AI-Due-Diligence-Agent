@@ -183,7 +183,8 @@ def acceptance_summary(report):
                     and isinstance(suite.get(expected_key), list)
                     and bool(suite[expected_key])
                     and all(isinstance(row, dict) and row.get(outcome_key) is True
-                            for row in suite[expected_key]))
+                            for row in suite[expected_key])
+                    and not suite.get('error_type'))
         lines.append(f"{_safe_summary_label(name)}: {'PASS' if suite_ok else 'FAIL'} ({passed}/{len(rows)} checks)")
         if suite.get('error_type'):
             lines.append(f"  Error type: {_safe_summary_label(suite['error_type'])}")
