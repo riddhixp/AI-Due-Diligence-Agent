@@ -121,6 +121,15 @@ def run_acceptance():
     return report
 
 
+
+def _safe_summary_label(value):
+    """Limit summary-only labels to short, non-sensitive identifiers."""
+    if (type(value) is str and 0 < len(value) <= 100 and value.isascii()
+            and all(c.isalnum() or c in ' _-.' for c in value)):
+        return value
+    return 'unnamed'
+
+
 def acceptance_summary(report):
     """Keep the full JSON available while offering a readable local checklist."""
     if not isinstance(report, dict):
@@ -162,14 +171,14 @@ def acceptance_summary(report):
                      for row in rows)
         lines.append(f"{name}: {suite.get('evaluation', 'FAIL')} ({passed}/{len(rows)} checks)")
         if suite.get('error_type'):
-            lines.append(f"  Error type: {suite['error_type']}")
+            lines.append(f"  Error type: {_safe_summary_label(suite['error_type'])}")
         for row in rows:
             if not isinstance(row, dict):
                 lines.append("  Failed: invalid check result")
             elif row.get('passed', row.get('expected_behavior_observed')) is not True:
-                lines.append(f"  Failed: {row.get('name', row.get('scenario', 'unnamed'))}")
+                lines.append(f"  Failed: {_safe_summary_label(row.get('name', row.get('scenario', 'unnamed')))}")
     if report.get('error_type'):
-        lines.append(f"Error type: {report['error_type']}")
+        lines.append(f"Error type: {_safe_summary_label(report['error_type'])}")
     lines.append(f"Blocked network attempts: {report.get('blocked_network_attempts', 'UNKNOWN')}")
     lines.append('Scripted checks only; autonomous model validation NOT_RUN; paid continuation disabled.')
     return '\n'.join(lines)
