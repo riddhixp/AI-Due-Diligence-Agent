@@ -146,6 +146,13 @@ class TestSourceVerifier(unittest.TestCase):
             pages, 120, 1, 'Revenue', 2025, 0)
         self.assertEqual(result['status'], 'NEEDS_REVIEW')
 
+    def test_numeric_verification_requires_readable_pdf_page(self):
+        for page in (None, 100, [], {'text': 'Revenue 120'}):
+            with self.subTest(page=page):
+                result = verify_figure([page], 120, 1)
+                self.assertEqual(result['status'], 'NEEDS_REVIEW')
+                self.assertIn('unavailable', result['reason'])
+
     def test_invalid_page(self):
         result = verify_figure(self.pages, 23769, 100)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
