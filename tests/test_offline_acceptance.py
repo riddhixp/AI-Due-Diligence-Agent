@@ -171,6 +171,50 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['evaluation'], 'PASS')
         self.assertEqual(result['blocked_network_attempts'], 0)
 
+    def test_internet_bind_or_listen_attempts_fail_offline_acceptance(self):
+        for operation in ('bind', 'listen'):
+            with self.subTest(operation=operation):
+                original = getattr(socket.socket, operation)
+
+                def attempt():
+                    try:
+                        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
+                            if operation == 'bind':
+                                server.bind(('127.0.0.1', 0))
+                            else:
+                                server.listen(1)
+                    except RuntimeError:
+                        pass
+                    return {'evaluation': 'PASS', 'checks': [
+                        {'name': 'blocked_server', 'passed': True}],
+                            'external_api_calls': 0, 'paid_continuation_enabled': False,
+                            'autonomous_model_validation': 'NOT_RUN'}
+
+                with patch('offline_evaluation.run_offline_evaluation', side_effect=attempt):
+                    result = run_acceptance()
+                self.assertEqual(result['evaluation'], 'FAIL')
+                self.assertEqual(result['blocked_network_attempts'], 1)
+                self.assertIs(getattr(socket.socket, operation), original)
+
+    def test_unix_domain_bind_and_listen_remain_available(self):
+        import tempfile
+        from pathlib import Path
+
+        def local_server():
+            with tempfile.TemporaryDirectory() as folder:
+                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
+                    server.bind(str(Path(folder) / 'local.sock'))
+                    server.listen(1)
+            return {'evaluation': 'PASS', 'checks': [
+                {'name': 'unix_server', 'passed': True}],
+                    'external_api_calls': 0, 'paid_continuation_enabled': False,
+                    'autonomous_model_validation': 'NOT_RUN'}
+
+        with patch('offline_evaluation.run_offline_evaluation', side_effect=local_server):
+            result = run_acceptance()
+        self.assertEqual(result['evaluation'], 'PASS')
+        self.assertEqual(result['blocked_network_attempts'], 0)
+
     def test_swallowed_dns_lookup_still_fails_acceptance(self):
         original = socket.getaddrinfo
 
