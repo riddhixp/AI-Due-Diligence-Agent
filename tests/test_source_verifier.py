@@ -215,6 +215,16 @@ class TestSourceVerifier(unittest.TestCase):
                 self.assertTrue(all(item['Result'] == 'NEEDS_REVIEW'
                                     for item in results))
 
+    def test_financial_container_is_type_checked_before_equality(self):
+        class DangerousEquality:
+            def __eq__(self, other):
+                raise RuntimeError('equality must not run')
+        results = verify_financial_data(self.pages, DangerousEquality())
+        self.assertEqual(len(results), 4)
+        self.assertTrue(all(item['Result'] == 'NEEDS_REVIEW'
+                            for item in results))
+        self.assertEqual(verify_financial_data(self.pages, {}), [])
+
     def test_missing_source_page(self):
         financial_data = {
             "revenue_current": 23769,
