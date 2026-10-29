@@ -112,6 +112,27 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['blocked_network_attempts'], 1)
         self.assertIs(getattr(socket.socket, 'sendmsg', None), original)
 
+    def test_caught_socket_sendfile_attempt_still_fails_acceptance(self):
+        original = socket.socket.sendfile
+
+        def attempt():
+            import io
+            try:
+                with socket.socket() as client:
+                    client.sendfile(io.BytesIO(b"offline test"))
+            except RuntimeError:
+                pass
+            return {'evaluation': 'PASS', 'checks': [
+                {'name': 'sendfile_attempt', 'passed': True}],
+                    'external_api_calls': 0, 'paid_continuation_enabled': False,
+                    'autonomous_model_validation': 'NOT_RUN'}
+
+        with patch('offline_evaluation.run_offline_evaluation', side_effect=attempt):
+            result = run_acceptance()
+        self.assertEqual(result['evaluation'], 'FAIL')
+        self.assertEqual(result['blocked_network_attempts'], 1)
+        self.assertIs(socket.socket.sendfile, original)
+
     def test_swallowed_socket_connect_still_fails_and_restores_guard(self):
         original = socket.socket.connect
 
