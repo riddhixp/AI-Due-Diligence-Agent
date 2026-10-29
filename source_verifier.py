@@ -80,6 +80,11 @@ def verify_figure(pages, value, page_number):
         }
 
     page_text = pages[page_number - 1]
+    if not isinstance(page_text, str):
+        return {
+            "status": "NEEDS_REVIEW",
+            "reason": "PDF page text is unavailable.",
+        }
     numbers = extract_numbers(page_text)
 
     if any(abs(number - target) < 0.0001 for number in numbers):
