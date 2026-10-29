@@ -152,8 +152,11 @@ def verify_financial_data(pages, financial_data):
 
         # Prefer the figure-specific page reference.
         # Fall back to the previous single-page format.
-        page_number = source_pages.get(field)
-        if page_number is None:
+        # An explicitly supplied figure page must be checked as-is.
+        # Only absent entries may use the legacy shared source page.
+        if field in source_pages:
+            page_number = source_pages[field]
+        else:
             page_number = financial_data.get("source_page")
 
         if value is None or page_number is None:
