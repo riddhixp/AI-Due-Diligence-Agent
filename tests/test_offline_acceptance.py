@@ -356,6 +356,19 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertIn('failure_practice: FAIL (0/1 checks)', summary)
         self.assertIn('Failed: source_failure', summary)
 
+    def test_suite_with_execution_error_cannot_display_pass(self):
+        from offline_acceptance import acceptance_summary
+        report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
+                  'suites': {'workflow': {
+                      'evaluation': 'PASS', 'error_type': 'RuntimeError',
+                      'checks': [{'name': 'check', 'passed': True}],
+                      'external_api_calls': 0,
+                      'paid_continuation_enabled': False,
+                      'autonomous_model_validation': 'NOT_RUN'}}}
+        summary = acceptance_summary(report)
+        self.assertIn('workflow: FAIL (1/1 checks)', summary)
+        self.assertIn('Error type: RuntimeError', summary)
+
     def test_suite_summary_rejects_forged_pass_and_private_status(self):
         from offline_acceptance import acceptance_summary
         report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
