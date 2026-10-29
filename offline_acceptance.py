@@ -169,7 +169,20 @@ def acceptance_summary(report):
         passed = sum(isinstance(row, dict) and
                      row.get('passed', row.get('expected_behavior_observed')) is True
                      for row in rows)
-        lines.append(f"{name}: {suite.get('evaluation', 'FAIL')} ({passed}/{len(rows)} checks)")
+        # Never echo an arbitrary suite status or advertise a passing suite
+        # when its check rows or safety metadata do not corroborate it.
+        expected_key = 'checks' if name == 'workflow' else 'scenarios'
+        outcome_key = 'passed' if name == 'workflow' else 'expected_behavior_observed'
+        suite_ok = (name in ('workflow', 'failure_practice')
+                    and suite.get('evaluation') == 'PASS'
+                    and suite.get('external_api_calls') == 0
+                    and suite.get('paid_continuation_enabled') is False
+                    and suite.get('autonomous_model_validation') == 'NOT_RUN'
+                    and isinstance(suite.get(expected_key), list)
+                    and bool(suite[expected_key])
+                    and all(isinstance(row, dict) and row.get(outcome_key) is True
+                            for row in suite[expected_key]))
+        lines.append(f"{_safe_summary_label(name)}: {'PASS' if suite_ok else 'FAIL'} ({passed}/{len(rows)} checks)")
         if suite.get('error_type'):
             lines.append(f"  Error type: {_safe_summary_label(suite['error_type'])}")
         for row in rows:
