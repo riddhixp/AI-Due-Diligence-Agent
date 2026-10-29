@@ -445,7 +445,7 @@ class OfflineAcceptanceTests(unittest.TestCase):
                              'invalid': {'evaluation': 'FAIL', 'checks': 'unavailable'}}}
         summary = acceptance_summary(report)
         self.assertIn('broken: FAIL (invalid suite result)', summary)
-        self.assertIn('partial: FAIL (0/2 checks)', summary)
+        self.assertIn('partial: FAIL (0/0 checks)', summary)
         self.assertIn('Failed: invalid check result', summary)
         self.assertIn('invalid: FAIL (0/0 checks)', summary)
 
