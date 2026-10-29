@@ -163,13 +163,14 @@ def acceptance_summary(report):
         if not isinstance(suite, dict):
             lines.append(f"{name}: FAIL (invalid suite result)")
             continue
-        rows = suite.get('checks', suite.get('scenarios', []))
-        if not isinstance(rows, list):
-            rows = []
-        # Use only the outcome field belonging to this suite. A malformed
-        # practice row claiming "passed": true must not inflate its count.
+        # Do not substitute another suite's rows when the expected collection
+        # is missing. Such fallback can make a broken report look complete.
         expected_key = 'checks' if name == 'workflow' else 'scenarios'
         outcome_key = 'passed' if name == 'workflow' else 'expected_behavior_observed'
+        rows = suite.get(expected_key, [])
+        if not isinstance(rows, list):
+            rows = []
+        # Use only the result field belonging to this suite.
         passed = sum(isinstance(row, dict) and row.get(outcome_key) is True
                      for row in rows)
         # Never echo an arbitrary suite status or advertise a passing suite
