@@ -125,7 +125,27 @@ def acceptance_summary(report):
     """Keep the full JSON available while offering a readable local checklist."""
     if not isinstance(report, dict):
         report = {}
-    lines = [f"Offline acceptance: {report.get('evaluation', 'FAIL')}"]
+    # A summary must never advertise success based solely on an untrusted
+    # top-level PASS claim when the suites or network evidence disagree.
+    suites = report.get('suites')
+    verified = (report.get('evaluation') == 'PASS'
+                and type(report.get('blocked_network_attempts')) is int
+                and report['blocked_network_attempts'] == 0
+                and isinstance(suites, dict)
+                and set(suites) == {'workflow', 'failure_practice'}
+                and all(isinstance(suite, dict) and suite.get('evaluation') == 'PASS'
+                        and suite.get('external_api_calls') == 0
+                        and suite.get('paid_continuation_enabled') is False
+                        and suite.get('autonomous_model_validation') == 'NOT_RUN'
+                        and isinstance(suite.get('checks' if name == 'workflow' else 'scenarios'), list)
+                        and bool(suite['checks' if name == 'workflow' else 'scenarios'])
+                        and all(type(row.get('passed' if name == 'workflow' else 'expected_behavior_observed')) is bool
+                                and row['passed' if name == 'workflow' else 'expected_behavior_observed']
+                                for row in suite['checks' if name == 'workflow' else 'scenarios']
+                                if isinstance(row, dict))
+                        and all(isinstance(row, dict) for row in suite['checks' if name == 'workflow' else 'scenarios'])
+                        for name, suite in suites.items()))
+    lines = [f"Offline acceptance: {'PASS' if verified else 'FAIL'}"]
     suites = report.get('suites', {})
     if not isinstance(suites, dict):
         suites = {}
