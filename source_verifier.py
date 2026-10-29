@@ -65,6 +65,12 @@ def verify_figure(pages, value, page_number):
             "reason": "Page number must be an integer.",
         }
 
+    if not isinstance(pages, (list, tuple)):
+        return {
+            "status": "NEEDS_REVIEW",
+            "reason": "PDF pages are unavailable.",
+        }
+
     if page_number < 1 or page_number > len(pages):
         return {
             "status": "NEEDS_REVIEW",
