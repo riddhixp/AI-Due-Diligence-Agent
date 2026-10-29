@@ -276,6 +276,9 @@ def check_statement_row_and_year(
         if not stripped.lower().startswith(row_label.lower()):
             continue
         suffix = stripped[len(row_label):]
+        # A longer metric name is not the requested financial statement row.
+        if suffix and suffix[0] not in " .:…\t":
+            continue
         if _NUMBER_PATTERN.match(suffix.lstrip(" .:…\t")):
             matching_rows.append((index, line))
     if len(matching_rows) != 1:
