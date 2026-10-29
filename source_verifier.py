@@ -176,6 +176,8 @@ def extract_evidence_context(
         return None
 
     page_text = pages[page_number - 1]
+    if not isinstance(page_text, str):
+        return None
 
     target = normalise_number(value)
 
