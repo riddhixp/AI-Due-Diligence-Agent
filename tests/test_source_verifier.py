@@ -192,6 +192,21 @@ class TestSourceVerifier(unittest.TestCase):
                 "NUMBER_FOUND",
             )
 
+    def test_malformed_source_pages_metadata_requires_review(self):
+        for source_pages in ([], [1], 'page one', 42, True):
+            with self.subTest(source_pages=source_pages):
+                data = {
+                    'revenue_current': 23769,
+                    'revenue_previous': 21505,
+                    'gross_profit': 21218,
+                    'net_income': 7130,
+                    'source_pages': source_pages,
+                }
+                results = verify_financial_data(self.pages, data)
+                self.assertEqual(len(results), 4)
+                self.assertTrue(all(item['Result'] == 'NEEDS_REVIEW'
+                                    for item in results))
+
     def test_missing_source_page(self):
         financial_data = {
             "revenue_current": 23769,
