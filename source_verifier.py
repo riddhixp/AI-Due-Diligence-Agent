@@ -144,7 +144,7 @@ def verify_financial_data(pages, financial_data):
     source_pages = financial_data.get("source_pages")
     invalid_source_pages = (
         "source_pages" in financial_data
-        and not isinstance(source_pages, dict)
+        and (not isinstance(source_pages, dict) or not source_pages)
     )
     if not isinstance(source_pages, dict):
         source_pages = {}
