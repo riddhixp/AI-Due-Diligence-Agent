@@ -61,7 +61,19 @@ class OfflineAcceptanceTests(unittest.TestCase):
 
         verified_report = {'evaluation': 'PASS', 'blocked_network_attempts': 0,
                            'paid_continuation_enabled': False,
-                           'autonomous_model_validation': 'NOT_RUN'}
+                           'autonomous_model_validation': 'NOT_RUN',
+                           'suites': {
+                               'workflow': {'evaluation': 'PASS',
+                                            'checks': [{'name': 'test', 'passed': True}],
+                                            'external_api_calls': 0,
+                                            'paid_continuation_enabled': False,
+                                            'autonomous_model_validation': 'NOT_RUN'},
+                               'failure_practice': {'evaluation': 'PASS',
+                                                    'scenarios': [{'scenario': 'test',
+                                                                   'expected_behavior_observed': True}],
+                                                    'external_api_calls': 0,
+                                                    'paid_continuation_enabled': False,
+                                                    'autonomous_model_validation': 'NOT_RUN'}}}
         for args in ([], ['--summary']):
             with self.subTest(args=args), patch('offline_acceptance.run_acceptance',
                     return_value=verified_report), contextlib.redirect_stdout(io.StringIO()) as output:
