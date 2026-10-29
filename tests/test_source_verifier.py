@@ -225,6 +225,21 @@ class TestSourceVerifier(unittest.TestCase):
                             for item in results))
         self.assertEqual(verify_financial_data(self.pages, {}), [])
 
+    def test_explicit_missing_figure_page_does_not_fall_back_to_shared_page(self):
+        data = {
+            'revenue_current': 23769,
+            'revenue_previous': 21505,
+            'gross_profit': 21218,
+            'net_income': 7130,
+            'source_page': 1,
+            'source_pages': {'revenue_current': None},
+        }
+        results = verify_financial_data(self.pages, data)
+        self.assertEqual(results[0]['Result'], 'NEEDS_REVIEW')
+        self.assertIsNone(results[0]['PDF page'])
+        self.assertTrue(all(item['Result'] == 'NUMBER_FOUND'
+                            for item in results[1:]))
+
     def test_missing_source_page(self):
         financial_data = {
             "revenue_current": 23769,
