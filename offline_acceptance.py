@@ -166,13 +166,14 @@ def acceptance_summary(report):
         rows = suite.get('checks', suite.get('scenarios', []))
         if not isinstance(rows, list):
             rows = []
-        passed = sum(isinstance(row, dict) and
-                     row.get('passed', row.get('expected_behavior_observed')) is True
+        # Use only the outcome field belonging to this suite. A malformed
+        # practice row claiming "passed": true must not inflate its count.
+        expected_key = 'checks' if name == 'workflow' else 'scenarios'
+        outcome_key = 'passed' if name == 'workflow' else 'expected_behavior_observed'
+        passed = sum(isinstance(row, dict) and row.get(outcome_key) is True
                      for row in rows)
         # Never echo an arbitrary suite status or advertise a passing suite
         # when its check rows or safety metadata do not corroborate it.
-        expected_key = 'checks' if name == 'workflow' else 'scenarios'
-        outcome_key = 'passed' if name == 'workflow' else 'expected_behavior_observed'
         suite_ok = (name in ('workflow', 'failure_practice')
                     and suite.get('evaluation') == 'PASS'
                     and suite.get('external_api_calls') == 0
