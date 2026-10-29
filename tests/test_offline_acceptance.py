@@ -27,9 +27,13 @@ class OfflineAcceptanceTests(unittest.TestCase):
         # Real suites run in separate CI integration and acceptance jobs.
         # Check the presentation contract without rerunning expensive investigations.
         result = {'evaluation': 'PASS', 'blocked_network_attempts': 0,
-                  'suites': {'workflow': {'evaluation': 'PASS', 'checks': [{'passed': True}]},
+                  'suites': {'workflow': {'evaluation': 'PASS', 'checks': [{'passed': True}],
+                                          'external_api_calls': 0, 'paid_continuation_enabled': False,
+                                          'autonomous_model_validation': 'NOT_RUN'},
                              'failure_practice': {'evaluation': 'PASS',
-                                                  'scenarios': [{'expected_behavior_observed': True}]}}}
+                                                  'scenarios': [{'expected_behavior_observed': True}],
+                                                  'external_api_calls': 0, 'paid_continuation_enabled': False,
+                                                  'autonomous_model_validation': 'NOT_RUN'}}}
         summary = acceptance_summary(result)
         self.assertEqual(result['evaluation'], 'PASS')
         self.assertIn('Offline acceptance: PASS', summary)
@@ -37,6 +41,17 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertIn('failure_practice: PASS', summary)
         self.assertIn('Blocked network attempts: 0', summary)
         self.assertIn('autonomous model validation NOT_RUN', summary)
+
+    def test_summary_refuses_unsubstantiated_top_level_pass(self):
+        from offline_acceptance import acceptance_summary
+        for report in (
+                {'evaluation': 'PASS', 'blocked_network_attempts': 0},
+                {'evaluation': 'PASS', 'blocked_network_attempts': 0, 'suites': {}},
+                {'evaluation': 'PASS', 'blocked_network_attempts': 1, 'suites': {}},
+                {'evaluation': 'PASS', 'blocked_network_attempts': 0,
+                 'suites': {'workflow': {'evaluation': 'PASS'}, 'failure_practice': {'evaluation': 'PASS'}}}):
+            with self.subTest(report=report):
+                self.assertIn('Offline acceptance: FAIL', acceptance_summary(report))
 
     def test_cli_json_and_summary_exit_success_without_paid_calls(self):
         import contextlib
