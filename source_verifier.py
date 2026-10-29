@@ -123,7 +123,9 @@ def verify_financial_data(pages, financial_data):
         ("Net income", "net_income"),
     ]
 
-    source_pages = financial_data.get("source_pages") or {}
+    source_pages = financial_data.get("source_pages")
+    if not isinstance(source_pages, dict):
+        source_pages = {}
 
     results = []
 
