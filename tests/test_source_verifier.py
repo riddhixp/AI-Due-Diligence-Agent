@@ -207,6 +207,14 @@ class TestSourceVerifier(unittest.TestCase):
                 self.assertTrue(all(item['Result'] == 'NEEDS_REVIEW'
                                     for item in results))
 
+    def test_malformed_financial_data_container_requires_review(self):
+        for data in (True, 12, [1], 'revenue', ('invalid',)):
+            with self.subTest(data=data):
+                results = verify_financial_data(self.pages, data)
+                self.assertEqual(len(results), 4)
+                self.assertTrue(all(item['Result'] == 'NEEDS_REVIEW'
+                                    for item in results))
+
     def test_missing_source_page(self):
         financial_data = {
             "revenue_current": 23769,
