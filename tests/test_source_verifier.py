@@ -131,6 +131,14 @@ class TestSourceVerifier(unittest.TestCase):
         self.assertEqual(result['status'], 'NEEDS_REVIEW')
         self.assertIn('not uniquely found', result['reason'])
 
+    def test_metric_name_prefix_is_not_accepted_as_full_row_label(self):
+        from source_verifier import check_statement_row_and_year
+        pages = ['Fiscal years 2025 2024\nRevenueGrowth 120 100']
+        result = check_statement_row_and_year(
+            pages, 120, 1, 'Revenue', 2025, 0)
+        self.assertEqual(result['status'], 'NEEDS_REVIEW')
+        self.assertIn('not uniquely found', result['reason'])
+
     def test_invalid_page(self):
         result = verify_figure(self.pages, 23769, 100)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
