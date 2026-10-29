@@ -309,6 +309,20 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['suites']['failure_practice']['evaluation'], 'PASS')
         self.assertNotIn('secret', str(result))
 
+    def test_practice_summary_ignores_unrelated_passed_field(self):
+        from offline_acceptance import acceptance_summary
+        report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
+                  'suites': {'failure_practice': {
+                      'evaluation': 'FAIL', 'external_api_calls': 0,
+                      'paid_continuation_enabled': False,
+                      'autonomous_model_validation': 'NOT_RUN',
+                      'scenarios': [{'scenario': 'source_failure',
+                                     'passed': True,
+                                     'expected_behavior_observed': False}]}}}
+        summary = acceptance_summary(report)
+        self.assertIn('failure_practice: FAIL (0/1 checks)', summary)
+        self.assertIn('Failed: source_failure', summary)
+
     def test_suite_summary_rejects_forged_pass_and_private_status(self):
         from offline_acceptance import acceptance_summary
         report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
