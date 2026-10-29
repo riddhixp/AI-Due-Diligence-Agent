@@ -252,6 +252,18 @@ class TestSourceVerifier(unittest.TestCase):
                 self.assertTrue(all(item['Result'] == 'NEEDS_REVIEW'
                                     for item in results))
 
+    def test_invalid_explicit_figure_page_does_not_use_shared_page(self):
+        for invalid_page in (False, True, '1', 0, 999):
+            with self.subTest(page=invalid_page):
+                data = {
+                    'revenue_current': 23769,
+                    'source_page': 1,
+                    'source_pages': {'revenue_current': invalid_page},
+                }
+                result = verify_financial_data(self.pages, data)[0]
+                self.assertEqual(result['Result'], 'NEEDS_REVIEW')
+                self.assertEqual(result['PDF page'], invalid_page)
+
     def test_missing_source_page(self):
         financial_data = {
             "revenue_current": 23769,
