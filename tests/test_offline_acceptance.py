@@ -309,6 +309,20 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['suites']['failure_practice']['evaluation'], 'PASS')
         self.assertNotIn('secret', str(result))
 
+    def test_workflow_summary_ignores_unrelated_practice_outcome(self):
+        from offline_acceptance import acceptance_summary
+        report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
+                  'suites': {'workflow': {
+                      'evaluation': 'FAIL', 'external_api_calls': 0,
+                      'paid_continuation_enabled': False,
+                      'autonomous_model_validation': 'NOT_RUN',
+                      'checks': [{'name': 'source_missing',
+                                  'passed': False,
+                                  'expected_behavior_observed': True}]}}}
+        summary = acceptance_summary(report)
+        self.assertIn('workflow: FAIL (0/1 checks)', summary)
+        self.assertIn('Failed: source_missing', summary)
+
     def test_practice_summary_ignores_unrelated_passed_field(self):
         from offline_acceptance import acceptance_summary
         report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
