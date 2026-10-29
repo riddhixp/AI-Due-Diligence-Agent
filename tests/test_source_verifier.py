@@ -241,7 +241,7 @@ class TestSourceVerifier(unittest.TestCase):
                             for item in results[1:]))
 
     def test_invalid_explicit_page_mapping_cannot_use_shared_citation(self):
-        for mapping in ('invalid', [1], 42, False):
+        for mapping in (None, 'invalid', [1], 42, False):
             with self.subTest(mapping=mapping):
                 data = {
                     'revenue_current': 23769, 'revenue_previous': 21505,
