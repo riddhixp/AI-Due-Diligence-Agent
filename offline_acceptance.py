@@ -183,7 +183,7 @@ def main(argv=None):
     summary = acceptance_summary(report)
     # Apply the same evidence gate to JSON, text, and the process exit code.
     # A contradictory top-level PASS must not pass a CI job.
-    verified = summary.startswith('Offline acceptance: PASS\\n')
+    verified = summary.splitlines()[0] == 'Offline acceptance: PASS'
     if isinstance(report, dict) and not verified:
         report = dict(report, evaluation='FAIL')
     print(summary if args.summary else json.dumps(report, indent=2))
