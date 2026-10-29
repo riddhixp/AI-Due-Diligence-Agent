@@ -309,6 +309,25 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['suites']['failure_practice']['evaluation'], 'PASS')
         self.assertNotIn('secret', str(result))
 
+    def test_summary_never_falls_back_to_other_suite_rows(self):
+        from offline_acceptance import acceptance_summary
+        report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
+                  'suites': {'workflow': {
+                      'evaluation': 'PASS', 'scenarios': [
+                          {'scenario': 'fake', 'expected_behavior_observed': True}],
+                      'external_api_calls': 0,
+                      'paid_continuation_enabled': False,
+                      'autonomous_model_validation': 'NOT_RUN'},
+                             'failure_practice': {
+                      'evaluation': 'PASS', 'checks': [
+                          {'name': 'fake', 'passed': True}],
+                      'external_api_calls': 0,
+                      'paid_continuation_enabled': False,
+                      'autonomous_model_validation': 'NOT_RUN'}}}
+        summary = acceptance_summary(report)
+        self.assertIn('workflow: FAIL (0/0 checks)', summary)
+        self.assertIn('failure_practice: FAIL (0/0 checks)', summary)
+
     def test_workflow_summary_ignores_unrelated_practice_outcome(self):
         from offline_acceptance import acceptance_summary
         report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
