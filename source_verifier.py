@@ -142,6 +142,11 @@ def verify_financial_data(pages, financial_data):
     ]
 
     source_pages = financial_data.get("source_pages")
+    invalid_source_pages = (
+        "source_pages" in financial_data
+        and source_pages is not None
+        and not isinstance(source_pages, dict)
+    )
     if not isinstance(source_pages, dict):
         source_pages = {}
 
@@ -154,7 +159,9 @@ def verify_financial_data(pages, financial_data):
         # Fall back to the previous single-page format.
         # An explicitly supplied figure page must be checked as-is.
         # Only absent entries may use the legacy shared source page.
-        if field in source_pages:
+        if invalid_source_pages:
+            page_number = None
+        elif field in source_pages:
             page_number = source_pages[field]
         else:
             page_number = financial_data.get("source_page")
