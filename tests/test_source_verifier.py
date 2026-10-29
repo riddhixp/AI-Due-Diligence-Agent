@@ -153,6 +153,15 @@ class TestSourceVerifier(unittest.TestCase):
                 self.assertEqual(result['status'], 'NEEDS_REVIEW')
                 self.assertIn('unavailable', result['reason'])
 
+    def test_evidence_excerpt_handles_unreadable_page_without_exception(self):
+        from source_verifier import extract_evidence_context, check_financial_label
+        for page in (None, 100, [], {'text': 'Revenue 120'}):
+            with self.subTest(page=page):
+                self.assertIsNone(extract_evidence_context([page], 120, 1))
+                result = check_financial_label([page], 120, 1, ['Revenue'])
+                self.assertEqual(result['status'], 'NEEDS_REVIEW')
+                self.assertIsNone(result['excerpt'])
+
     def test_invalid_page(self):
         result = verify_figure(self.pages, 23769, 100)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
