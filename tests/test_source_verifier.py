@@ -240,6 +240,18 @@ class TestSourceVerifier(unittest.TestCase):
         self.assertTrue(all(item['Result'] == 'NUMBER_FOUND'
                             for item in results[1:]))
 
+    def test_invalid_explicit_page_mapping_cannot_use_shared_citation(self):
+        for mapping in ('invalid', [1], 42, False):
+            with self.subTest(mapping=mapping):
+                data = {
+                    'revenue_current': 23769, 'revenue_previous': 21505,
+                    'gross_profit': 21218, 'net_income': 7130,
+                    'source_page': 1, 'source_pages': mapping,
+                }
+                results = verify_financial_data(self.pages, data)
+                self.assertTrue(all(item['Result'] == 'NEEDS_REVIEW'
+                                    for item in results))
+
     def test_missing_source_page(self):
         financial_data = {
             "revenue_current": 23769,
