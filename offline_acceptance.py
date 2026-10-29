@@ -189,7 +189,7 @@ def acceptance_summary(report):
         for row in rows:
             if not isinstance(row, dict):
                 lines.append("  Failed: invalid check result")
-            elif row.get('passed', row.get('expected_behavior_observed')) is not True:
+            elif row.get(outcome_key) is not True:
                 lines.append(f"  Failed: {_safe_summary_label(row.get('name', row.get('scenario', 'unnamed')))}")
     if report.get('error_type'):
         lines.append(f"Error type: {_safe_summary_label(report['error_type'])}")
