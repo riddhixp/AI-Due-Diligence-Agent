@@ -123,6 +123,14 @@ class TestSourceVerifier(unittest.TestCase):
         self.assertEqual(result['status'], 'NEEDS_REVIEW')
         self.assertIn('value 90', result['reason'])
 
+    def test_duplicate_revenue_rows_require_review_even_with_matching_amount(self):
+        from source_verifier import check_statement_row_and_year
+        pages = ['Fiscal years 2025 2024\nRevenue 120 100\nRevenue 90 80']
+        result = check_statement_row_and_year(
+            pages, 120, 1, 'Revenue', 2025, 0)
+        self.assertEqual(result['status'], 'NEEDS_REVIEW')
+        self.assertIn('not uniquely found', result['reason'])
+
     def test_invalid_page(self):
         result = verify_figure(self.pages, 23769, 100)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
