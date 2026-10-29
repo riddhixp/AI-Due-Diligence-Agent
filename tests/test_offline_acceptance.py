@@ -309,6 +309,19 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertEqual(result['suites']['failure_practice']['evaluation'], 'PASS')
         self.assertNotIn('secret', str(result))
 
+    def test_summary_sanitizes_untrusted_error_types_and_check_labels(self):
+        from offline_acceptance import acceptance_summary
+        secret = 'token=SECRET_MARKER'
+        report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
+                  'error_type': secret,
+                  'suites': {'workflow': {'evaluation': 'FAIL',
+                                         'error_type': secret,
+                                         'checks': [{'name': secret, 'passed': False}]}}}
+        summary = acceptance_summary(report)
+        self.assertNotIn(secret, summary)
+        self.assertIn('Error type: unnamed', summary)
+        self.assertIn('Failed: unnamed', summary)
+
     def test_summary_names_failed_checks_without_claiming_live_validation(self):
         from offline_acceptance import acceptance_summary
         report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
