@@ -86,6 +86,8 @@ def run_acceptance():
              patch.object(socket.socket, 'sendall', local_socket_send(socket.socket.sendall)), \
              patch.object(socket.socket, 'sendmsg', local_socket_send(getattr(socket.socket, 'sendmsg', blocked)), create=True), \
              patch.object(socket.socket, 'sendfile', blocked), \
+             patch.object(socket.socket, 'bind', local_socket_send(socket.socket.bind)), \
+             patch.object(socket.socket, 'listen', local_socket_send(socket.socket.listen)), \
              patch.object(socket, 'create_connection', blocked), \
              patch.object(socket, 'getaddrinfo', blocked), \
              contextlib.redirect_stdout(io.StringIO()):
