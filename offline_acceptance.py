@@ -138,12 +138,14 @@ def acceptance_summary(report):
     # top-level PASS claim when the suites or network evidence disagree.
     suites = report.get('suites')
     verified = (report.get('evaluation') == 'PASS'
+                and not report.get('error_type')
                 and type(report.get('blocked_network_attempts')) is int
                 and report['blocked_network_attempts'] == 0
                 and isinstance(suites, dict)
                 and set(suites) == {'workflow', 'failure_practice'}
                 and all(isinstance(suite, dict) and suite.get('evaluation') == 'PASS'
-                        and suite.get('external_api_calls') == 0
+                        and type(suite.get('external_api_calls')) is int
+                        and suite['external_api_calls'] == 0
                         and suite.get('paid_continuation_enabled') is False
                         and suite.get('autonomous_model_validation') == 'NOT_RUN'
                         and isinstance(suite.get('checks' if name == 'workflow' else 'scenarios'), list)
@@ -177,7 +179,8 @@ def acceptance_summary(report):
         # when its check rows or safety metadata do not corroborate it.
         suite_ok = (name in ('workflow', 'failure_practice')
                     and suite.get('evaluation') == 'PASS'
-                    and suite.get('external_api_calls') == 0
+                    and type(suite.get('external_api_calls')) is int
+                        and suite['external_api_calls'] == 0
                     and suite.get('paid_continuation_enabled') is False
                     and suite.get('autonomous_model_validation') == 'NOT_RUN'
                     and isinstance(suite.get(expected_key), list)
