@@ -356,6 +356,27 @@ class OfflineAcceptanceTests(unittest.TestCase):
         self.assertIn('failure_practice: FAIL (0/1 checks)', summary)
         self.assertIn('Failed: source_failure', summary)
 
+    def test_summary_rejects_top_level_error_and_boolean_api_count(self):
+        from offline_acceptance import acceptance_summary
+        report = {'evaluation': 'PASS', 'blocked_network_attempts': 0,
+                  'suites': {'workflow': {
+                      'evaluation': 'PASS', 'checks': [{'name': 'ok', 'passed': True}],
+                      'external_api_calls': 0, 'paid_continuation_enabled': False,
+                      'autonomous_model_validation': 'NOT_RUN'},
+                             'failure_practice': {
+                      'evaluation': 'PASS', 'scenarios': [
+                          {'scenario': 'ok', 'expected_behavior_observed': True}],
+                      'external_api_calls': 0, 'paid_continuation_enabled': False,
+                      'autonomous_model_validation': 'NOT_RUN'}}}
+        self.assertIn('Offline acceptance: PASS', acceptance_summary(report))
+        self.assertIn('Offline acceptance: FAIL',
+                      acceptance_summary(dict(report, error_type='RuntimeError')))
+        modified = dict(report, suites={**report['suites'],
+            'workflow': dict(report['suites']['workflow'], external_api_calls=False)})
+        summary = acceptance_summary(modified)
+        self.assertIn('Offline acceptance: FAIL', summary)
+        self.assertIn('workflow: FAIL', summary)
+
     def test_suite_with_execution_error_cannot_display_pass(self):
         from offline_acceptance import acceptance_summary
         report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
