@@ -180,8 +180,14 @@ def main(argv=None):
     parser.add_argument('--summary', action='store_true', help='Print a short checklist instead of JSON')
     args = parser.parse_args(argv)
     report = run_acceptance()
-    print(acceptance_summary(report) if args.summary else json.dumps(report, indent=2))
-    return 0 if report['evaluation'] == 'PASS' else 1
+    summary = acceptance_summary(report)
+    # Apply the same evidence gate to JSON, text, and the process exit code.
+    # A contradictory top-level PASS must not pass a CI job.
+    verified = summary.startswith('Offline acceptance: PASS\\n')
+    if isinstance(report, dict) and not verified:
+        report = dict(report, evaluation='FAIL')
+    print(summary if args.summary else json.dumps(report, indent=2))
+    return 0 if verified else 1
 
 
 if __name__ == '__main__':
