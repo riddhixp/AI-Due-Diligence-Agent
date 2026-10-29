@@ -113,8 +113,23 @@ def verify_financial_data(pages, financial_data):
     It does not prove the metric, year or unit is correct.
     """
 
-    if not financial_data:
+    if financial_data is None or financial_data == {}:
         return []
+
+    if not isinstance(financial_data, dict):
+        return [
+            {
+                "Financial figure": label,
+                "Value": None,
+                "PDF page": None,
+                "Result": "NEEDS_REVIEW",
+                "Explanation": "Financial data must be a dictionary.",
+            }
+            for label in (
+                "Current-year revenue", "Previous-year revenue",
+                "Gross profit", "Net income",
+            )
+        ]
 
     figures = [
         ("Current-year revenue", "revenue_current"),
