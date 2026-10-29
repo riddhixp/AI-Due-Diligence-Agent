@@ -179,7 +179,9 @@ def acceptance_summary(report):
                 lines.append(f"  Failed: {_safe_summary_label(row.get('name', row.get('scenario', 'unnamed')))}")
     if report.get('error_type'):
         lines.append(f"Error type: {_safe_summary_label(report['error_type'])}")
-    lines.append(f"Blocked network attempts: {report.get('blocked_network_attempts', 'UNKNOWN')}")
+    count = report.get('blocked_network_attempts')
+    safe_count = count if type(count) is int and count >= 0 else 'UNKNOWN'
+    lines.append(f"Blocked network attempts: {safe_count}")
     lines.append('Scripted checks only; autonomous model validation NOT_RUN; paid continuation disabled.')
     return '\n'.join(lines)
 
