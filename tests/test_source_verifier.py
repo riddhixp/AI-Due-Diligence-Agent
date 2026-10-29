@@ -162,6 +162,13 @@ class TestSourceVerifier(unittest.TestCase):
                 self.assertEqual(result['status'], 'NEEDS_REVIEW')
                 self.assertIsNone(result['excerpt'])
 
+    def test_malformed_pdf_page_collection_requires_review(self):
+        for pages in (None, 123, 'Revenue 23769', {'page': 'Revenue 23769'}):
+            with self.subTest(pages=pages):
+                result = verify_figure(pages, 23769, 1)
+                self.assertEqual(result['status'], 'NEEDS_REVIEW')
+                self.assertIn('unavailable', result['reason'])
+
     def test_invalid_page(self):
         result = verify_figure(self.pages, 23769, 100)
         self.assertEqual(result["status"], "NEEDS_REVIEW")
