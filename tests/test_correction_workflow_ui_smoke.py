@@ -247,6 +247,35 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         st.write.assert_any_call('Completion checks passed:', False)
         st.download_button.assert_not_called()
 
+    def test_request_limit_failure_shows_read_only_progress_without_export(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        session = {
+            'document_sha256': 'document-a',
+            'request_limit_practice': True,
+            'handoff': {
+                'status': 'FAILED',
+                'failure_checkpoint': {
+                    'submission_count': 2,
+                    'review_status': None,
+                    'financial_data': {'revenue_current': 120},
+                },
+            },
+            'model': object(),
+            'workflow_error': 'Request allowance exhausted. Progress is retained.',
+        }
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Stop at the request limit'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.write.assert_any_call('Accepted submissions before failure:', 2)
+        st.write.assert_any_call('Latest review status:', 'Not completed')
+        st.write.assert_any_call('Last accepted synthetic revenue:', 120)
+        resume.assert_not_called()
+        st.download_button.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
