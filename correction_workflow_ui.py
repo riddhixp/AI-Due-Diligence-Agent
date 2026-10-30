@@ -168,7 +168,7 @@ def render_correction_workflow(st, pdf_bytes):
                         if str(error) == 'MODEL_REQUEST_BUDGET_EXHAUSTED' else
                         'Offline continuation failed. Start a new rehearsal to continue.')
                     st.rerun()
-                st.error(str(error))
+                st.error('Offline approval could not continue. Check the current request or restart the rehearsal.')
             except Exception:
                 if handoff.get('status') == 'AWAITING_APPROVAL':
                     st.error('Offline continuation could not start. No automatic retry was made.')
