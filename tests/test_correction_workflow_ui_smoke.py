@@ -96,7 +96,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                      patch('correction_workflow_ui.decide_and_resume_offline') as resume:
                     render_correction_workflow(st, b'%PDF-synthetic')
                 resume.assert_not_called()
-                st.error.assert_any_call('FINANCIAL_APPROVAL_REQUEST_CHANGED')
+                st.error.assert_any_call('Offline approval could not continue. Check the current request or restart the rehearsal.')
                 st.download_button.assert_not_called()
 
     def test_verified_approval_decision_resumes_scripted_workflow(self):
@@ -516,7 +516,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
             render_correction_workflow(st, b'%PDF-synthetic')
         resume.assert_called_once()
         self.assertNotIn('result', session)
-        st.error.assert_any_call('APPROVAL_RESUME_ALREADY_CLAIMED')
+        st.error.assert_any_call('Offline approval could not continue. Check the current request or restart the rehearsal.')
         st.download_button.assert_not_called()
 
     def test_unexpected_continuation_error_does_not_create_result(self):
