@@ -62,13 +62,17 @@ def main(argv=()):
     parser.add_argument("--workflow", action="store_true",
                         help="Also run network-guarded scripted approval/correction checks")
     args = parser.parse_args(argv)
+    stage = "fixture"
     try:
         result = check_demo_fixture()
         if args.workflow:
+            stage = "workflow"
             result["workflow"] = check_demo_workflow()
     except Exception as error:
-        # Do not include exception text or PDF contents in console output.
-        print(json.dumps({"status": "FAIL", "error_type": type(error).__name__}))
+        # Only print the fixed stage name and exception class; never PDF
+        # content or exception messages from the user's local environment.
+        print(json.dumps({"status": "FAIL", "failed_stage": stage,
+                          "error_type": type(error).__name__}))
         return 1
     print(json.dumps(result, indent=2))
     return 0
