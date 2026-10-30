@@ -96,6 +96,7 @@ def render_correction_workflow(st, pdf_bytes):
         if (handoff.get('status') not in ('COMPLETED_OFFLINE', 'COMPLETED')
                 or not isinstance(result, dict)
                 or result.get('status') != 'COMPLETED_OFFLINE'
+                or session.get('workflow_error') is not None
                 or result.get('scripted') is not True
                 or type(result.get('external_api_calls')) is not int
                 or result['external_api_calls'] != 0
