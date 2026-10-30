@@ -93,7 +93,7 @@ def render_correction_workflow(st, pdf_bytes):
     handoff = session['handoff']
     result = session.get('result')
     if result is not None:
-        if (handoff.get('status') == 'AWAITING_APPROVAL'
+        if (handoff.get('status') in ('AWAITING_APPROVAL', 'FAILED', 'RESUMING_OFFLINE')
                 or not isinstance(result, dict)
                 or result.get('status') != 'COMPLETED_OFFLINE'
                 or result.get('scripted') is not True
