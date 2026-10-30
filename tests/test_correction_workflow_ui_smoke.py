@@ -565,6 +565,29 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.assertNotIn('private client document text',
                          str(self.st.error.call_args_list))
 
+    def test_invalid_approval_preview_does_not_leak_internal_details(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'AWAITING_APPROVAL'},
+            'model': object(),
+            'displayed_request_sha256': 'old-request',
+        }}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview',
+                   side_effect=ValueError('private financial details')) as preview:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        preview.assert_called_once()
+        self.assertNotIn('displayed_request_sha256', st.session_state[SESSION_KEY])
+        st.error.assert_any_call(
+            'Financial approval preview is invalid. Discard and restart the free rehearsal.')
+        self.assertNotIn('private financial details', str(st.error.call_args_list))
+        st.download_button.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
