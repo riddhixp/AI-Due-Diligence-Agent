@@ -653,7 +653,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.assertNotIn('internal details', str(st.error.call_args_list))
         st.rerun.assert_called_once()
 
-    def test_pending_resume_error_invalidates_previous_approval_receipt(self):
+    def test_pending_resume_error_keeps_preview_available_for_retry(self):
         from unittest.mock import MagicMock
         st = MagicMock()
         handoff = {'status': 'AWAITING_APPROVAL',
@@ -677,7 +677,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                    side_effect=ValueError('FINANCIAL_APPROVAL_REQUEST_CHANGED')):
             render_correction_workflow(st, b'%PDF-synthetic')
         self.assertEqual(handoff['status'], 'AWAITING_APPROVAL')
-        self.assertNotIn('displayed_request_sha256', session)
+        self.assertEqual(session['displayed_request_sha256'], 'request-a')
         self.assertNotIn('result', session)
         st.download_button.assert_not_called()
 
