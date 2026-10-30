@@ -51,6 +51,20 @@ class OfflineDemoPreflightTests(unittest.TestCase):
         self.assertEqual(result["external_api_calls"], 0)
         self.assertEqual(result["manual_streamlit_acceptance"], "NOT_RUN")
 
+    def test_combined_cli_executes_both_preflight_checks(self):
+        import contextlib
+        import io
+        import json
+        from offline_demo_preflight import main
+        with patch("offline_demo_preflight.check_demo_fixture",
+                   return_value={"status": "PASS"}), \
+             patch("offline_demo_preflight.check_demo_workflow",
+                   return_value={"status": "PASS", "external_api_calls": 0}), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(main(["--workflow"]), 0)
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["workflow"]["status"], "PASS")
+
     def test_workflow_preflight_rejects_failed_suites(self):
         from offline_demo_preflight import check_demo_workflow
         with patch("offline_acceptance.run_acceptance",
