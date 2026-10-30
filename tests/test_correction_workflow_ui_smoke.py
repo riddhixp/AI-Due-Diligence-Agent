@@ -709,6 +709,29 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.assertNotIn('displayed_request_sha256', session)
         st.rerun.assert_called_once()
 
+    def test_unexpected_preview_failure_is_sanitized_and_blocks_decision(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        session = {'document_sha256': 'document-a',
+                   'handoff': {'status': 'AWAITING_APPROVAL'},
+                   'model': object(), 'displayed_request_sha256': 'old-request'}
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview',
+                   side_effect=RuntimeError('private PDF content')), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        self.assertNotIn('displayed_request_sha256', session)
+        self.assertNotIn('result', session)
+        resume.assert_not_called()
+        st.error.assert_any_call(
+            'Financial approval preview could not be displayed. Discard and restart the free rehearsal.')
+        self.assertNotIn('private PDF content', str(st.error.call_args_list))
+        st.download_button.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
