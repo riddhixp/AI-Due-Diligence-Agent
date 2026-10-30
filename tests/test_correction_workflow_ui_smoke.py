@@ -791,6 +791,31 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
             'The rehearsal document could not be checked. No workflow was started.')
         self.assertNotIn('private parser details', str(self.st.error.call_args_list))
 
+    def test_stored_result_with_external_api_calls_is_not_shown_as_free(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'},
+            'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE',
+                'scripted': True,
+                'external_api_calls': 1,
+                'evaluation': {'final_eligible': True,
+                               'financial_evidence': 'synthetic citation'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
