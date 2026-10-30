@@ -197,6 +197,31 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         st.rerun.assert_called_once()
         st.download_button.assert_not_called()
 
+    def test_completed_correction_is_simulated_and_cannot_export(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        session = {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED'},
+            'model': object(),
+            'result': {
+                'financial': {'revenue_current': 120},
+                'evaluation': {
+                    'final_eligible': True,
+                    'financial_evidence': 'PRELIMINARY_CHECKS_PASSED',
+                },
+            },
+        }
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.success.assert_called()
+        st.write.assert_any_call('Final synthetic revenue:', 120)
+        st.caption.assert_any_call('This scripted result is not a final due diligence report.')
+        st.download_button.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
