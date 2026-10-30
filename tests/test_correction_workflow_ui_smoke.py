@@ -732,6 +732,23 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.assertNotIn('private PDF content', str(st.error.call_args_list))
         st.download_button.assert_not_called()
 
+    def test_unexpected_start_error_preserves_existing_session_without_leak(self):
+        previous = {'document_sha256': 'document-a',
+                    'handoff': {'status': 'FAILED'}, 'model': object()}
+        self.st.session_state[SESSION_KEY] = previous
+        self.st.button.side_effect = lambda *args, **kwargs: (
+            kwargs.get('key') == 'app_workflow_start')
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow',
+                   side_effect=RuntimeError('private financial contents')):
+            render_correction_workflow(self.st, b'%PDF-synthetic')
+        self.assertIs(self.st.session_state[SESSION_KEY], previous)
+        self.st.error.assert_any_call(
+            'Free rehearsal encountered an unexpected error. No workflow was started.')
+        self.assertNotIn('private financial contents', str(self.st.error.call_args_list))
+        self.st.download_button.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
