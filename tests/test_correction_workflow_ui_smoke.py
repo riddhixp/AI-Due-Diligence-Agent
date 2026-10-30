@@ -205,6 +205,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
             'handoff': {'status': 'COMPLETED'},
             'model': object(),
             'result': {
+                'scripted': True, 'external_api_calls': 0,
                 'financial': {'revenue_current': 120},
                 'evaluation': {
                     'final_eligible': True,
@@ -230,6 +231,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
             'handoff': {'status': 'COMPLETED'},
             'model': object(),
             'result': {
+                'scripted': True, 'external_api_calls': 0,
                 'financial': {'revenue_current': 130},
                 'evaluation': {
                     'final_eligible': False,
