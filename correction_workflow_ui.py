@@ -94,6 +94,7 @@ def render_correction_workflow(st, pdf_bytes):
     result = session.get('result')
     if result is not None:
         if (not isinstance(result, dict)
+                or result.get('status') != 'COMPLETED_OFFLINE'
                 or result.get('scripted') is not True
                 or type(result.get('external_api_calls')) is not int
                 or result['external_api_calls'] != 0
