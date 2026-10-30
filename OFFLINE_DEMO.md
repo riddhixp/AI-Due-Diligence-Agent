@@ -22,13 +22,13 @@ From the project folder with its dependencies installed:
 
 ```bash
 source .venv/bin/activate
-python -m offline_demo_preflight
+python -m offline_demo_preflight --workflow
 python -m offline_acceptance --summary
 python scripts/create_conflict_test_fixture.py
 python -m streamlit run app.py
 ```
 
-The demo preflight should report PASS, two synthetic pages, authoritative revenue 120 on page 2, zero model calls, and manual Streamlit acceptance NOT_RUN. The acceptance command should report PASS for both suites and zero blocked
+The optional `--workflow` flag additionally runs network-guarded scripted approval, correction, rejection and failure-practice checks. The demo preflight should report PASS, two synthetic pages, authoritative revenue 120 on page 2, zero external API calls, and manual Streamlit acceptance NOT_RUN. The acceptance command should report PASS for both suites and zero blocked
 network attempts. An API key is not needed for these scripted exercises.
 
 For current GitHub verification, check all three jobs in the PR's **Python tests**
