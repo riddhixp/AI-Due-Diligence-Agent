@@ -105,6 +105,8 @@ def render_correction_workflow(st, pdf_bytes):
                 or result['evaluation'].get('simulation') is not True
                 or not isinstance(result.get('financial'), dict)
                 or type(result['evaluation'].get('final_eligible')) is not bool
+                or (result['evaluation']['final_eligible'] is True
+                    and result['evaluation'].get('financial_evidence') != 'PRELIMINARY_CHECKS_PASSED')
                 or not isinstance(result['evaluation'].get('financial_evidence'), str)
                 or not result['evaluation']['financial_evidence']):
             st.error('The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
