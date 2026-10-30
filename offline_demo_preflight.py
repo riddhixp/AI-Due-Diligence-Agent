@@ -3,6 +3,7 @@
 Usage: python -m offline_demo_preflight
 The fixture is generated in a temporary directory and never uploaded.
 """
+import argparse
 import json
 import tempfile
 from pathlib import Path
@@ -37,9 +38,33 @@ def check_demo_fixture():
     }
 
 
-def main():
+def check_demo_workflow():
+    """Run both scripted engine suites under the existing network guard."""
+    from offline_acceptance import run_acceptance, acceptance_summary
+    report = run_acceptance()
+    if not acceptance_summary(report).startswith("Offline acceptance: PASS\\n"):
+        raise ValueError("OFFLINE_DEMO_WORKFLOW_FAILED")
+    suites = report["suites"]
+    return {
+        "status": "PASS",
+        "execution_mode": "SCRIPTED_OFFLINE_NETWORK_GUARDED",
+        "workflow_checks": len(suites["workflow"]["checks"]),
+        "failure_scenarios": len(suites["failure_practice"]["scenarios"]),
+        "external_api_calls": 0,
+        "autonomous_model_validation": "NOT_RUN",
+        "manual_streamlit_acceptance": "NOT_RUN",
+    }
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--workflow", action="store_true",
+                        help="Also run network-guarded scripted approval/correction checks")
+    args = parser.parse_args(argv)
     try:
         result = check_demo_fixture()
+        if args.workflow:
+            result["workflow"] = check_demo_workflow()
     except Exception as error:
         # Do not include exception text or PDF contents in console output.
         print(json.dumps({"status": "FAIL", "error_type": type(error).__name__}))
