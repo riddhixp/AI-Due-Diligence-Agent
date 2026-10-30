@@ -30,6 +30,34 @@ class OfflineDemoPreflightTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "SYNTHETIC_FIXTURE_CONTENT_CHANGED"):
                     check_demo_fixture()
 
+    def test_workflow_preflight_summarizes_guarded_checks(self):
+        import offline_demo_preflight
+        report = {'evaluation': 'PASS', 'blocked_network_attempts': 0,
+                  'suites': {'workflow': {'evaluation': 'PASS',
+                                         'checks': [{'name': 'review', 'passed': True}],
+                                         'external_api_calls': 0,
+                                         'paid_continuation_enabled': False,
+                                         'autonomous_model_validation': 'NOT_RUN'},
+                             'failure_practice': {'evaluation': 'PASS',
+                                                  'scenarios': [{'scenario': 'rejection',
+                                                                 'expected_behavior_observed': True}],
+                                                  'external_api_calls': 0,
+                                                  'paid_continuation_enabled': False,
+                                                  'autonomous_model_validation': 'NOT_RUN'}}}
+        with patch("offline_acceptance.run_acceptance", return_value=report):
+            result = offline_demo_preflight.check_demo_workflow()
+        self.assertEqual(result["workflow_checks"], 1)
+        self.assertEqual(result["failure_scenarios"], 1)
+        self.assertEqual(result["external_api_calls"], 0)
+        self.assertEqual(result["manual_streamlit_acceptance"], "NOT_RUN")
+
+    def test_workflow_preflight_rejects_failed_suites(self):
+        from offline_demo_preflight import check_demo_workflow
+        with patch("offline_acceptance.run_acceptance",
+                   return_value={"evaluation": "PASS", "suites": {}}):
+            with self.assertRaisesRegex(ValueError, "OFFLINE_DEMO_WORKFLOW_FAILED"):
+                check_demo_workflow()
+
     def test_cli_does_not_print_exception_details(self):
         import io
         import contextlib
