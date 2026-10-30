@@ -345,7 +345,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
             'model': object(),
             'result': {'financial': {'revenue_current': 120},
                        'evaluation': {'final_eligible': 'yes',
-                                      'financial_evidence': 'PASS'}},
+                                      'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'}},
         }}
         st.selectbox.return_value = 'Standard correction'
         st.button.return_value = False
