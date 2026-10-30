@@ -1,0 +1,67 @@
+name: Python tests
+
+# CI exercises scripted/offline workflows only. Never supply paid-model credentials.
+env:
+  OPENAI_API_KEY: ''
+  OPENAI_ORG_ID: ''
+  OPENAI_PROJECT_ID: ''
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Check Python syntax
+        run: python -m compileall -q .
+      - name: Check offline acceptance reporting regressions first
+        run: python -m unittest tests.test_offline_acceptance -q
+      - name: Run offline unit tests
+        run: |
+          timeout --signal=INT --kill-after=15s 600s python -u -m unittest discover -s tests -t . -v
+
+  offline-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Evaluate complete offline application workflow
+        run: timeout --signal=INT --kill-after=15s 180s python -u -m offline_evaluation
+      - name: Practice incomplete and unsuccessful investigations offline
+        run: timeout --signal=INT --kill-after=15s 180s python -u -m practice_scenarios
+  offline-network-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Check synthetic demo fixture without a model
+        run: python -m offline_demo_preflight
+      - name: Verify combined offline demo handoff without a model
+        run: timeout --signal=INT --kill-after=15s 300s python -u -m offline_demo_preflight --workflow
+      - name: Run network-blocked offline acceptance
+        run: |
+          timeout --signal=INT --kill-after=15s 300s python -u -m offline_acceptance --summary

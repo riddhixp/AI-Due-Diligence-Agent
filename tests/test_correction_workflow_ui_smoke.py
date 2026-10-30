@@ -1,0 +1,1384 @@
+"""Offline tests of Streamlit correction controls without launching a browser."""
+import unittest
+from unittest.mock import Mock, patch
+
+from correction_workflow_ui import SESSION_KEY, render_correction_workflow
+
+
+class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
+    def setUp(self):
+        self.st = Mock()
+        self.st.session_state = {}
+        self.st.selectbox.return_value = 'Standard correction'
+        self.st.button.return_value = False
+
+    def test_idle_interface_never_starts_model_or_exports_report(self):
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start:
+            render_correction_workflow(self.st, b'%PDF-synthetic')
+        self.st.subheader.assert_called_with('FREE application correction workflow')
+        self.st.selectbox.assert_called_once()
+        start.assert_not_called()
+        self.assertNotIn(SESSION_KEY, self.st.session_state)
+        self.st.download_button.assert_not_called()
+
+    def test_malformed_stored_rehearsal_can_only_be_discarded(self):
+        self.st.session_state[SESSION_KEY] = {'document_sha256': 'document-a'}
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start:
+            render_correction_workflow(self.st, b'%PDF-synthetic')
+        start.assert_not_called()
+        self.st.error.assert_called()
+        self.st.download_button.assert_not_called()
+        self.assertTrue(any(c.kwargs.get('key') == 'app_workflow_discard'
+                            for c in self.st.button.call_args_list))
+
+    def test_discard_button_clears_stored_rehearsal(self):
+        self.st.session_state[SESSION_KEY] = {'document_sha256': 'document-a'}
+        self.st.button.side_effect = lambda *args, **kwargs: kwargs.get('key') == 'app_workflow_discard'
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start:
+            render_correction_workflow(self.st, b'%PDF-synthetic')
+        self.assertNotIn(SESSION_KEY, self.st.session_state)
+        self.st.rerun.assert_called_once()
+        start.assert_not_called()
+
+    def test_start_button_creates_only_scripted_rehearsal(self):
+        session = {'handoff': {'status': 'FAILED'}, 'model': object(),
+                   'scenario': 'standard'}
+        self.st.button.side_effect = lambda *args, **kwargs: kwargs.get('key') == 'app_workflow_start'
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow',
+                   return_value=session) as start:
+            render_correction_workflow(self.st, b'%PDF-synthetic')
+        start.assert_called_once_with(b'%PDF-synthetic', scenario='standard', request_limit=12)
+        self.assertIs(self.st.session_state[SESSION_KEY], session)
+        self.assertEqual(session['document_sha256'], 'document-a')
+        self.assertFalse(session['request_limit_practice'])
+        self.st.download_button.assert_not_called()
+
+    def test_request_limit_scenario_uses_five_scripted_requests(self):
+        session = {'handoff': {'status': 'FAILED'}, 'model': object(),
+                   'scenario': 'standard'}
+        self.st.selectbox.return_value = 'Stop at the request limit'
+        self.st.button.side_effect = lambda *args, **kwargs: kwargs.get('key') == 'app_workflow_start'
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow',
+                   return_value=session) as start:
+            render_correction_workflow(self.st, b'%PDF-synthetic')
+        start.assert_called_once_with(b'%PDF-synthetic', scenario='standard', request_limit=5)
+        self.assertTrue(self.st.session_state[SESSION_KEY]['request_limit_practice'])
+        self.st.download_button.assert_not_called()
+
+    def test_approve_and_reject_buttons_require_current_fingerprint(self):
+        from unittest.mock import MagicMock
+        for decision in ('app_workflow_approve', 'app_workflow_reject'):
+            with self.subTest(decision=decision):
+                st = MagicMock()
+                st.session_state = {SESSION_KEY: {
+                    'document_sha256': 'document-a',
+                    'handoff': {'status': 'AWAITING_APPROVAL',
+                                'checkpoint': {'submission_count': 0}, 'sdk_state': object()},
+                    'model': object()}}
+                st.selectbox.return_value = 'Standard correction'
+                st.button.return_value = False
+                approve = decision == 'app_workflow_approve'
+                yes, no = Mock(), Mock()
+                yes.button.return_value = approve
+                no.button.return_value = not approve
+                st.columns.return_value = (yes, no)
+                preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+                with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+                     patch('correction_workflow_ui.financial_approval_preview', return_value=preview), \
+                     patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                           return_value=['page one', 'page two']), \
+                     patch('correction_workflow_ui.render_proposed_financial_review'), \
+                     patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+                    render_correction_workflow(st, b'%PDF-synthetic')
+                resume.assert_not_called()
+                st.error.assert_any_call('Offline approval could not continue. Check the current request or restart the rehearsal.')
+                st.download_button.assert_not_called()
+
+    def test_verified_approval_decision_resumes_scripted_workflow(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        handoff = {'status': 'AWAITING_APPROVAL', 'checkpoint': {'submission_count': 0}, 'sdk_state': object()}
+        model = object()
+        session = {'document_sha256': 'document-a', 'handoff': handoff,
+                   'model': model, 'displayed_request_sha256': 'request-a'}
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        yes, no = MagicMock(), MagicMock()
+        yes.button.return_value = True
+        no.button.return_value = False
+        st.columns.return_value = (yes, no)
+        preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+        result = {'status': 'COMPLETED', 'financial': {'revenue_current': 120},
+                  'evaluation': {'final_eligible': False}}
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview', return_value=preview), \
+             patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                   return_value=['page one', 'page two']), \
+             patch('correction_workflow_ui.render_proposed_financial_review'), \
+             patch('correction_workflow_ui.decide_and_resume_offline',
+                   return_value=result) as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        resume.assert_called_once_with(handoff, b'%PDF-synthetic', True, model,
+                                       expected_request_sha256='request-a',
+                                       stop_after_rejection=False)
+        self.assertIs(session['result'], result)
+        st.rerun.assert_called_once()
+        st.download_button.assert_not_called()
+
+    def test_verified_rejection_ends_free_workflow_without_export(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        handoff = {'status': 'AWAITING_APPROVAL', 'checkpoint': {'submission_count': 0}, 'sdk_state': object()}
+        model = object()
+        session = {'document_sha256': 'document-a', 'handoff': handoff,
+                   'model': model, 'displayed_request_sha256': 'request-a'}
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        yes, no = MagicMock(), MagicMock()
+        yes.button.return_value = False
+        no.button.return_value = True
+        st.columns.return_value = (yes, no)
+        preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+        result = {'status': 'COMPLETED', 'financial': {'revenue_current': 130},
+                  'evaluation': {'final_eligible': False}}
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview', return_value=preview), \
+             patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                   return_value=['page one', 'page two']), \
+             patch('correction_workflow_ui.render_proposed_financial_review'), \
+             patch('correction_workflow_ui.decide_and_resume_offline',
+                   return_value=result) as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        resume.assert_called_once_with(handoff, b'%PDF-synthetic', False, model,
+                                       expected_request_sha256='request-a',
+                                       stop_after_rejection=True)
+        self.assertIs(session['result'], result)
+        st.rerun.assert_called_once()
+        st.download_button.assert_not_called()
+
+    def test_first_approval_preserves_next_pending_correction(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        handoff = {'status': 'AWAITING_APPROVAL',
+                   'checkpoint': {'submission_count': 0}, 'sdk_state': object()}
+        next_handoff = {'status': 'AWAITING_APPROVAL',
+                        'checkpoint': {'submission_count': 1}, 'sdk_state': object()}
+        model = object()
+        session = {'document_sha256': 'document-a', 'handoff': handoff,
+                   'model': model, 'displayed_request_sha256': 'request-a'}
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        yes, no = MagicMock(), MagicMock()
+        yes.button.return_value = True
+        no.button.return_value = False
+        st.columns.return_value = (yes, no)
+        preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview', return_value=preview), \
+             patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                   return_value=['page one', 'page two']), \
+             patch('correction_workflow_ui.render_proposed_financial_review'), \
+             patch('correction_workflow_ui.decide_and_resume_offline',
+                   return_value={'status': 'AWAITING_APPROVAL',
+                                 'handoff': next_handoff}) as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        resume.assert_called_once()
+        self.assertIs(session['handoff'], next_handoff)
+        self.assertNotIn('displayed_request_sha256', session)
+        self.assertNotIn('result', session)
+        st.rerun.assert_called_once()
+        st.download_button.assert_not_called()
+
+    def test_completed_correction_is_simulated_and_cannot_export(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        session = {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED'},
+            'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE',
+                'scripted': True, 'external_api_calls': 0,
+                'financial': {'revenue_current': 120},
+                'evaluation': {
+                    'final_eligible': True,
+                    'financial_evidence': 'PRELIMINARY_CHECKS_PASSED',
+                    'simulation': True,
+                },
+            },
+        }
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.success.assert_called()
+        st.write.assert_any_call('Final synthetic revenue:', 120)
+        st.caption.assert_any_call('This scripted result is not a final due diligence report.')
+        st.download_button.assert_not_called()
+
+    def test_rejected_correction_stays_incomplete_and_nonexportable(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        session = {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED'},
+            'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE',
+                'scripted': True, 'external_api_calls': 0,
+                'financial': {'revenue_current': 130},
+                'evaluation': {
+                    'final_eligible': False,
+                    'financial_evidence': 'NEEDS_REVIEW',
+                    'simulation': True,
+                },
+            },
+        }
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.warning.assert_called()
+        st.write.assert_any_call('Final synthetic revenue:', 130)
+        st.write.assert_any_call('Completion checks passed:', False)
+        st.download_button.assert_not_called()
+
+    def test_request_limit_failure_shows_read_only_progress_without_export(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        session = {
+            'document_sha256': 'document-a',
+            'request_limit_practice': True,
+            'handoff': {
+                'status': 'FAILED',
+                'failure_checkpoint': {
+                    'submission_count': 2,
+                    'review_status': None,
+                    'financial_data': {'revenue_current': 120},
+                },
+            },
+            'model': object(),
+            'workflow_error': 'Request allowance exhausted. Progress is retained.',
+        }
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Stop at the request limit'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.write.assert_any_call('Accepted submissions before failure:', 2)
+        st.write.assert_any_call('Latest review status:', 'Not completed')
+        st.write.assert_any_call('Last accepted synthetic revenue:', 120)
+        resume.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_discard_failed_rehearsal_preserves_unrelated_analysis(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {
+            SESSION_KEY: {
+                'document_sha256': 'document-a',
+                'handoff': {'status': 'FAILED'},
+                'model': object(),
+                'workflow_error': 'Request allowance exhausted.',
+            },
+            'report': 'Previously reviewed analysis',
+        }
+        st.selectbox.return_value = 'Standard correction'
+        st.button.side_effect = lambda *args, **kwargs: (
+            kwargs.get('key') == 'app_workflow_discard')
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        self.assertNotIn(SESSION_KEY, st.session_state)
+        self.assertEqual(st.session_state['report'], 'Previously reviewed analysis')
+        resume.assert_not_called()
+        st.rerun.assert_called_once()
+        st.download_button.assert_not_called()
+
+    def test_invalid_failure_checkpoint_does_not_resume_or_export(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {
+            SESSION_KEY: {
+                'document_sha256': 'document-a',
+                'handoff': {
+                    'status': 'FAILED',
+                    'failure_checkpoint': {
+                        'submission_count': -1,
+                        'review_status': None,
+                        'financial_data': {'revenue_current': 120},
+                    },
+                },
+                'model': object(),
+            }
+        }
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.warning.assert_called()
+        resume.assert_not_called()
+        st.download_button.assert_not_called()
+        self.assertTrue(any(call.kwargs.get('key') == 'app_workflow_discard'
+                            for call in st.button.call_args_list))
+
+    def test_invalid_completed_result_stays_nonexportable(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED'},
+            'model': object(),
+            'result': {'financial': {'revenue_current': 120},
+                       'evaluation': {'final_eligible': 'yes',
+                                      'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'}},
+        }}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_called()
+        resume.assert_not_called()
+        st.download_button.assert_not_called()
+        self.assertTrue(any(c.kwargs.get('key') == 'app_workflow_discard'
+                            for c in st.button.call_args_list))
+
+    def test_missing_completed_evidence_cannot_claim_success(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED'},
+            'model': object(),
+            'result': {'financial': {'revenue_current': 120},
+                       'evaluation': {'final_eligible': True,
+                                      'financial_evidence': ''}},
+        }}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_called()
+        resume.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_invalid_saved_session_blocks_start_button(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {'document_sha256': 'document-a'}}
+        st.button.side_effect = lambda *args, **kwargs: (
+            kwargs.get('key') == 'app_workflow_start')
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start, \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        start.assert_not_called()
+        resume.assert_not_called()
+        st.error.assert_called()
+        st.download_button.assert_not_called()
+
+    def test_failed_workflow_does_not_offer_approval_controls(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'FAILED'},
+            'model': object(),
+            'workflow_error': 'Scripted request allowance exhausted.',
+        }}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        resume.assert_not_called()
+        self.assertFalse(any(c.kwargs.get('key') in (
+            'app_workflow_approve', 'app_workflow_reject')
+            for c in st.button.call_args_list))
+        st.download_button.assert_not_called()
+
+    def test_document_change_clears_pending_approval_fingerprint(self):
+        self.st.session_state[SESSION_KEY] = {
+            'document_sha256': 'document-old',
+            'handoff': {'status': 'AWAITING_APPROVAL'},
+            'model': object(),
+            'displayed_request_sha256': 'old-request',
+        }
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-new'), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume, \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start:
+            render_correction_workflow(self.st, b'%PDF-new')
+        self.assertNotIn(SESSION_KEY, self.st.session_state)
+        resume.assert_not_called()
+        start.assert_not_called()
+        self.st.download_button.assert_not_called()
+
+    def test_changed_document_allows_fresh_free_rehearsal_only(self):
+        old = {'document_sha256': 'old-document',
+               'handoff': {'status': 'AWAITING_APPROVAL'},
+               'model': object(), 'displayed_request_sha256': 'old-request'}
+        fresh = {'handoff': {'status': 'FAILED'}, 'model': object(),
+                 'scenario': 'standard'}
+        self.st.session_state[SESSION_KEY] = old
+        self.st.button.side_effect = lambda *args, **kwargs: (
+            kwargs.get('key') == 'app_workflow_start')
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='new-document'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow',
+                   return_value=fresh) as start, \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(self.st, b'%PDF-new')
+        start.assert_called_once_with(b'%PDF-new', scenario='standard', request_limit=12)
+        resume.assert_not_called()
+        self.assertIs(self.st.session_state[SESSION_KEY], fresh)
+        self.assertEqual(fresh['document_sha256'], 'new-document')
+        self.assertNotIn('displayed_request_sha256', fresh)
+        self.st.download_button.assert_not_called()
+
+    def test_restarting_same_document_resets_old_approval_request(self):
+        previous = {'document_sha256': 'document-a',
+                    'handoff': {'status': 'FAILED'},
+                    'model': object(),
+                    'displayed_request_sha256': 'previous-request'}
+        fresh = {'handoff': {'status': 'FAILED'}, 'model': object(),
+                 'scenario': 'standard'}
+        self.st.session_state[SESSION_KEY] = previous
+        self.st.button.side_effect = lambda *args, **kwargs: (
+            kwargs.get('key') == 'app_workflow_start')
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow',
+                   return_value=fresh) as start, \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(self.st, b'%PDF-synthetic')
+        start.assert_called_once_with(b'%PDF-synthetic', scenario='standard', request_limit=12)
+        resume.assert_not_called()
+        self.assertIs(self.st.session_state[SESSION_KEY], fresh)
+        self.assertNotIn('displayed_request_sha256', fresh)
+        self.st.download_button.assert_not_called()
+
+    def test_start_failure_does_not_replace_existing_rehearsal(self):
+        previous = {'document_sha256': 'document-a',
+                    'handoff': {'status': 'FAILED'},
+                    'model': object()}
+        self.st.session_state[SESSION_KEY] = previous
+        self.st.button.side_effect = lambda *args, **kwargs: (
+            kwargs.get('key') == 'app_workflow_start')
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow',
+                   side_effect=ValueError('SYNTHETIC_CONFLICT_PDF_REQUIRED')) as start:
+            render_correction_workflow(self.st, b'%PDF-invalid')
+        start.assert_called_once()
+        self.assertIs(self.st.session_state[SESSION_KEY], previous)
+        self.st.error.assert_any_call('Free rehearsal could not start. Check the synthetic PDF and try again.')
+        self.st.download_button.assert_not_called()
+
+    def test_failed_approval_continuation_cannot_create_completed_result(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        handoff = {'status': 'AWAITING_APPROVAL',
+                   'checkpoint': {'submission_count': 0}, 'sdk_state': object()}
+        session = {'document_sha256': 'document-a', 'handoff': handoff,
+                   'model': object(), 'displayed_request_sha256': 'request-a'}
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        yes, no = MagicMock(), MagicMock()
+        yes.button.return_value = True
+        no.button.return_value = False
+        st.columns.return_value = (yes, no)
+        preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview',
+                   return_value=preview), \
+             patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                   return_value=['page one', 'page two']), \
+             patch('correction_workflow_ui.render_proposed_financial_review'), \
+             patch('correction_workflow_ui.decide_and_resume_offline',
+                   side_effect=ValueError('APPROVAL_RESUME_ALREADY_CLAIMED')) as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        resume.assert_called_once()
+        self.assertNotIn('result', session)
+        st.error.assert_any_call('Offline approval could not continue. Check the current request or restart the rehearsal.')
+        st.download_button.assert_not_called()
+
+    def test_unexpected_continuation_error_does_not_create_result(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        handoff = {'status': 'AWAITING_APPROVAL',
+                   'checkpoint': {'submission_count': 0}, 'sdk_state': object()}
+        session = {'document_sha256': 'document-a', 'handoff': handoff,
+                   'model': object(), 'displayed_request_sha256': 'request-a'}
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        yes, no = MagicMock(), MagicMock()
+        yes.button.return_value = True
+        no.button.return_value = False
+        st.columns.return_value = (yes, no)
+        preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview',
+                   return_value=preview), \
+             patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                   return_value=['page one', 'page two']), \
+             patch('correction_workflow_ui.render_proposed_financial_review'), \
+             patch('correction_workflow_ui.decide_and_resume_offline',
+                   side_effect=RuntimeError('private internal error')) as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        resume.assert_called_once()
+        self.assertNotIn('result', session)
+        st.error.assert_any_call('Offline continuation could not start. No automatic retry was made.')
+        self.assertFalse(any('private internal error' in str(call)
+                             for call in st.error.call_args_list))
+        st.download_button.assert_not_called()
+
+    def test_start_error_never_leaks_private_exception_text(self):
+        self.st.button.side_effect = lambda *args, **kwargs: (
+            kwargs.get('key') == 'app_workflow_start')
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow',
+                   side_effect=ValueError('private client document text')):
+            render_correction_workflow(self.st, b'%PDF-invalid')
+        self.assertNotIn(SESSION_KEY, self.st.session_state)
+        self.st.error.assert_any_call(
+            'Free rehearsal could not start. Check the synthetic PDF and try again.')
+        self.assertNotIn('private client document text',
+                         str(self.st.error.call_args_list))
+
+    def test_invalid_approval_preview_does_not_leak_internal_details(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'AWAITING_APPROVAL'},
+            'model': object(),
+            'displayed_request_sha256': 'old-request',
+        }}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview',
+                   side_effect=ValueError('private financial details')) as preview:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        preview.assert_called_once()
+        self.assertNotIn('displayed_request_sha256', st.session_state[SESSION_KEY])
+        st.error.assert_any_call(
+            'Financial approval preview is invalid. Discard and restart the free rehearsal.')
+        self.assertNotIn('private financial details', str(st.error.call_args_list))
+        st.download_button.assert_not_called()
+
+    def test_failed_resume_does_not_restore_old_approval_fingerprint(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        handoff = {'status': 'AWAITING_APPROVAL',
+                   'checkpoint': {'submission_count': 0}, 'sdk_state': object()}
+        session = {'document_sha256': 'document-a', 'handoff': handoff,
+                   'model': object(), 'displayed_request_sha256': 'request-a'}
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        yes, no = MagicMock(), MagicMock()
+        yes.button.return_value = True
+        no.button.return_value = False
+        st.columns.return_value = (yes, no)
+        preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+        def fail_resume(*args, **kwargs):
+            handoff['status'] = 'FAILED'
+            session.pop('displayed_request_sha256', None)
+            raise ValueError('MODEL_REQUEST_BUDGET_EXHAUSTED')
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview', return_value=preview), \
+             patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                   return_value=['page one', 'page two']), \
+             patch('correction_workflow_ui.render_proposed_financial_review'), \
+             patch('correction_workflow_ui.decide_and_resume_offline',
+                   side_effect=fail_resume):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        self.assertEqual(handoff['status'], 'FAILED')
+        self.assertNotIn('displayed_request_sha256', session)
+        self.assertIn('allowance exhausted', session['workflow_error'])
+        st.rerun.assert_called_once()
+        st.download_button.assert_not_called()
+
+    def test_unexpected_failure_after_handoff_does_not_restore_approval(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        handoff = {'status': 'AWAITING_APPROVAL',
+                   'checkpoint': {'submission_count': 0}, 'sdk_state': object()}
+        session = {'document_sha256': 'document-a', 'handoff': handoff,
+                   'model': object(), 'displayed_request_sha256': 'request-a'}
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        yes, no = MagicMock(), MagicMock()
+        yes.button.return_value = True
+        no.button.return_value = False
+        st.columns.return_value = (yes, no)
+        preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+        def fail_resume(*args, **kwargs):
+            handoff['status'] = 'FAILED'
+            session.pop('displayed_request_sha256', None)
+            raise RuntimeError('internal details')
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview', return_value=preview), \
+             patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                   return_value=['page one', 'page two']), \
+             patch('correction_workflow_ui.render_proposed_financial_review'), \
+             patch('correction_workflow_ui.decide_and_resume_offline', side_effect=fail_resume):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        self.assertNotIn('displayed_request_sha256', session)
+        self.assertEqual(session['workflow_error'],
+                         'Offline continuation failed. Start a new rehearsal to continue.')
+        self.assertNotIn('internal details', str(st.error.call_args_list))
+        st.rerun.assert_called_once()
+
+    def test_pending_resume_error_keeps_preview_available_for_retry(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        handoff = {'status': 'AWAITING_APPROVAL',
+                   'checkpoint': {'submission_count': 0}, 'sdk_state': object()}
+        session = {'document_sha256': 'document-a', 'handoff': handoff,
+                   'model': object(), 'displayed_request_sha256': 'request-a'}
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        yes, no = MagicMock(), MagicMock()
+        yes.button.return_value = True
+        no.button.return_value = False
+        st.columns.return_value = (yes, no)
+        preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview', return_value=preview), \
+             patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                   return_value=['page one', 'page two']), \
+             patch('correction_workflow_ui.render_proposed_financial_review'), \
+             patch('correction_workflow_ui.decide_and_resume_offline',
+                   side_effect=ValueError('FINANCIAL_APPROVAL_REQUEST_CHANGED')):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        self.assertEqual(handoff['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(session['displayed_request_sha256'], 'request-a')
+        self.assertNotIn('result', session)
+        st.download_button.assert_not_called()
+
+    def test_completed_rehearsal_clears_approval_receipt(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        handoff = {'status': 'AWAITING_APPROVAL',
+                   'checkpoint': {'submission_count': 0}, 'sdk_state': object()}
+        session = {'document_sha256': 'document-a', 'handoff': handoff,
+                   'model': object(), 'displayed_request_sha256': 'request-a'}
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        yes, no = MagicMock(), MagicMock()
+        yes.button.return_value = True
+        no.button.return_value = False
+        st.columns.return_value = (yes, no)
+        preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+        completed = {'status': 'COMPLETED', 'evaluation': {}, 'financial': {}}
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview', return_value=preview), \
+             patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                   return_value=['page one', 'page two']), \
+             patch('correction_workflow_ui.render_proposed_financial_review'), \
+             patch('correction_workflow_ui.decide_and_resume_offline',
+                   return_value=completed):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        self.assertIs(session.get('result'), completed)
+        self.assertNotIn('displayed_request_sha256', session)
+        st.rerun.assert_called_once()
+
+    def test_unexpected_preview_failure_is_sanitized_and_blocks_decision(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        session = {'document_sha256': 'document-a',
+                   'handoff': {'status': 'AWAITING_APPROVAL'},
+                   'model': object(), 'displayed_request_sha256': 'old-request'}
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview',
+                   side_effect=RuntimeError('private PDF content')), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        self.assertNotIn('displayed_request_sha256', session)
+        self.assertNotIn('result', session)
+        resume.assert_not_called()
+        st.error.assert_any_call(
+            'Financial approval preview could not be displayed. Discard and restart the free rehearsal.')
+        self.assertNotIn('private PDF content', str(st.error.call_args_list))
+        st.download_button.assert_not_called()
+
+    def test_unexpected_start_error_preserves_existing_session_without_leak(self):
+        previous = {'document_sha256': 'document-a',
+                    'handoff': {'status': 'FAILED'}, 'model': object()}
+        self.st.session_state[SESSION_KEY] = previous
+        self.st.button.side_effect = lambda *args, **kwargs: (
+            kwargs.get('key') == 'app_workflow_start')
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow',
+                   side_effect=RuntimeError('private financial contents')):
+            render_correction_workflow(self.st, b'%PDF-synthetic')
+        self.assertIs(self.st.session_state[SESSION_KEY], previous)
+        self.st.error.assert_any_call(
+            'Free rehearsal encountered an unexpected error. No workflow was started.')
+        self.assertNotIn('private financial contents', str(self.st.error.call_args_list))
+        self.st.download_button.assert_not_called()
+
+    def test_invalid_document_fingerprint_leaves_session_untouched(self):
+        previous = {'document_sha256': 'document-a',
+                    'handoff': {'status': 'FAILED'}, 'model': object()}
+        self.st.session_state[SESSION_KEY] = previous
+        with patch('correction_workflow_ui.document_fingerprint',
+                   side_effect=ValueError('private document content')), \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start:
+            render_correction_workflow(self.st, b'%PDF-invalid')
+        self.assertIs(self.st.session_state[SESSION_KEY], previous)
+        start.assert_not_called()
+        self.st.error.assert_any_call(
+            'The rehearsal document is invalid. Upload the synthetic PDF to continue.')
+        self.assertNotIn('private document content', str(self.st.error.call_args_list))
+
+    def test_missing_document_bytes_fail_safely_before_start(self):
+        previous = {'document_sha256': 'document-a',
+                    'handoff': {'status': 'FAILED'}, 'model': object()}
+        self.st.session_state[SESSION_KEY] = previous
+        with patch('correction_workflow_ui.document_fingerprint',
+                   side_effect=AttributeError('raw internal attribute')), \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start:
+            render_correction_workflow(self.st, None)
+        self.assertIs(self.st.session_state[SESSION_KEY], previous)
+        start.assert_not_called()
+        self.st.error.assert_any_call(
+            'The rehearsal document is invalid. Upload the synthetic PDF to continue.')
+        self.assertNotIn('raw internal attribute', str(self.st.error.call_args_list))
+
+    def test_unexpected_document_fingerprint_error_blocks_workflow(self):
+        previous = {'document_sha256': 'document-a',
+                    'handoff': {'status': 'FAILED'}, 'model': object()}
+        self.st.session_state[SESSION_KEY] = previous
+        with patch('correction_workflow_ui.document_fingerprint',
+                   side_effect=RuntimeError('private parser details')), \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start:
+            render_correction_workflow(self.st, b'%PDF-invalid')
+        self.assertIs(self.st.session_state[SESSION_KEY], previous)
+        start.assert_not_called()
+        self.st.error.assert_any_call(
+            'The rehearsal document could not be checked. No workflow was started.')
+        self.assertNotIn('private parser details', str(self.st.error.call_args_list))
+
+    def test_completed_result_missing_offline_provenance_cannot_claim_success(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'},
+            'model': object(),
+            'result': {
+                'evaluation': {'final_eligible': True,
+                               'financial_evidence': 'synthetic citation'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_malformed_validation_metadata_is_rejected_when_incomplete(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0, 'validation': ['invalid'],
+                'evaluation': {'simulation': True, 'final_eligible': False,
+                               'financial_evidence': 'NEEDS_REVIEW'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.warning.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_blank_report_metadata_is_rejected_even_when_review_incomplete(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0, 'report': '  ',
+                'evaluation': {'simulation': True, 'final_eligible': False,
+                               'financial_evidence': 'NEEDS_REVIEW'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.warning.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_blank_report_metadata_cannot_claim_success(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0, 'report': '  ',
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_malformed_report_metadata_cannot_claim_success(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0, 'report': ['not a report'],
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_malformed_validation_metadata_cannot_claim_success(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0, 'validation': 'not-a-validation-object',
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_zero_revenue_cannot_claim_successful_financial_review(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'},
+                'financial': {'revenue_current': 0},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_negative_revenue_cannot_claim_successful_financial_review(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'},
+                'financial': {'revenue_current': -120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_blank_optional_financial_string_is_rejected(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'},
+                'financial': {'revenue_current': 120, 'cash_flow': '   '},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_boolean_optional_financial_metric_is_rejected(self):
+        from unittest.mock import MagicMock
+        for value in (True, False):
+            with self.subTest(optional_cash_flow=value):
+                st = MagicMock()
+                st.session_state = {SESSION_KEY: {
+                    'document_sha256': 'document-a',
+                    'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+                    'result': {
+                        'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                        'external_api_calls': 0,
+                        'evaluation': {'simulation': True, 'final_eligible': True,
+                                       'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'},
+                        'financial': {'revenue_current': 120, 'cash_flow': value},
+                    },
+                }}
+                st.button.return_value = False
+                with patch('correction_workflow_ui.document_fingerprint',
+                           return_value='document-a'):
+                    render_correction_workflow(st, b'%PDF-synthetic')
+                st.error.assert_any_call(
+                    'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+                st.success.assert_not_called()
+                st.download_button.assert_not_called()
+
+    def test_nonfinite_optional_financial_metric_is_rejected(self):
+        from unittest.mock import MagicMock
+        for value in (float('nan'), float('inf'), float('-inf')):
+            with self.subTest(optional_cash_flow=value):
+                st = MagicMock()
+                st.session_state = {SESSION_KEY: {
+                    'document_sha256': 'document-a',
+                    'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+                    'result': {
+                        'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                        'external_api_calls': 0,
+                        'evaluation': {'simulation': True, 'final_eligible': True,
+                                       'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'},
+                        'financial': {'revenue_current': 120, 'cash_flow': value},
+                    },
+                }}
+                st.button.return_value = False
+                with patch('correction_workflow_ui.document_fingerprint',
+                           return_value='document-a'):
+                    render_correction_workflow(st, b'%PDF-synthetic')
+                st.error.assert_any_call(
+                    'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+                st.success.assert_not_called()
+                st.download_button.assert_not_called()
+
+    def test_nonfinite_revenue_is_not_a_valid_offline_result(self):
+        from unittest.mock import MagicMock
+        for value in (float('nan'), float('inf'), float('-inf')):
+            with self.subTest(revenue=value):
+                st = MagicMock()
+                st.session_state = {SESSION_KEY: {
+                    'document_sha256': 'document-a',
+                    'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+                    'result': {
+                        'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                        'external_api_calls': 0,
+                        'evaluation': {'simulation': True, 'final_eligible': True,
+                                       'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'},
+                        'financial': {'revenue_current': value},
+                    },
+                }}
+                st.button.return_value = False
+                with patch('correction_workflow_ui.document_fingerprint',
+                           return_value='document-a'):
+                    render_correction_workflow(st, b'%PDF-synthetic')
+                st.error.assert_any_call(
+                    'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+                st.success.assert_not_called()
+                st.download_button.assert_not_called()
+
+    def test_missing_revenue_cannot_claim_successful_financial_review(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'},
+                'financial': {'revenue_current': None},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_non_numeric_synthetic_revenue_cannot_claim_success(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'},
+                'financial': {'revenue_current': 'not a number'},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_successful_result_without_passed_financial_evidence_is_rejected(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'NEEDS_REVIEW'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_completed_result_with_pending_approval_receipt_is_rejected(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'displayed_request_sha256': 'stale-approval',
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PASS'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_unresolved_workflow_error_blocks_completed_result(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'workflow_error': 'Offline continuation failed.',
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PASS'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_paused_again_handoff_cannot_claim_completed_result(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'PAUSED_AGAIN'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PASS'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_unknown_handoff_state_cannot_display_completed_result(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'UNEXPECTED_STATE'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PASS'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_failed_handoff_cannot_display_completed_result(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'FAILED'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE',
+                'scripted': True, 'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PASS'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_pending_handoff_cannot_display_completed_result(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'AWAITING_APPROVAL'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE',
+                'scripted': True, 'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PASS'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_pending_result_cannot_claim_completed_offline_workflow(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'AWAITING_APPROVAL'}, 'model': object(),
+            'result': {
+                'status': 'AWAITING_APPROVAL',
+                'scripted': True, 'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PASS'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_missing_simulation_marker_cannot_claim_offline_completion(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'result': {
+                'scripted': True, 'external_api_calls': 0,
+                'evaluation': {'final_eligible': True, 'financial_evidence': 'PASS'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_stored_result_with_external_api_calls_is_not_shown_as_free(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'},
+            'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE',
+                'scripted': True,
+                'external_api_calls': 1,
+                'evaluation': {'final_eligible': True,
+                               'financial_evidence': 'synthetic citation'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_stored_result_explicitly_not_simulated_is_rejected(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'},
+            'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0,
+                'evaluation': {'simulation': False, 'final_eligible': True,
+                               'financial_evidence': 'synthetic citation'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_different_document_clears_stale_rehearsal(self):
+        self.st.session_state[SESSION_KEY] = {
+            'document_sha256': 'document-old',
+            'handoff': {'status': 'AWAITING_APPROVAL'},
+            'model': object(),
+        }
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-new'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start:
+            render_correction_workflow(self.st, b'%PDF-synthetic')
+        self.assertNotIn(SESSION_KEY, self.st.session_state)
+        start.assert_not_called()
+        self.st.download_button.assert_not_called()
+
+
+if __name__ == '__main__':
+    unittest.main()

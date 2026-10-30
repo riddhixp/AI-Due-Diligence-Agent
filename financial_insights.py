@@ -1,6 +1,7 @@
 
 from dataclasses import dataclass
 from typing import Optional
+from financial_numbers import finite_number, finite_difference, finite_percentage
 
 
 @dataclass
@@ -28,14 +29,8 @@ class ExtendedFinancialData:
 
 
 def safe_percentage(numerator, denominator):
-    """Calculate a ratio only when sufficient inputs exist."""
-    if numerator is None or denominator is None:
-        return None
-
-    if denominator <= 0:
-        return None
-
-    return round(numerator / denominator * 100, 2)
+    """Calculate a finite ratio only for a positive denominator."""
+    return finite_percentage(numerator, denominator)
 
 
 def calculate_financial_insights(data):
@@ -43,7 +38,7 @@ def calculate_financial_insights(data):
 
     insights = {
         "revenue_growth": safe_percentage(
-            data.revenue_current - data.revenue_previous,
+            finite_difference(data.revenue_current, data.revenue_previous),
             data.revenue_previous,
         ),
         "gross_margin": safe_percentage(
@@ -69,12 +64,12 @@ def calculate_financial_insights(data):
     }
 
     if (
-        data.operating_cash_flow is not None
-        and data.capital_expenditure is not None
+        finite_number(data.operating_cash_flow)
+        and finite_number(data.capital_expenditure)
+        and data.capital_expenditure >= 0
     ):
-        insights["free_cash_flow"] = round(
-            data.operating_cash_flow - data.capital_expenditure,
-            2,
+        insights["free_cash_flow"] = finite_difference(
+            data.operating_cash_flow, data.capital_expenditure, digits=2,
         )
     else:
         insights["free_cash_flow"] = None
@@ -94,8 +89,8 @@ def calculate_financial_insights(data):
     ]:
         key = f"free_cash_flow_{label}"
 
-        if operating_cash_flow is not None and capex is not None:
-            insights[key] = round(operating_cash_flow - capex, 2)
+        if finite_number(operating_cash_flow) and finite_number(capex) and capex >= 0:
+            insights[key] = finite_difference(operating_cash_flow, capex, digits=2)
         else:
             insights[key] = None
 
@@ -104,20 +99,18 @@ def calculate_financial_insights(data):
     repurchases = data.share_repurchases
     current_fcf = insights["free_cash_flow"]
 
-    if repurchases is not None and current_fcf is not None:
-        insights["repurchases_less_free_cash_flow"] = round(
-            repurchases - current_fcf, 2
-        )
+    if finite_number(repurchases) and repurchases >= 0 and finite_number(current_fcf):
+        insights["repurchases_less_free_cash_flow"] = finite_difference(repurchases, current_fcf, digits=2)
     else:
         insights["repurchases_less_free_cash_flow"] = None
 
     # Non-cash items and cash-flow timing indicators.
     insights["stock_based_compensation"] = (
-        data.stock_based_compensation
+        data.stock_based_compensation if finite_number(data.stock_based_compensation) else None
     )
 
     insights["deferred_revenue_change"] = (
-        data.deferred_revenue_change
+        data.deferred_revenue_change if finite_number(data.deferred_revenue_change) else None
     )
 
     return insights

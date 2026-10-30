@@ -78,6 +78,60 @@ class TestReportStorage(unittest.TestCase):
         self.assertEqual(first["report"], "Report A")
         self.assertEqual(second["report"], "Report B")
 
+    def test_concurrent_saves_publish_complete_independent_payloads(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        barrier = Barrier(8)
+        replace = Path.replace
+        def synchronized_replace(source, target):
+            barrier.wait(timeout=10)
+            return replace(source, target)
+        def save(index):
+            report_storage.save_report(self.pdf_bytes, f'Report {index}',
+                                       {'index': index}, {'index': index})
+        with patch.object(Path, 'replace', synchronized_replace):
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                list(pool.map(save, range(8)))
+        saved = report_storage.load_report(self.pdf_bytes)
+        index = saved['financial_data']['index']
+        self.assertEqual(saved['report'], f'Report {index}')
+        self.assertEqual(saved['validation']['index'], index)
+        self.assertEqual(len(list(self.reports_dir.iterdir())), 1)
+
+    def test_failed_publish_preserves_old_report_and_removes_temporary_file(self):
+        report_storage.save_report(self.pdf_bytes, 'Original', {}, {})
+        with patch.object(Path, 'replace', side_effect=OSError('Simulated storage failure')):
+            with self.assertRaises(OSError):
+                report_storage.save_report(self.pdf_bytes, 'Replacement', {}, {})
+        self.assertEqual(report_storage.load_report(self.pdf_bytes)['report'], 'Original')
+        self.assertEqual(len(list(self.reports_dir.iterdir())), 1)
+
+    def test_nonfinite_save_does_not_replace_existing_report(self):
+        report_storage.save_report(self.pdf_bytes, 'Original', {}, {})
+        for value in [float('nan'), float('inf')]:
+            with self.assertRaises(ValueError):
+                report_storage.save_report(self.pdf_bytes, 'Invalid', {}, {'revenue': value})
+        self.assertEqual(report_storage.load_report(self.pdf_bytes)['report'], 'Original')
+        self.assertEqual(len(list(self.reports_dir.iterdir())), 1)
+
+    def test_ambiguous_or_nonfinite_saved_json_is_rejected_without_rewriting(self):
+        path = self.reports_dir / (report_storage.get_report_id(self.pdf_bytes) + '.json')
+        for text in ['{"report":"A","report":"B"}', '{"value":NaN}',
+                     '{"value":Infinity}', '{"value":1e400}', '[]', 'not JSON']:
+            with self.subTest(text=text):
+                path.write_text(text, encoding='utf-8')
+                with self.assertRaises(ValueError):
+                    report_storage.load_report(self.pdf_bytes)
+                self.assertEqual(path.read_text(encoding='utf-8'), text)
+
+    def test_excessively_nested_cache_is_rejected_without_rewriting(self):
+        path = self.reports_dir / (report_storage.get_report_id(self.pdf_bytes) + '.json')
+        payload = '{"report":"Findings","nested":' + '[' * 10000 + '0' + ']' * 10000 + '}'
+        path.write_text(payload, encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'SAVED_REPORT_NESTING_TOO_DEEP'):
+            report_storage.load_report(self.pdf_bytes)
+        self.assertEqual(path.read_text(encoding='utf-8'), payload)
+
 
 if __name__ == "__main__":
     unittest.main()

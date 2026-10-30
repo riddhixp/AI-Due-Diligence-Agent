@@ -1,0 +1,58 @@
+import unittest
+from types import SimpleNamespace
+from scripted_offline_model import ScriptedOfflineModel
+from sdk_resume_gate import checked_resume_mode
+
+
+class SDKResumeGateTests(unittest.TestCase):
+    def setUp(self):
+        self.state = SimpleNamespace(get_interruptions=lambda: [])
+        self.model = ScriptedOfflineModel()
+
+    def test_fresh_run(self):
+        self.assertEqual(checked_resume_mode(None, None, None, None), "FRESH_RUN")
+
+    def test_offline_sdk_resume_allowed(self):
+        self.assertEqual(
+            checked_resume_mode({}, b"pdf", self.state, self.model),
+            "OFFLINE_SDK_RESUME",
+        )
+
+    def test_spoofed_offline_marker_is_blocked(self):
+        counterfeit = SimpleNamespace(
+            is_offline_scripted_model=True, get_response=lambda: None,
+        )
+        with self.assertRaisesRegex(ValueError, "LIVE_RESUME_DISABLED"):
+            checked_resume_mode({}, b"pdf", self.state, counterfeit)
+
+    def test_paid_model_is_blocked(self):
+        with self.assertRaisesRegex(ValueError, "LIVE_RESUME_DISABLED"):
+            checked_resume_mode({}, b"pdf", self.state, None)
+
+    def test_missing_original_document_blocked(self):
+        with self.assertRaisesRegex(ValueError, "RESUME_REQUIRES_ORIGINAL_PDF"):
+            checked_resume_mode({}, None, self.state, self.model)
+
+    def test_missing_checkpoint_blocked(self):
+        with self.assertRaisesRegex(ValueError, "RESUME_CHECKPOINT_REQUIRED"):
+            checked_resume_mode(None, b"pdf", self.state, self.model)
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+class OfflineFreshGateTests(unittest.TestCase):
+    def test_exact_offline_model_can_start_without_saved_state(self):
+        self.assertEqual(checked_resume_mode(None, None, None, ScriptedOfflineModel()),
+                         'OFFLINE_FRESH_RUN')
+
+    def test_live_model_cannot_be_injected_as_offline_start(self):
+        with self.assertRaisesRegex(ValueError, 'OFFLINE_MODEL_REQUIRED'):
+            checked_resume_mode(None, None, None, 'gpt-5-mini')
+
+    def test_subclass_cannot_override_offline_start(self):
+        class Counterfeit(ScriptedOfflineModel):
+            pass
+        with self.assertRaisesRegex(ValueError, 'OFFLINE_MODEL_REQUIRED'):
+            checked_resume_mode(None, None, None, Counterfeit())
