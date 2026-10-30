@@ -374,6 +374,22 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         resume.assert_not_called()
         st.download_button.assert_not_called()
 
+    def test_invalid_saved_session_blocks_start_button(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {'document_sha256': 'document-a'}}
+        st.button.side_effect = lambda *args, **kwargs: (
+            kwargs.get('key') == 'app_workflow_start')
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start, \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        start.assert_not_called()
+        resume.assert_not_called()
+        st.error.assert_called()
+        st.download_button.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
