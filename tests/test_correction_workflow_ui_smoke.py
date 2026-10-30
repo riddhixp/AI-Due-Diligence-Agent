@@ -588,6 +588,39 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.assertNotIn('private financial details', str(st.error.call_args_list))
         st.download_button.assert_not_called()
 
+    def test_failed_resume_does_not_restore_old_approval_fingerprint(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        handoff = {'status': 'AWAITING_APPROVAL',
+                   'checkpoint': {'submission_count': 0}, 'sdk_state': object()}
+        session = {'document_sha256': 'document-a', 'handoff': handoff,
+                   'model': object(), 'displayed_request_sha256': 'request-a'}
+        st.session_state = {SESSION_KEY: session}
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        yes, no = MagicMock(), MagicMock()
+        yes.button.return_value = True
+        no.button.return_value = False
+        st.columns.return_value = (yes, no)
+        preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+        def fail_resume(*args, **kwargs):
+            handoff['status'] = 'FAILED'
+            session.pop('displayed_request_sha256', None)
+            raise ValueError('MODEL_REQUEST_BUDGET_EXHAUSTED')
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview', return_value=preview), \
+             patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                   return_value=['page one', 'page two']), \
+             patch('correction_workflow_ui.render_proposed_financial_review'), \
+             patch('correction_workflow_ui.decide_and_resume_offline',
+                   side_effect=fail_resume):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        self.assertEqual(handoff['status'], 'FAILED')
+        self.assertNotIn('displayed_request_sha256', session)
+        self.assertIn('allowance exhausted', session['workflow_error'])
+        st.rerun.assert_called_once()
+        st.download_button.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
