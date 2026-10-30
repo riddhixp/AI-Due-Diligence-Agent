@@ -99,6 +99,8 @@ def render_correction_workflow(st, pdf_bytes):
                     and (type(result['external_api_calls']) is not int
                          or result['external_api_calls'] != 0))
                 or not isinstance(result.get('evaluation'), dict)
+                or (('simulation' in result['evaluation'])
+                    and result['evaluation']['simulation'] is not True)
                 or not isinstance(result.get('financial'), dict)
                 or type(result['evaluation'].get('final_eligible')) is not bool
                 or not isinstance(result['evaluation'].get('financial_evidence'), str)
