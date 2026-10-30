@@ -113,6 +113,8 @@ def render_correction_workflow(st, pdf_bytes):
                 or not isinstance(result.get('financial'), dict)
                 or any(type(value) is float and not math.isfinite(value)
                        for value in result['financial'].values())
+                or any(type(value) is bool
+                       for value in result['financial'].values())
                 or type(result['financial'].get('revenue_current')) not in (int, float, type(None))
                 or (type(result['financial'].get('revenue_current')) is float
                     and not math.isfinite(result['financial']['revenue_current']))
