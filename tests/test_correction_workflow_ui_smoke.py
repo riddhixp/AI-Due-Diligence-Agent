@@ -33,6 +33,16 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.assertTrue(any(c.kwargs.get('key') == 'app_workflow_discard'
                             for c in self.st.button.call_args_list))
 
+    def test_discard_button_clears_stored_rehearsal(self):
+        self.st.session_state[SESSION_KEY] = {'document_sha256': 'document-a'}
+        self.st.button.side_effect = lambda *args, **kwargs: kwargs.get('key') == 'app_workflow_discard'
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start:
+            render_correction_workflow(self.st, b'%PDF-synthetic')
+        self.assertNotIn(SESSION_KEY, self.st.session_state)
+        self.st.rerun.assert_called_once()
+        start.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
