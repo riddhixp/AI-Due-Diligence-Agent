@@ -57,6 +57,19 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.assertFalse(session['request_limit_practice'])
         self.st.download_button.assert_not_called()
 
+    def test_request_limit_scenario_uses_five_scripted_requests(self):
+        session = {'handoff': {'status': 'FAILED'}, 'model': object(),
+                   'scenario': 'standard'}
+        self.st.selectbox.return_value = 'Stop at the request limit'
+        self.st.button.side_effect = lambda *args, **kwargs: kwargs.get('key') == 'app_workflow_start'
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow',
+                   return_value=session) as start:
+            render_correction_workflow(self.st, b'%PDF-synthetic')
+        start.assert_called_once_with(b'%PDF-synthetic', scenario='standard', request_limit=5)
+        self.assertTrue(self.st.session_state[SESSION_KEY]['request_limit_practice'])
+        self.st.download_button.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
