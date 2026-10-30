@@ -65,6 +65,16 @@ class OfflineDemoPreflightTests(unittest.TestCase):
         report = json.loads(output.getvalue())
         self.assertEqual(report["workflow"]["status"], "PASS")
 
+    def test_workflow_preflight_rejects_empty_or_misleading_summary(self):
+        from offline_demo_preflight import check_demo_workflow
+        for summary in ("", "Offline acceptance: PASS but unverified",
+                        "Offline acceptance: FAIL"):
+            with self.subTest(summary=summary), \
+                 patch("offline_acceptance.run_acceptance", return_value={}), \
+                 patch("offline_acceptance.acceptance_summary", return_value=summary):
+                with self.assertRaisesRegex(ValueError, "OFFLINE_DEMO_WORKFLOW_FAILED"):
+                    check_demo_workflow()
+
     def test_workflow_preflight_rejects_failed_suites(self):
         from offline_demo_preflight import check_demo_workflow
         with patch("offline_acceptance.run_acceptance",
