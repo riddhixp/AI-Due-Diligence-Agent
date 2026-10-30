@@ -45,6 +45,8 @@ def render_correction_workflow(st, pdf_bytes):
         except ValueError:
             # Never display raw exception text from PDF parsing or SDK state.
             st.error('Free rehearsal could not start. Check the synthetic PDF and try again.')
+        except Exception:
+            st.error('Free rehearsal encountered an unexpected error. No workflow was started.')
     if session is None:
         st.caption('Upload synthetic_conflict_test.pdf to rehearse both approval steps.')
         return
