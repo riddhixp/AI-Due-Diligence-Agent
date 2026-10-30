@@ -70,6 +70,34 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.assertTrue(self.st.session_state[SESSION_KEY]['request_limit_practice'])
         self.st.download_button.assert_not_called()
 
+    def test_approve_and_reject_buttons_require_current_fingerprint(self):
+        for decision in ('app_workflow_approve', 'app_workflow_reject'):
+            with self.subTest(decision=decision):
+                st = Mock()
+                st.session_state = {SESSION_KEY: {
+                    'document_sha256': 'document-a',
+                    'handoff': {'status': 'AWAITING_APPROVAL',
+                                'checkpoint': {'submission_count': 0}},
+                    'model': object()}}
+                st.selectbox.return_value = 'Standard correction'
+                st.button.return_value = False
+                approve = decision == 'app_workflow_approve'
+                yes, no = Mock(), Mock()
+                yes.button.return_value = approve
+                no.button.return_value = not approve
+                st.columns.return_value = (yes, no)
+                preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+                with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
+                     patch('correction_workflow_ui.financial_approval_preview', return_value=preview), \
+                     patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                           return_value=['page one', 'page two']), \
+                     patch('correction_workflow_ui.render_proposed_financial_review'), \
+                     patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+                    render_correction_workflow(st, b'%PDF-synthetic')
+                resume.assert_not_called()
+                st.error.assert_any_call('FINANCIAL_APPROVAL_REQUEST_CHANGED')
+                st.download_button.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
