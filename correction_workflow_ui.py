@@ -105,6 +105,8 @@ def render_correction_workflow(st, pdf_bytes):
                 or result['evaluation'].get('simulation') is not True
                 or not isinstance(result.get('financial'), dict)
                 or type(result['financial'].get('revenue_current')) not in (int, float, type(None))
+                or (result['evaluation'].get('final_eligible') is True
+                    and type(result['financial'].get('revenue_current')) not in (int, float))
                 or type(result['evaluation'].get('final_eligible')) is not bool
                 or (result['evaluation']['final_eligible'] is True
                     and result['evaluation'].get('financial_evidence') != 'PRELIMINARY_CHECKS_PASSED')
