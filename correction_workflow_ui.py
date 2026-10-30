@@ -15,7 +15,7 @@ def render_correction_workflow(st, pdf_bytes):
                'Results stay separate from your real analysis and final report exports.')
     try:
         digest = document_fingerprint(pdf_bytes)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, AttributeError):
         st.error('The rehearsal document is invalid. Upload the synthetic PDF to continue.')
         return
     session = st.session_state.get(SESSION_KEY)
