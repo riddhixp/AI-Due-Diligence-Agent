@@ -18,6 +18,9 @@ def render_correction_workflow(st, pdf_bytes):
     except (TypeError, ValueError, AttributeError):
         st.error('The rehearsal document is invalid. Upload the synthetic PDF to continue.')
         return
+    except Exception:
+        st.error('The rehearsal document could not be checked. No workflow was started.')
+        return
     session = st.session_state.get(SESSION_KEY)
     if session is not None and (
             not isinstance(session, dict)
