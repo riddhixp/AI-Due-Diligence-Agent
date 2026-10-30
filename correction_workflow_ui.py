@@ -108,8 +108,7 @@ def render_correction_workflow(st, pdf_bytes):
                 or (result['evaluation'].get('final_eligible') is True
                     and result.get('validation') is not None
                     and not isinstance(result['validation'], dict))
-                or (result['evaluation'].get('final_eligible') is True
-                    and result.get('report') is not None
+                or (result.get('report') is not None
                     and (not isinstance(result['report'], str)
                          or not result['report'].strip()))
                 or not isinstance(result.get('financial'), dict)
