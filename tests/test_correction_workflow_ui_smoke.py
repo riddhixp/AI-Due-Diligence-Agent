@@ -276,6 +276,31 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         resume.assert_not_called()
         st.download_button.assert_not_called()
 
+    def test_discard_failed_rehearsal_preserves_unrelated_analysis(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {
+            SESSION_KEY: {
+                'document_sha256': 'document-a',
+                'handoff': {'status': 'FAILED'},
+                'model': object(),
+                'workflow_error': 'Request allowance exhausted.',
+            },
+            'report': 'Previously reviewed analysis',
+        }
+        st.selectbox.return_value = 'Standard correction'
+        st.button.side_effect = lambda *args, **kwargs: (
+            kwargs.get('key') == 'app_workflow_discard')
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        self.assertNotIn(SESSION_KEY, st.session_state)
+        self.assertEqual(st.session_state['report'], 'Previously reviewed analysis')
+        resume.assert_not_called()
+        st.rerun.assert_called_once()
+        st.download_button.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
