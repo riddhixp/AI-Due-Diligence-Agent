@@ -5,6 +5,7 @@ The fixture is generated in a temporary directory and never uploaded.
 """
 import argparse
 import json
+import sys
 import tempfile
 from pathlib import Path
 
@@ -56,7 +57,7 @@ def check_demo_workflow():
     }
 
 
-def main(argv=None):
+def main(argv=()):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workflow", action="store_true",
                         help="Also run network-guarded scripted approval/correction checks")
@@ -74,4 +75,4 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))
