@@ -749,6 +749,20 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.assertNotIn('private financial contents', str(self.st.error.call_args_list))
         self.st.download_button.assert_not_called()
 
+    def test_invalid_document_fingerprint_leaves_session_untouched(self):
+        previous = {'document_sha256': 'document-a',
+                    'handoff': {'status': 'FAILED'}, 'model': object()}
+        self.st.session_state[SESSION_KEY] = previous
+        with patch('correction_workflow_ui.document_fingerprint',
+                   side_effect=ValueError('private document content')), \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start:
+            render_correction_workflow(self.st, b'%PDF-invalid')
+        self.assertIs(self.st.session_state[SESSION_KEY], previous)
+        start.assert_not_called()
+        self.st.error.assert_any_call(
+            'The rehearsal document is invalid. Upload the synthetic PDF to continue.')
+        self.assertNotIn('private document content', str(self.st.error.call_args_list))
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
