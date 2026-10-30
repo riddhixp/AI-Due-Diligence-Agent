@@ -46,7 +46,7 @@ def check_demo_workflow():
     # Inspect only the verified summary and keep arbitrary test metadata
     # out of user-visible errors. Reject missing or conflicting evidence.
     summary = acceptance_summary(report)
-    if not summary.startswith("Offline acceptance: PASS\n"):
+    if not summary.splitlines() or summary.splitlines()[0] != "Offline acceptance: PASS":
         raise ValueError("OFFLINE_DEMO_WORKFLOW_FAILED")
     suites = report["suites"]
     return {
