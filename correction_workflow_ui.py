@@ -42,8 +42,9 @@ def render_correction_workflow(st, pdf_bytes):
             session['request_limit_practice'] = limit_practice
             session['document_sha256'] = digest
             st.session_state[SESSION_KEY] = session
-        except ValueError as error:
-            st.error(str(error))
+        except ValueError:
+            # Never display raw exception text from PDF parsing or SDK state.
+            st.error('Free rehearsal could not start. Check the synthetic PDF and try again.')
     if session is None:
         st.caption('Upload synthetic_conflict_test.pdf to rehearse both approval steps.')
         return
