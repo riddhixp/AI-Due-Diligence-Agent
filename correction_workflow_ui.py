@@ -1,4 +1,6 @@
 """Streamlit controls for the isolated, zero-credit application rehearsal."""
+import math
+
 from investigation_checkpoint import document_fingerprint
 from offline_correction_workflow import start_offline_correction_workflow
 from financial_approval_resume import decide_and_resume_offline
@@ -105,6 +107,8 @@ def render_correction_workflow(st, pdf_bytes):
                 or result['evaluation'].get('simulation') is not True
                 or not isinstance(result.get('financial'), dict)
                 or type(result['financial'].get('revenue_current')) not in (int, float, type(None))
+                or (type(result['financial'].get('revenue_current')) is float
+                    and not math.isfinite(result['financial']['revenue_current']))
                 or (result['evaluation'].get('final_eligible') is True
                     and type(result['financial'].get('revenue_current')) not in (int, float))
                 or type(result['evaluation'].get('final_eligible')) is not bool
