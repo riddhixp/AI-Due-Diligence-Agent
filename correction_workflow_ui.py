@@ -105,6 +105,9 @@ def render_correction_workflow(st, pdf_bytes):
                 or result['external_api_calls'] != 0
                 or not isinstance(result.get('evaluation'), dict)
                 or result['evaluation'].get('simulation') is not True
+                or (result['evaluation'].get('final_eligible') is True
+                    and result.get('validation') is not None
+                    and not isinstance(result['validation'], dict))
                 or not isinstance(result.get('financial'), dict)
                 or type(result['financial'].get('revenue_current')) not in (int, float, type(None))
                 or (type(result['financial'].get('revenue_current')) is float
