@@ -105,9 +105,9 @@ def render_correction_workflow(st, pdf_bytes):
     elif handoff['status'] == 'AWAITING_APPROVAL':
         try:
             preview = financial_approval_preview(handoff)
-        except ValueError as error:
+        except ValueError:
             session.pop('displayed_request_sha256', None)
-            st.error(str(error))
+            st.error('Financial approval preview is invalid. Discard and restart the free rehearsal.')
             _render_discard(st)
             return
         shown_fingerprint = session.get('displayed_request_sha256')
