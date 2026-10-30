@@ -13,7 +13,11 @@ def render_correction_workflow(st, pdf_bytes):
     st.subheader('FREE application correction workflow')
     st.caption('Scripted offline rehearsal through the application tools. No API credits. '
                'Results stay separate from your real analysis and final report exports.')
-    digest = document_fingerprint(pdf_bytes)
+    try:
+        digest = document_fingerprint(pdf_bytes)
+    except (TypeError, ValueError):
+        st.error('The rehearsal document is invalid. Upload the synthetic PDF to continue.')
+        return
     session = st.session_state.get(SESSION_KEY)
     if session is not None and (
             not isinstance(session, dict)
