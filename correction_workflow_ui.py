@@ -168,6 +168,7 @@ def render_correction_workflow(st, pdf_bytes):
                         if str(error) == 'MODEL_REQUEST_BUDGET_EXHAUSTED' else
                         'Offline continuation failed. Start a new rehearsal to continue.')
                     st.rerun()
+                    return  # A failed handoff cannot fall through to the old approval UI.
                 st.error('Offline approval could not continue. Check the current request or restart the rehearsal.')
             except Exception:
                 if handoff.get('status') == 'AWAITING_APPROVAL':
@@ -175,6 +176,7 @@ def render_correction_workflow(st, pdf_bytes):
                 else:
                     session['workflow_error'] = 'Offline continuation failed. Start a new rehearsal to continue.'
                     st.rerun()
+                    return  # Do not restore a stale fingerprint after a failed handoff.
         session['displayed_request_sha256'] = preview['request_sha256']
     else:
         st.error(session.get('workflow_error',
