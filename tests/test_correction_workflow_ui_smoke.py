@@ -819,6 +819,28 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         st.success.assert_not_called()
         st.download_button.assert_not_called()
 
+    def test_blank_report_metadata_cannot_claim_success(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'}, 'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0, 'report': '  ',
+                'evaluation': {'simulation': True, 'final_eligible': True,
+                               'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
     def test_malformed_report_metadata_cannot_claim_success(self):
         from unittest.mock import MagicMock
         st = MagicMock()
