@@ -763,6 +763,20 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
             'The rehearsal document is invalid. Upload the synthetic PDF to continue.')
         self.assertNotIn('private document content', str(self.st.error.call_args_list))
 
+    def test_missing_document_bytes_fail_safely_before_start(self):
+        previous = {'document_sha256': 'document-a',
+                    'handoff': {'status': 'FAILED'}, 'model': object()}
+        self.st.session_state[SESSION_KEY] = previous
+        with patch('correction_workflow_ui.document_fingerprint',
+                   side_effect=AttributeError('raw internal attribute')), \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start:
+            render_correction_workflow(self.st, None)
+        self.assertIs(self.st.session_state[SESSION_KEY], previous)
+        start.assert_not_called()
+        self.st.error.assert_any_call(
+            'The rehearsal document is invalid. Upload the synthetic PDF to continue.')
+        self.assertNotIn('raw internal attribute', str(self.st.error.call_args_list))
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
