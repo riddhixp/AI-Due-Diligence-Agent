@@ -169,10 +169,14 @@ def render_correction_workflow(st, pdf_bytes):
                         'Offline continuation failed. Start a new rehearsal to continue.')
                     st.rerun()
                     return  # A failed handoff cannot fall through to the old approval UI.
+                session.pop('displayed_request_sha256', None)
                 st.error('Offline approval could not continue. Check the current request or restart the rehearsal.')
+                return  # Require another displayed preview before accepting any decision.
             except Exception:
                 if handoff.get('status') == 'AWAITING_APPROVAL':
+                    session.pop('displayed_request_sha256', None)
                     st.error('Offline continuation could not start. No automatic retry was made.')
+                    return  # Do not carry a receipt through an unexpected exception.
                 else:
                     session['workflow_error'] = 'Offline continuation failed. Start a new rehearsal to continue.'
                     st.rerun()
