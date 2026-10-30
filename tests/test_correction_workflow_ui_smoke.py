@@ -301,6 +301,35 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         st.rerun.assert_called_once()
         st.download_button.assert_not_called()
 
+    def test_invalid_failure_checkpoint_does_not_resume_or_export(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {
+            SESSION_KEY: {
+                'document_sha256': 'document-a',
+                'handoff': {
+                    'status': 'FAILED',
+                    'failure_checkpoint': {
+                        'submission_count': -1,
+                        'review_status': None,
+                        'financial_data': {'revenue_current': 120},
+                    },
+                },
+                'model': object(),
+            }
+        }
+        st.selectbox.return_value = 'Standard correction'
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.warning.assert_called()
+        resume.assert_not_called()
+        st.download_button.assert_not_called()
+        self.assertTrue(any(call.kwargs.get('key') == 'app_workflow_discard'
+                            for call in st.button.call_args_list))
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
