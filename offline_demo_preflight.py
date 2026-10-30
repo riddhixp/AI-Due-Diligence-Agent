@@ -43,7 +43,7 @@ def check_demo_workflow():
     """Run both scripted engine suites under the existing network guard."""
     from offline_acceptance import run_acceptance, acceptance_summary
     report = run_acceptance()
-    if not acceptance_summary(report).startswith("Offline acceptance: PASS\\n"):
+    if not acceptance_summary(report).splitlines()[0] == "Offline acceptance: PASS":
         raise ValueError("OFFLINE_DEMO_WORKFLOW_FAILED")
     suites = report["suites"]
     return {
