@@ -7,7 +7,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from scripts.create_conflict_test_fixture import create_conflict_fixture
+from scripts.create_conflict_test_fixture import create_conflict_fixture, PAGE_ONE, PAGE_TWO
 from synthetic_conflict_document import read_synthetic_conflict_pages
 
 
@@ -19,10 +19,12 @@ def check_demo_fixture():
 
     # The authoritative value must be on page 2; the misleading headline
     # must not be treated as authoritative. No model or network calls occur.
-    if len(pages) < 2:
+    if len(pages) != 2:
         raise ValueError("SYNTHETIC_FIXTURE_MISSING_PAGES")
-    text = [str(page) for page in pages]
-    if "130" not in text[0] or "120" not in text[1]:
+    # Require every expected line on its intended page, rather than accepting
+    # incidental number substrings elsewhere in the document.
+    if (not all(line in pages[0] for line in PAGE_ONE)
+            or not all(line in pages[1] for line in PAGE_TWO)):
         raise ValueError("SYNTHETIC_FIXTURE_CONTENT_CHANGED")
     return {
         "status": "PASS",
