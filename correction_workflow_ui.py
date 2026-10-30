@@ -158,6 +158,7 @@ def render_correction_workflow(st, pdf_bytes):
                 else:
                     session['result'] = resumed
                 st.rerun()
+                return  # Never restore the previous approval fingerprint after resuming.
             except ValueError as error:
                 if handoff.get('status') != 'AWAITING_APPROVAL':
                     session['workflow_error'] = (
