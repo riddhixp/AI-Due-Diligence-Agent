@@ -442,10 +442,12 @@ class OfflineAcceptanceTests(unittest.TestCase):
         from offline_acceptance import acceptance_summary
         report = {'evaluation': 'FAIL', 'blocked_network_attempts': 0,
                   'suites': {'broken': None, 'partial': {'checks': [None, {'passed': False}]},
+                             'workflow': {'evaluation': 'FAIL', 'checks': [None, {'passed': False}]},
                              'invalid': {'evaluation': 'FAIL', 'checks': 'unavailable'}}}
         summary = acceptance_summary(report)
         self.assertIn('broken: FAIL (invalid suite result)', summary)
         self.assertIn('partial: FAIL (0/0 checks)', summary)
+        self.assertIn('workflow: FAIL (0/2 checks)', summary)
         self.assertIn('Failed: invalid check result', summary)
         self.assertIn('invalid: FAIL (0/0 checks)', summary)
 
