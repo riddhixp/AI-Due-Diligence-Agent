@@ -112,6 +112,8 @@ def render_correction_workflow(st, pdf_bytes):
                 or (type(result['financial'].get('revenue_current')) in (int, float)
                     and result['financial']['revenue_current'] < 0)
                 or (result['evaluation'].get('final_eligible') is True
+                    and result['financial'].get('revenue_current') == 0)
+                or (result['evaluation'].get('final_eligible') is True
                     and type(result['financial'].get('revenue_current')) not in (int, float))
                 or type(result['evaluation'].get('final_eligible')) is not bool
                 or (result['evaluation']['final_eligible'] is True
