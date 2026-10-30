@@ -210,6 +210,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                 'evaluation': {
                     'final_eligible': True,
                     'financial_evidence': 'PRELIMINARY_CHECKS_PASSED',
+                    'simulation': True,
                 },
             },
         }
@@ -236,6 +237,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                 'evaluation': {
                     'final_eligible': False,
                     'financial_evidence': 'NEEDS_REVIEW',
+                    'simulation': True,
                 },
             },
         }
