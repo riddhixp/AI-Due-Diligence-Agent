@@ -72,6 +72,21 @@ class OfflineDemoPreflightTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "OFFLINE_DEMO_WORKFLOW_FAILED"):
                 check_demo_workflow()
 
+    def test_combined_cli_identifies_failed_workflow_without_leaking_details(self):
+        import contextlib
+        import io
+        import json
+        with patch("offline_demo_preflight.check_demo_fixture",
+                   return_value={"status": "PASS"}), \
+             patch("offline_demo_preflight.check_demo_workflow",
+                   side_effect=ValueError("private customer content")), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(main(["--workflow"]), 1)
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["failed_stage"], "workflow")
+        self.assertEqual(report["error_type"], "ValueError")
+        self.assertNotIn("private customer content", output.getvalue())
+
     def test_cli_does_not_print_exception_details(self):
         import io
         import contextlib
@@ -80,4 +95,5 @@ class OfflineDemoPreflightTests(unittest.TestCase):
              contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(main(), 1)
         self.assertIn('"status": "FAIL"', output.getvalue())
+        self.assertIn('"failed_stage": "fixture"', output.getvalue())
         self.assertNotIn("private secret", output.getvalue())
