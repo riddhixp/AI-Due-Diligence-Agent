@@ -428,6 +428,28 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         start.assert_not_called()
         self.st.download_button.assert_not_called()
 
+    def test_changed_document_allows_fresh_free_rehearsal_only(self):
+        old = {'document_sha256': 'old-document',
+               'handoff': {'status': 'AWAITING_APPROVAL'},
+               'model': object(), 'displayed_request_sha256': 'old-request'}
+        fresh = {'handoff': {'status': 'FAILED'}, 'model': object(),
+                 'scenario': 'standard'}
+        self.st.session_state[SESSION_KEY] = old
+        self.st.button.side_effect = lambda *args, **kwargs: (
+            kwargs.get('key') == 'app_workflow_start')
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='new-document'), \
+             patch('correction_workflow_ui.start_offline_correction_workflow',
+                   return_value=fresh) as start, \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(self.st, b'%PDF-new')
+        start.assert_called_once_with(b'%PDF-new', scenario='standard', request_limit=12)
+        resume.assert_not_called()
+        self.assertIs(self.st.session_state[SESSION_KEY], fresh)
+        self.assertEqual(fresh['document_sha256'], 'new-document')
+        self.assertNotIn('displayed_request_sha256', fresh)
+        self.st.download_button.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
