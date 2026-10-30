@@ -158,6 +158,7 @@ def render_correction_workflow(st, pdf_bytes):
                     session.pop('displayed_request_sha256', None)
                 else:
                     session['result'] = resumed
+                    session.pop('displayed_request_sha256', None)
                 st.rerun()
                 return  # Never restore the previous approval fingerprint after resuming.
             except ValueError as error:
