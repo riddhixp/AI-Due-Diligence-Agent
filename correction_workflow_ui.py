@@ -105,8 +105,7 @@ def render_correction_workflow(st, pdf_bytes):
                 or result['external_api_calls'] != 0
                 or not isinstance(result.get('evaluation'), dict)
                 or result['evaluation'].get('simulation') is not True
-                or (result['evaluation'].get('final_eligible') is True
-                    and result.get('validation') is not None
+                or (result.get('validation') is not None
                     and not isinstance(result['validation'], dict))
                 or (result.get('report') is not None
                     and (not isinstance(result['report'], str)
