@@ -411,6 +411,23 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
             for c in st.button.call_args_list))
         st.download_button.assert_not_called()
 
+    def test_document_change_clears_pending_approval_fingerprint(self):
+        self.st.session_state[SESSION_KEY] = {
+            'document_sha256': 'document-old',
+            'handoff': {'status': 'AWAITING_APPROVAL'},
+            'model': object(),
+            'displayed_request_sha256': 'old-request',
+        }
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-new'), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume, \
+             patch('correction_workflow_ui.start_offline_correction_workflow') as start:
+            render_correction_workflow(self.st, b'%PDF-new')
+        self.assertNotIn(SESSION_KEY, self.st.session_state)
+        resume.assert_not_called()
+        start.assert_not_called()
+        self.st.download_button.assert_not_called()
+
     def test_different_document_clears_stale_rehearsal(self):
         self.st.session_state[SESSION_KEY] = {
             'document_sha256': 'document-old',
