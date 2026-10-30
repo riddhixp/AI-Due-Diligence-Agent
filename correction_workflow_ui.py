@@ -110,6 +110,11 @@ def render_correction_workflow(st, pdf_bytes):
             st.error('Financial approval preview is invalid. Discard and restart the free rehearsal.')
             _render_discard(st)
             return
+        except Exception:
+            session.pop('displayed_request_sha256', None)
+            st.error('Financial approval preview could not be displayed. Discard and restart the free rehearsal.')
+            _render_discard(st)
+            return
         shown_fingerprint = session.get('displayed_request_sha256')
         st.warning('Financial submission awaiting your decision. Compare the proposed figures with the PDF.')
         st.write('Submission:', preview['metadata'])
