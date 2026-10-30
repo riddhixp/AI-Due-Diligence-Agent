@@ -71,9 +71,10 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.st.download_button.assert_not_called()
 
     def test_approve_and_reject_buttons_require_current_fingerprint(self):
+        from unittest.mock import MagicMock
         for decision in ('app_workflow_approve', 'app_workflow_reject'):
             with self.subTest(decision=decision):
-                st = Mock()
+                st = MagicMock()
                 st.session_state = {SESSION_KEY: {
                     'document_sha256': 'document-a',
                     'handoff': {'status': 'AWAITING_APPROVAL',
