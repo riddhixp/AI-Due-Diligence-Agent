@@ -77,7 +77,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                 st.session_state = {SESSION_KEY: {
                     'document_sha256': 'document-a',
                     'handoff': {'status': 'AWAITING_APPROVAL',
-                                'checkpoint': {'submission_count': 0}},
+                                'checkpoint': {'submission_count': 0}, 'sdk_state': object()},
                     'model': object()}}
                 st.selectbox.return_value = 'Standard correction'
                 st.button.return_value = False
@@ -101,7 +101,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
     def test_verified_approval_decision_resumes_scripted_workflow(self):
         from unittest.mock import MagicMock
         st = MagicMock()
-        handoff = {'status': 'AWAITING_APPROVAL', 'checkpoint': {'submission_count': 0}}
+        handoff = {'status': 'AWAITING_APPROVAL', 'checkpoint': {'submission_count': 0}, 'sdk_state': object()}
         model = object()
         session = {'document_sha256': 'document-a', 'handoff': handoff,
                    'model': model, 'displayed_request_sha256': 'request-a'}
@@ -133,7 +133,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
     def test_verified_rejection_ends_free_workflow_without_export(self):
         from unittest.mock import MagicMock
         st = MagicMock()
-        handoff = {'status': 'AWAITING_APPROVAL', 'checkpoint': {'submission_count': 0}}
+        handoff = {'status': 'AWAITING_APPROVAL', 'checkpoint': {'submission_count': 0}, 'sdk_state': object()}
         model = object()
         session = {'document_sha256': 'document-a', 'handoff': handoff,
                    'model': model, 'displayed_request_sha256': 'request-a'}
