@@ -72,6 +72,31 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.click('app_workflow_discard')
         self.assertNotIn('offline_application_workflow', self.app.session_state)
 
+    def test_restart_after_completion_requires_two_fresh_approvals(self):
+        self.click('app_workflow_start')
+        self.click('app_workflow_approve')
+        self.click('app_workflow_approve')
+        finished = self.app.session_state['offline_application_workflow']
+        self.assertEqual(finished['result']['financial']['revenue_current'], 120)
+        self.assertNotIn('displayed_request_sha256', finished)
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
+        # Starting again with the same PDF must not reuse completed approval state.
+        self.click('app_workflow_start')
+        restarted = self.app.session_state['offline_application_workflow']
+        self.assertIsNot(restarted, finished)
+        self.assertNotIn('result', restarted)
+        self.assertEqual(restarted['handoff']['checkpoint']['submission_count'], 0)
+        self.assertEqual(restarted['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertTrue(any(button.key == 'app_workflow_approve'
+                            for button in self.app.button))
+        self.click('app_workflow_approve')
+        self.assertEqual(restarted['handoff']['checkpoint']['submission_count'], 1)
+        self.click('app_workflow_approve')
+        self.assertEqual(restarted['result']['financial']['revenue_current'], 120)
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+        self.assertEqual(len(self.app.get('download_button')), 0)
+
     def test_reject_correction_keeps_failed_source_review_visible(self):
         self.click('app_workflow_start')
         self.click('app_workflow_approve')
