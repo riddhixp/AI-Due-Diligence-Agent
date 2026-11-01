@@ -974,7 +974,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         st.success.assert_not_called()
         st.download_button.assert_not_called()
 
-    def test_collection_valued_financial_metric_is_rejected(self):
+    def test_collection_valued_revenue_is_rejected(self):
         from unittest.mock import MagicMock
         for value in ([120], {'amount': 120}, (120,), {120}):
             with self.subTest(financial_value=repr(value)):
@@ -987,7 +987,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                         'external_api_calls': 0,
                         'evaluation': {'simulation': True, 'final_eligible': True,
                                        'financial_evidence': 'PRELIMINARY_CHECKS_PASSED'},
-                        'financial': {'revenue_current': 120, 'cash_flow': value},
+                        'financial': {'revenue_current': value, 'cash_flow': None},
                     },
                 }}
                 st.button.return_value = False
