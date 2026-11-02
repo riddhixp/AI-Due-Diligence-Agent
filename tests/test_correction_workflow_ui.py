@@ -135,6 +135,28 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertNotIn('offline_application_workflow', self.app.session_state)
         self.assertFalse(any(button.key == 'app_workflow_approve' for button in self.app.button))
 
+    def test_discard_pending_approval_does_not_dispatch_more_requests(self):
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        model = session['model']
+        calls = model.calls
+        budget = model.request_budget.snapshot()
+        self.assertEqual(session['handoff']['status'], 'AWAITING_APPROVAL')
+        self.click('app_workflow_discard')
+        self.assertNotIn('offline_application_workflow', self.app.session_state)
+        self.assertEqual(model.calls, calls)
+        self.assertEqual(model.request_budget.snapshot(), budget)
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+        self.assertEqual(len(self.app.get('download_button')), 0)
+        self.app.run()
+        self.assertFalse(self.app.exception)
+        self.assertFalse(self.app.error)
+        self.assertNotIn('offline_application_workflow', self.app.session_state)
+        self.assertFalse(any(button.key in ('app_workflow_approve', 'app_workflow_reject')
+                             for button in self.app.button))
+        self.assertEqual(model.calls, calls)
+        self.assertEqual(model.request_budget.snapshot(), budget)
+
     def test_initial_rejection_remains_read_only_across_reruns(self):
         self.click('app_workflow_start')
         self.click('app_workflow_reject')
