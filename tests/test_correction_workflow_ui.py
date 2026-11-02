@@ -135,6 +135,26 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertNotIn('offline_application_workflow', self.app.session_state)
         self.assertFalse(any(button.key == 'app_workflow_approve' for button in self.app.button))
 
+    def test_initial_rejection_remains_read_only_across_reruns(self):
+        self.click('app_workflow_start')
+        self.click('app_workflow_reject')
+        session = self.app.session_state['offline_application_workflow']
+        self.assertEqual(session['result']['financial'], {})
+        self.assertFalse(session['result']['evaluation']['final_eligible'])
+        calls = session['model'].calls
+        budget = session['model'].request_budget.snapshot()
+        for _ in range(3):
+            self.app.run()
+            self.assertFalse(self.app.exception)
+            self.assertFalse(self.app.error)
+            self.assertFalse(any(button.key in ('app_workflow_approve', 'app_workflow_reject')
+                                 for button in self.app.button))
+            self.assertEqual(session['model'].calls, calls)
+            self.assertEqual(session['model'].request_budget.snapshot(), budget)
+            self.assertEqual(session['result']['financial'], {})
+            self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+            self.assertEqual(len(self.app.get('download_button')), 0)
+
     def test_declined_initial_request_ends_without_financial_submission(self):
         self.click('app_workflow_start')
         self.click('app_workflow_reject')
