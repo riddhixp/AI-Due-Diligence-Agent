@@ -518,6 +518,28 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertEqual(budget.snapshot()['reserved'], 7)
         self.assertTrue(any('Scripted requests used: 7 of 12' in item.value for item in self.app.caption))
 
+    def test_request_limit_failure_stays_read_only_across_reruns(self):
+        self.app.selectbox(key='app_workflow_scenario').select('Stop at the request limit').run()
+        self.click('app_workflow_start')
+        self.click('app_workflow_approve')
+        self.app.button(key='app_workflow_approve').click().run()
+        self.assertFalse(self.app.exception)
+        session = self.app.session_state['offline_application_workflow']
+        old_calls = session['model'].calls
+        old_budget = session['model'].request_budget.snapshot()
+        self.assertEqual(session['handoff']['status'], 'FAILED')
+        self.assertEqual(session['handoff']['failure_checkpoint']['financial_data']['revenue_current'], 120)
+        for _ in range(3):
+            self.app.run()
+            self.assertFalse(self.app.exception)
+            self.assertFalse(any(button.key in ('app_workflow_approve', 'app_workflow_reject')
+                                 for button in self.app.button))
+            self.assertEqual(session['model'].calls, old_calls)
+            self.assertEqual(session['model'].request_budget.snapshot(), old_budget)
+            self.assertNotIn('result', session)
+            self.assertEqual(len(self.app.get('download_button')), 0)
+            self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
     def test_request_limit_practice_retains_unreviewed_progress_and_can_restart(self):
         self.app.selectbox(key='app_workflow_scenario').select('Stop at the request limit').run()
         self.click('app_workflow_start')
