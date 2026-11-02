@@ -97,6 +97,28 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
         self.assertEqual(len(self.app.get('download_button')), 0)
 
+    def test_rejected_correction_can_restart_without_inheriting_rejection(self):
+        self.click('app_workflow_start')
+        self.click('app_workflow_approve')
+        self.click('app_workflow_reject')
+        rejected = self.app.session_state['offline_application_workflow']
+        self.assertFalse(rejected['result']['evaluation']['final_eligible'])
+        self.assertEqual(rejected['result']['financial']['revenue_current'], 130)
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
+        self.click('app_workflow_start')
+        fresh = self.app.session_state['offline_application_workflow']
+        self.assertIsNot(fresh, rejected)
+        self.assertNotIn('result', fresh)
+        self.assertEqual(fresh['handoff']['status'], 'AWAITING_APPROVAL')
+        self.assertEqual(fresh['handoff']['checkpoint']['submission_count'], 0)
+        self.click('app_workflow_approve')
+        self.click('app_workflow_approve')
+        self.assertTrue(fresh['result']['evaluation']['final_eligible'])
+        self.assertEqual(fresh['result']['financial']['revenue_current'], 120)
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+        self.assertEqual(len(self.app.get('download_button')), 0)
+
     def test_reject_correction_keeps_failed_source_review_visible(self):
         self.click('app_workflow_start')
         self.click('app_workflow_approve')
