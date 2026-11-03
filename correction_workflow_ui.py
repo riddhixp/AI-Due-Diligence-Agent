@@ -226,8 +226,16 @@ def render_correction_workflow(st, pdf_bytes):
                     return  # Do not restore a stale fingerprint after a failed handoff.
         session['displayed_request_sha256'] = preview['request_sha256']
     else:
-        st.error(session.get('workflow_error',
-                            'This rehearsal cannot be resumed again. Start a new rehearsal to continue.'))
+        # Session state is not a trusted source for user-visible exception text.
+        # Only the application's known, sanitized failure messages may be shown.
+        safe_failure_messages = (
+            'Request allowance exhausted. Progress is retained for inspection; '
+            'the latest figures may be unreviewed. Start a new rehearsal to continue.',
+            'Offline continuation failed. Start a new rehearsal to continue.',
+        )
+        failure_message = session.get('workflow_error')
+        st.error(failure_message if failure_message in safe_failure_messages
+                 else 'This rehearsal cannot be resumed again. Start a new rehearsal to continue.')
         progress = handoff.get('failure_checkpoint')
         if progress is not None:
             if (not isinstance(progress, dict)
