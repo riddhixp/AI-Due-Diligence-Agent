@@ -396,6 +396,43 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         st.error.assert_called()
         st.download_button.assert_not_called()
 
+    def test_failed_workflow_does_not_display_untrusted_stored_error(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'FAILED'},
+            'model': object(),
+            'workflow_error': 'internal customer financial statement and secret token',
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'This rehearsal cannot be resumed again. Start a new rehearsal to continue.')
+        self.assertNotIn('internal customer financial statement',
+                         str(st.error.call_args_list))
+        st.download_button.assert_not_called()
+
+    def test_failed_workflow_retains_safe_request_limit_message(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        safe = ('Request allowance exhausted. Progress is retained for inspection; '
+                'the latest figures may be unreviewed. Start a new rehearsal to continue.')
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'FAILED'},
+            'model': object(),
+            'workflow_error': safe,
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(safe)
+        st.download_button.assert_not_called()
+
     def test_failed_workflow_does_not_offer_approval_controls(self):
         from unittest.mock import MagicMock
         st = MagicMock()
