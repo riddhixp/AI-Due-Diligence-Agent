@@ -433,6 +433,52 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         st.error.assert_any_call(safe)
         st.download_button.assert_not_called()
 
+    def test_citation_preview_rejects_invalid_types_before_approval(self):
+        from unittest.mock import MagicMock
+        for invalid in ('2', True, 0, 1.5, None):
+            with self.subTest(citation=invalid):
+                st = MagicMock()
+                session = {
+                    'document_sha256': 'document-a',
+                    'handoff': {'status': 'AWAITING_APPROVAL',
+                                'checkpoint': {'submission_count': 0},
+                                'sdk_state': object()},
+                    'model': object(),
+                    'displayed_request_sha256': 'old-request',
+                }
+                st.session_state = {SESSION_KEY: session}
+                st.button.return_value = False
+                preview = {
+                    'metadata': {},
+                    'metrics': [{'PDF pages': [invalid],
+                                 'Previous PDF pages': []}],
+                    'request_sha256': 'request-a',
+                }
+                with patch('correction_workflow_ui.document_fingerprint',
+                           return_value='document-a'), \
+                     patch('correction_workflow_ui.financial_approval_preview',
+                           return_value=preview), \
+                     patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                           return_value=['page one', 'page two']), \
+                     patch('correction_workflow_ui.decide_and_resume_offline') as resume, \
+                     patch('correction_workflow_ui.render_proposed_financial_review') as review:
+                    render_correction_workflow(st, b'%PDF-synthetic')
+                self.assertNotIn('displayed_request_sha256', session)
+                st.error.assert_any_call(
+                    'Financial approval citations are invalid. Discard and restart the free rehearsal.')
+                resume.assert_not_called()
+                review.assert_not_called()
+                self.assertFalse(any(c.kwargs.get('key') in (
+                    'app_workflow_approve', 'app_workflow_reject')
+                    for c in st.button.call_args_list))
+
+    def test_valid_citation_list_is_deduplicated_and_sorted(self):
+        from correction_workflow_ui import _validated_cited_pages
+        self.assertEqual(_validated_cited_pages([
+            {'PDF pages': [2, 1, 2], 'Previous PDF pages': [2]},
+            {'PDF pages': [], 'Previous PDF pages': [1, 3]},
+        ]), [1, 2, 3])
+
     def test_failed_workflow_does_not_offer_approval_controls(self):
         from unittest.mock import MagicMock
         st = MagicMock()
