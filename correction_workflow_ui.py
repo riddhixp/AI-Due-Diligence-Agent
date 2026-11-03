@@ -169,8 +169,13 @@ def render_correction_workflow(st, pdf_bytes):
             st.error('PDF evidence could not be read. Discard this rehearsal or retry displaying the preview.')
             _render_discard(st)
             return
-        cited_pages = sorted({page for row in preview['metrics']
-                              for page in row['PDF pages'] + row['Previous PDF pages']})
+        try:
+            cited_pages = _validated_cited_pages(preview['metrics'])
+        except (TypeError, ValueError, KeyError):
+            session.pop('displayed_request_sha256', None)
+            st.error('Financial approval citations are invalid. Discard and restart the free rehearsal.')
+            _render_discard(st)
+            return
         with st.expander('Source evidence for pending figures'):
             st.caption('Compare the proposed amounts, row labels and fiscal-year columns '
                        'with the proposed and previous PDF citations. Percentages cite their input '
@@ -259,3 +264,26 @@ def _render_discard(st):
     if st.button('Discard FREE application workflow', key='app_workflow_discard'):
         st.session_state.pop(SESSION_KEY, None)
         st.rerun()
+
+
+def _validated_cited_pages(metrics):
+    """Only allow integer PDF citations from well-formed preview rows.
+
+    An unavailable (out-of-range) positive page can still be shown as a warning.
+    Unknown types must never reach sorting, display or financial approval.
+    """
+    if not isinstance(metrics, list):
+        raise ValueError('INVALID_PREVIEW_METRICS')
+    pages = set()
+    for row in metrics:
+        if not isinstance(row, dict):
+            raise ValueError('INVALID_PREVIEW_ROW')
+        for field in ('PDF pages', 'Previous PDF pages'):
+            citations = row.get(field)
+            if not isinstance(citations, list):
+                raise ValueError('INVALID_PREVIEW_CITATIONS')
+            for page in citations:
+                if type(page) is not int or page < 1:
+                    raise ValueError('INVALID_PREVIEW_CITATION_PAGE')
+                pages.add(page)
+    return sorted(pages)
