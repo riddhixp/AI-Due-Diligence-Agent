@@ -156,6 +156,13 @@ def render_correction_workflow(st, pdf_bytes):
             st.error('Financial approval preview could not be displayed. Discard and restart the free rehearsal.')
             _render_discard(st)
             return
+        try:
+            cited_pages = _validated_cited_pages(preview['metrics'])
+        except (TypeError, ValueError, KeyError):
+            session.pop('displayed_request_sha256', None)
+            st.error('Financial approval citations are invalid. Discard and restart the free rehearsal.')
+            _render_discard(st)
+            return
         shown_fingerprint = session.get('displayed_request_sha256')
         st.warning('Financial submission awaiting your decision. Compare the proposed figures with the PDF.')
         st.write('Submission:', preview['metadata'])
@@ -167,13 +174,6 @@ def render_correction_workflow(st, pdf_bytes):
         except Exception:
             session.pop('displayed_request_sha256', None)
             st.error('PDF evidence could not be read. Discard this rehearsal or retry displaying the preview.')
-            _render_discard(st)
-            return
-        try:
-            cited_pages = _validated_cited_pages(preview['metrics'])
-        except (TypeError, ValueError, KeyError):
-            session.pop('displayed_request_sha256', None)
-            st.error('Financial approval citations are invalid. Discard and restart the free rehearsal.')
             _render_discard(st)
             return
         with st.expander('Source evidence for pending figures'):
