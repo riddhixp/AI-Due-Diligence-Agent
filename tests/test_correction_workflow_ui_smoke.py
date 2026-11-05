@@ -479,6 +479,26 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
             {'PDF pages': [], 'Previous PDF pages': [1, 3]},
         ]), [1, 2, 3])
 
+    def test_oversized_citation_preview_is_rejected(self):
+        from correction_workflow_ui import _validated_cited_pages
+        for metrics in (
+            [{'PDF pages': [], 'Previous PDF pages': []}] * 101,
+            [{'PDF pages': list(range(1, 130)), 'Previous PDF pages': []}],
+            [{'PDF pages': list(range(1, 129)),
+              'Previous PDF pages': [129]}],
+        ):
+            with self.subTest(count=len(metrics)):
+                with self.assertRaises(ValueError):
+                    _validated_cited_pages(metrics)
+
+    def test_duplicate_citations_under_limit_remain_valid(self):
+        from correction_workflow_ui import _validated_cited_pages
+        citations = [2] * 128
+        self.assertEqual(
+            _validated_cited_pages([{'PDF pages': citations,
+                                     'Previous PDF pages': [1]}]),
+            [1, 2])
+
     def test_failed_workflow_does_not_offer_approval_controls(self):
         from unittest.mock import MagicMock
         st = MagicMock()
