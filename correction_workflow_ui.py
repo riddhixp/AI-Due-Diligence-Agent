@@ -272,7 +272,9 @@ def _validated_cited_pages(metrics):
     An unavailable (out-of-range) positive page can still be shown as a warning.
     Unknown types must never reach sorting, display or financial approval.
     """
-    if not isinstance(metrics, list):
+    # The rehearsal has only a small number of metrics. Reject malformed or
+    # oversized saved previews rather than rendering unbounded evidence text.
+    if not isinstance(metrics, list) or len(metrics) > 100:
         raise ValueError('INVALID_PREVIEW_METRICS')
     pages = set()
     for row in metrics:
@@ -280,10 +282,12 @@ def _validated_cited_pages(metrics):
             raise ValueError('INVALID_PREVIEW_ROW')
         for field in ('PDF pages', 'Previous PDF pages'):
             citations = row.get(field)
-            if not isinstance(citations, list):
+            if not isinstance(citations, list) or len(citations) > 128:
                 raise ValueError('INVALID_PREVIEW_CITATIONS')
             for page in citations:
                 if type(page) is not int or page < 1:
                     raise ValueError('INVALID_PREVIEW_CITATION_PAGE')
                 pages.add(page)
+                if len(pages) > 128:
+                    raise ValueError('TOO_MANY_PREVIEW_CITATIONS')
     return sorted(pages)
