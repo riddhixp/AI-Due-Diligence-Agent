@@ -468,6 +468,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                     'Financial approval citations are invalid. Discard and restart the free rehearsal.')
                 resume.assert_not_called()
                 review.assert_not_called()
+                st.dataframe.assert_not_called()
                 self.assertFalse(any(c.kwargs.get('key') in (
                     'app_workflow_approve', 'app_workflow_reject')
                     for c in st.button.call_args_list))
