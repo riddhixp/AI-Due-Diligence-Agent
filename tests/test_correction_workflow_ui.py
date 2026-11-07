@@ -318,6 +318,31 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertTrue(any('ended with incomplete checks' in item.value for item in self.app.warning))
         self.assertEqual(len(self.app.get('download_button')), 0)
 
+    def test_corrupted_failed_progress_is_read_only_in_streamlit(self):
+        self.click('app_workflow_start')
+        session = self.app.session_state['offline_application_workflow']
+        model = session['model']
+        calls = model.calls
+        previous_budget = model.request_budget.snapshot()
+        session['handoff']['status'] = 'FAILED'
+        session['handoff']['failure_checkpoint'] = {
+            'submission_count': 1,
+            'review_status': None,
+            'financial_data': {'revenue_current': float('nan')},
+        }
+        self.app.run()
+        self.assertFalse(self.app.exception)
+        self.assertTrue(any('Saved failure progress is incomplete' in item.value
+                            for item in self.app.warning))
+        self.assertFalse(any(element.value == 'Last accepted synthetic revenue:'
+                             for element in self.app.get('text')))
+        self.assertFalse(any(button.key in ('app_workflow_approve', 'app_workflow_reject')
+                             for button in self.app.button))
+        self.assertEqual(len(self.app.get('download_button')), 0)
+        self.assertEqual(model.calls, calls)
+        self.assertEqual(model.request_budget.snapshot(), previous_budget)
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
     def test_failure_before_decision_stays_visible_without_automatic_retry(self):
         self.click('app_workflow_start')
         session = self.app.session_state['offline_application_workflow']
