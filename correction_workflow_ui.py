@@ -294,6 +294,8 @@ def _validated_cited_pages(metrics):
     for row in metrics:
         if not isinstance(row, dict):
             raise ValueError('INVALID_PREVIEW_ROW')
+        if not _valid_preview_metric_row(row):
+            raise ValueError('INVALID_PREVIEW_ROW_VALUE')
         for field in ('PDF pages', 'Previous PDF pages'):
             citations = row.get(field)
             if not isinstance(citations, list) or len(citations) > 128:
@@ -328,3 +330,25 @@ def _valid_approval_fingerprint(value):
     """Accept only bounded, printable receipt tokens; never arbitrary session text."""
     return (isinstance(value, str) and 1 <= len(value) <= 128
             and all(char.isascii() and (char.isalnum() or char in '-_') for char in value))
+
+
+def _valid_preview_metric_row(row):
+    """Avoid sending unexpected objects or nonfinite financial values to Streamlit."""
+    allowed = {'Metric', 'Previous', 'Proposed', 'PDF page', 'PDF pages',
+               'Previous PDF pages', 'Change', 'Evidence'}
+    if not set(row).issubset(allowed):
+        return False
+    for field in ('Metric', 'Change', 'Evidence'):
+        value = row.get(field)
+        if value is not None and (not isinstance(value, str)
+                                  or len(value) > 256
+                                  or any(ord(char) < 32 or ord(char) == 127
+                                         for char in value)):
+            return False
+    for field in ('Previous', 'Proposed'):
+        value = row.get(field)
+        if value is not None and (type(value) not in (int, float)
+                                  or not math.isfinite(value)):
+            return False
+    page = row.get('PDF page')
+    return page is None or (type(page) is int and page >= 1)
