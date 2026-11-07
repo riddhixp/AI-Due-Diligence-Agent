@@ -95,12 +95,6 @@ def render_correction_workflow(st, pdf_bytes):
     handoff = session['handoff']
     result = session.get('result')
     if result is not None:
-        st.info('Rehearsal finished. Review the scripted outcome below; it is not a final report.')
-    elif handoff['status'] == 'AWAITING_APPROVAL':
-        st.info('Reviewer action needed: compare proposed figures against their cited PDF pages.')
-    else:
-        st.info('Rehearsal stopped. Inspect read-only progress or start a new free rehearsal.')
-    if result is not None:
         if (handoff.get('status') not in ('COMPLETED_OFFLINE', 'COMPLETED')
                 or not isinstance(result, dict)
                 or result.get('status') != 'COMPLETED_OFFLINE'
@@ -140,6 +134,7 @@ def render_correction_workflow(st, pdf_bytes):
             st.error('The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
             _render_discard(st)
             return
+        st.info('Rehearsal finished. Review the scripted outcome below; it is not a final report.')
         if result['evaluation'].get('final_eligible') is True:
             st.success('Offline workflow completed its scripted checks. External API calls: 0.')
         else:
@@ -179,6 +174,7 @@ def render_correction_workflow(st, pdf_bytes):
             st.error('Financial approval preview data is invalid. Discard and restart the free rehearsal.')
             _render_discard(st)
             return
+        st.info('Reviewer action needed: compare proposed figures against their cited PDF pages.')
         shown_fingerprint = session.get('displayed_request_sha256')
         if (shown_fingerprint is not None
                 and not _valid_approval_fingerprint(shown_fingerprint)):
@@ -251,6 +247,7 @@ def render_correction_workflow(st, pdf_bytes):
                     return  # Do not restore a stale fingerprint after a failed handoff.
         session['displayed_request_sha256'] = preview['request_sha256']
     else:
+        st.info('Rehearsal stopped. Inspect read-only progress or start a new free rehearsal.')
         # Session state is not a trusted source for user-visible exception text.
         # Only the application's known, sanitized failure messages may be shown.
         safe_failure_messages = (
