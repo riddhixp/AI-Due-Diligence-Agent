@@ -157,10 +157,18 @@ def render_correction_workflow(st, pdf_bytes):
             _render_discard(st)
             return
         try:
+            if (not isinstance(preview, dict)
+                    or not isinstance(preview.get('request_sha256'), str)
+                    or not preview['request_sha256']
+                    or len(preview['request_sha256']) > 128
+                    or not isinstance(preview.get('metadata'), dict)
+                    or (handoff['checkpoint']['submission_count']
+                        and not isinstance(preview.get('previous_metadata'), dict))):
+                raise ValueError('INVALID_APPROVAL_PREVIEW')
             cited_pages = _validated_cited_pages(preview['metrics'])
         except (TypeError, ValueError, KeyError):
             session.pop('displayed_request_sha256', None)
-            st.error('Financial approval citations are invalid. Discard and restart the free rehearsal.')
+            st.error('Financial approval preview data is invalid. Discard and restart the free rehearsal.')
             _render_discard(st)
             return
         shown_fingerprint = session.get('displayed_request_sha256')
