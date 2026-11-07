@@ -759,6 +759,65 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                              for c in st.info.call_args_list))
         st.download_button.assert_not_called()
 
+    def test_unreadable_evidence_does_not_claim_reviewer_ready(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        session = {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'AWAITING_APPROVAL',
+                        'checkpoint': {'submission_count': 0}, 'sdk_state': object()},
+            'model': object(),
+            'displayed_request_sha256': 'request-a',
+        }
+        st.session_state = {SESSION_KEY: session}
+        st.button.return_value = False
+        preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview',
+                   return_value=preview), \
+             patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                   side_effect=ValueError('private PDF content')), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'PDF evidence could not be read. Discard this rehearsal or retry displaying the preview.')
+        self.assertFalse(any('Reviewer action needed' in str(c)
+                             for c in st.info.call_args_list))
+        self.assertNotIn('displayed_request_sha256', session)
+        resume.assert_not_called()
+        self.assertFalse(any(c.kwargs.get('key') in
+                             ('app_workflow_approve', 'app_workflow_reject')
+                             for c in st.button.call_args_list))
+
+    def test_valid_evidence_announces_reviewer_ready(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'AWAITING_APPROVAL',
+                        'checkpoint': {'submission_count': 0}, 'sdk_state': object()},
+            'model': object(),
+        }}
+        st.button.return_value = False
+        yes, no = MagicMock(), MagicMock()
+        yes.button.return_value = False
+        no.button.return_value = False
+        st.columns.return_value = (yes, no)
+        preview = {'metadata': {}, 'metrics': [], 'request_sha256': 'request-a'}
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview',
+                   return_value=preview), \
+             patch('correction_workflow_ui.read_synthetic_conflict_pages',
+                   return_value=['first page', 'second page']), \
+             patch('correction_workflow_ui.render_proposed_financial_review'), \
+             patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.info.assert_any_call(
+            'Reviewer action needed: compare proposed figures against their cited PDF pages.')
+        resume.assert_not_called()
+
     def test_stopped_rehearsal_explains_next_step(self):
         from unittest.mock import MagicMock
         st = MagicMock()
