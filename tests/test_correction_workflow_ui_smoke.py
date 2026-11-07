@@ -902,6 +902,22 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                                      ('app_workflow_approve', 'app_workflow_reject')
                                      for c in st.button.call_args_list))
 
+    def test_approval_step_message_does_not_conflate_acceptance_with_review(self):
+        from correction_workflow_ui import _approval_step_summary
+        first = _approval_step_summary(0)
+        self.assertIn('Approval step 1', first)
+        self.assertIn('no financial submission has been accepted', first)
+        second = _approval_step_summary(1)
+        self.assertIn('Approval step 2', second)
+        self.assertIn('Acceptance does not mean', second)
+        third = _approval_step_summary(2)
+        self.assertIn('Approval step 3', third)
+        self.assertIn('2 earlier financial submission(s)', third)
+        for bad_count in (None, -1, True, '1', 1.5):
+            with self.subTest(bad_count=bad_count):
+                with self.assertRaises(ValueError):
+                    _approval_step_summary(bad_count)
+
     def test_valid_evidence_announces_reviewer_ready(self):
         from unittest.mock import MagicMock
         st = MagicMock()
