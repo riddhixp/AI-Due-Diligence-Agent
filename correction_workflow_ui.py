@@ -95,6 +95,12 @@ def render_correction_workflow(st, pdf_bytes):
     handoff = session['handoff']
     result = session.get('result')
     if result is not None:
+        st.info('Rehearsal finished. Review the scripted outcome below; it is not a final report.')
+    elif handoff['status'] == 'AWAITING_APPROVAL':
+        st.info('Reviewer action needed: compare proposed figures against their cited PDF pages.')
+    else:
+        st.info('Rehearsal stopped. Inspect read-only progress or start a new free rehearsal.')
+    if result is not None:
         if (handoff.get('status') not in ('COMPLETED_OFFLINE', 'COMPLETED')
                 or not isinstance(result, dict)
                 or result.get('status') != 'COMPLETED_OFFLINE'
