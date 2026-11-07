@@ -75,9 +75,9 @@ class OfflineDemoPreflightTests(unittest.TestCase):
             path = Path(folder) / "demo-check.json"
             with patch("offline_demo_preflight.check_demo_fixture",
                        return_value={"status": "PASS", "model_calls": 0,
-                                     "manual_streamlit_acceptance": "NOT_RUN"}), \\
+                                     "manual_streamlit_acceptance": "NOT_RUN"}), \
                  patch("offline_demo_preflight.check_demo_workflow",
-                       return_value={"status": "PASS", "external_api_calls": 0}), \\
+                       return_value={"status": "PASS", "external_api_calls": 0}), \
                  contextlib.redirect_stdout(io.StringIO()) as output:
                 self.assertEqual(main(["--workflow", "--output", str(path)]), 0)
             saved = json.loads(path.read_text(encoding="utf-8"))
@@ -98,7 +98,7 @@ class OfflineDemoPreflightTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "should-not-exist.json"
             with patch("offline_demo_preflight.check_demo_fixture",
-                       side_effect=ValueError("private extracted text")), \\
+                       side_effect=ValueError("private extracted text")), \
                  contextlib.redirect_stdout(io.StringIO()) as output:
                 self.assertEqual(main(["--output", str(path)]), 1)
             self.assertFalse(path.exists())
