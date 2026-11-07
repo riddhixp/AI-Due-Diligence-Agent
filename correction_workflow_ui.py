@@ -257,12 +257,7 @@ def render_correction_workflow(st, pdf_bytes):
                  else 'This rehearsal cannot be resumed again. Start a new rehearsal to continue.')
         progress = handoff.get('failure_checkpoint')
         if progress is not None:
-            if (not isinstance(progress, dict)
-                    or type(progress.get('submission_count')) is not int
-                    or progress['submission_count'] < 0
-                    or not isinstance(progress.get('financial_data'), dict)
-                    or (progress.get('review_status') is not None
-                        and not isinstance(progress['review_status'], str))):
+            if not _valid_failure_progress(progress):
                 st.warning('Saved failure progress is incomplete. Discard this rehearsal to reset it.')
             else:
                 st.write('Accepted submissions before failure:', progress['submission_count'])
@@ -352,3 +347,26 @@ def _valid_preview_metric_row(row):
             return False
     page = row.get('PDF page')
     return page is None or (type(page) is int and page >= 1)
+
+
+def _valid_failure_progress(progress):
+    """Check saved failure-state figures before showing them in the read-only UI."""
+    if not isinstance(progress, dict):
+        return False
+    count = progress.get('submission_count')
+    data = progress.get('financial_data')
+    status = progress.get('review_status')
+    if type(count) is not int or not 0 <= count <= 10000:
+        return False
+    if not isinstance(data, dict):
+        return False
+    revenue = data.get('revenue_current')
+    if revenue is not None and (type(revenue) not in (int, float)
+                                or not math.isfinite(revenue) or revenue < 0):
+        return False
+    if status is not None and (not isinstance(status, str)
+                               or len(status) > 128
+                               or any(ord(char) < 32 or ord(char) == 127
+                                      for char in status)):
+        return False
+    return True
