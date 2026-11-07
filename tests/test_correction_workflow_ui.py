@@ -334,8 +334,8 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         self.assertFalse(self.app.exception)
         self.assertTrue(any('Saved failure progress is incomplete' in item.value
                             for item in self.app.warning))
-        self.assertFalse(any(element.value == 'Last accepted synthetic revenue:'
-                             for element in self.app.get('text')))
+        self.assertFalse(any('Last accepted synthetic revenue:' in str(item.value)
+                             for item in self.app.get('markdown')))
         self.assertFalse(any(button.key in ('app_workflow_approve', 'app_workflow_reject')
                              for button in self.app.button))
         self.assertEqual(len(self.app.get('download_button')), 0)
