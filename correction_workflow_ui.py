@@ -186,6 +186,8 @@ def render_correction_workflow(st, pdf_bytes):
         st.dataframe(preview['metrics'], hide_index=True)
         try:
             pages = read_synthetic_conflict_pages(pdf_bytes)
+            if not _valid_offline_evidence_pages(pages):
+                raise ValueError('INVALID_OFFLINE_EVIDENCE_PAGES')
         except Exception:
             session.pop('displayed_request_sha256', None)
             st.error('PDF evidence could not be read. Discard this rehearsal or retry displaying the preview.')
@@ -376,3 +378,11 @@ def _valid_failure_progress(progress):
                                       for char in status)):
         return False
     return True
+
+
+def _valid_offline_evidence_pages(pages):
+    """Restrict offline evidence display to readable, bounded PDF page text."""
+    return (isinstance(pages, (list, tuple))
+            and 1 <= len(pages) <= 100
+            and all(type(page) is str and 0 < len(page.strip()) <= 100000
+                    and len(page) <= 100000 for page in pages))
