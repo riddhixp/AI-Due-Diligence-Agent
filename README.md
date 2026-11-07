@@ -88,6 +88,41 @@ The prototype was exercised with two FY2025 public-company annual reports. The f
 
 These checks establish behavior on the selected examples, **not universal accuracy** across companies or filings.
 
+## Free, zero-credit portfolio demo
+
+The safest way to explore the agent's human-review controls is the **scripted,
+offline** rehearsal. It uses synthetic financial statements and makes **no
+OpenAI model API calls**. You do not need an API key or a paid subscription.
+
+On macOS, from the project folder:
+
+```bash
+git fetch origin
+git switch feature/controlled-financial-corrections
+git pull --ff-only origin feature/controlled-financial-corrections
+source .venv/bin/activate
+python -m offline_demo_preflight --workflow
+python scripts/create_conflict_test_fixture.py
+python -m streamlit run app.py
+```
+
+Upload `synthetic_conflict_test.pdf`, then open **FREE application correction
+workflow**, select **Standard correction**, and press **Start FREE application
+workflow**. The initial proposal shows misleading revenue of USD 130 million;
+the authoritative figure on page 2 is USD 120 million. You can review the
+evidence, approve the first scripted submission to trigger correction, and
+approve or reject the correction. Restart to explore recovery, removal of an
+unsupported metric, or the request-limit stop.
+
+**Do not select "Analyse Company" for this zero-credit walkthrough.** It is
+a separate workflow that can invoke paid API calls. The rehearsal is labelled
+as simulated and cannot create a verified final investment report. Automated
+Streamlit tests do not replace a human browser walkthrough.
+
+For the detailed five-minute script, acceptance checklist, and troubleshooting
+instructions, see [OFFLINE_DEMO.md](OFFLINE_DEMO.md). Current development gates
+and remaining work are in [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md).
+
 ## Running locally
 
 ### Prerequisites
