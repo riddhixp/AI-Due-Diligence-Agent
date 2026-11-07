@@ -508,6 +508,65 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                     'app_workflow_approve', 'app_workflow_reject')
                     for c in st.button.call_args_list))
 
+    def test_invalid_pending_checkpoint_blocks_approval_before_rendering(self):
+        from unittest.mock import MagicMock
+        for checkpoint in (None, {}, {'submission_count': True},
+                           {'submission_count': -1}, {'submission_count': '1'}):
+            with self.subTest(checkpoint=checkpoint):
+                st = MagicMock()
+                session = {'document_sha256': 'document-a',
+                           'handoff': {'status': 'AWAITING_APPROVAL',
+                                       'checkpoint': checkpoint,
+                                       'sdk_state': object()},
+                           'model': object(),
+                           'displayed_request_sha256': 'old-request'}
+                st.session_state = {SESSION_KEY: session}
+                st.button.return_value = False
+                with patch('correction_workflow_ui.document_fingerprint',
+                           return_value='document-a'), \
+                     patch('correction_workflow_ui.financial_approval_preview',
+                           return_value={'metadata': {}, 'metrics': [],
+                                         'request_sha256': 'request-a'}), \
+                     patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+                    render_correction_workflow(st, b'%PDF-synthetic')
+                st.error.assert_any_call(
+                    'Financial approval preview data is invalid. Discard and restart the free rehearsal.')
+                self.assertNotIn('displayed_request_sha256', session)
+                st.dataframe.assert_not_called()
+                resume.assert_not_called()
+
+    def test_invalid_preview_metadata_is_not_displayed(self):
+        from unittest.mock import MagicMock
+        invalid_metadata = (
+            {'company': ['private company']},
+            {'company': 'private\\nmetadata'},
+            {'company': 'x' * 257},
+            {'company': True},
+            {'company': object()},
+        )
+        for metadata in invalid_metadata:
+            with self.subTest(metadata=repr(metadata)):
+                st = MagicMock()
+                st.session_state = {SESSION_KEY: {
+                    'document_sha256': 'document-a',
+                    'handoff': {'status': 'AWAITING_APPROVAL',
+                                'checkpoint': {'submission_count': 0},
+                                'sdk_state': object()},
+                    'model': object(),
+                }}
+                st.button.return_value = False
+                with patch('correction_workflow_ui.document_fingerprint',
+                           return_value='document-a'), \
+                     patch('correction_workflow_ui.financial_approval_preview',
+                           return_value={'metadata': metadata, 'metrics': [],
+                                         'request_sha256': 'request-a'}), \
+                     patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+                    render_correction_workflow(st, b'%PDF-synthetic')
+                st.error.assert_any_call(
+                    'Financial approval preview data is invalid. Discard and restart the free rehearsal.')
+                st.dataframe.assert_not_called()
+                resume.assert_not_called()
+
     def test_valid_citation_list_is_deduplicated_and_sorted(self):
         from correction_workflow_ui import _validated_cited_pages
         self.assertEqual(_validated_cited_pages([
