@@ -720,6 +720,45 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                                      'Previous PDF pages': [1]}]),
             [1, 2])
 
+    def test_invalid_result_does_not_claim_rehearsal_finished(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'},
+            'model': object(),
+            'result': {'evaluation': {'final_eligible': True}, 'financial': {}},
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        self.assertFalse(any('Rehearsal finished' in str(c)
+                             for c in st.info.call_args_list))
+        st.success.assert_not_called()
+        st.download_button.assert_not_called()
+
+    def test_invalid_preview_does_not_announce_reviewer_ready(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'AWAITING_APPROVAL',
+                        'checkpoint': {'submission_count': 0}, 'sdk_state': object()},
+            'model': object(),
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'), \
+             patch('correction_workflow_ui.financial_approval_preview',
+                   side_effect=ValueError('INVALID_FINANCIAL_ARGUMENTS')):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        self.assertFalse(any('Reviewer action needed' in str(c)
+                             for c in st.info.call_args_list))
+        st.download_button.assert_not_called()
+
     def test_stopped_rehearsal_explains_next_step(self):
         from unittest.mock import MagicMock
         st = MagicMock()
