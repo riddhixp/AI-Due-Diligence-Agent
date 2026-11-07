@@ -1,5 +1,6 @@
 
 from dataclasses import dataclass
+from financial_numbers import finite_number, finite_difference, finite_percentage
 
 
 @dataclass
@@ -15,15 +16,13 @@ class FinancialData:
 
 
 def percentage(numerator, denominator):
-    if denominator == 0:
-        raise ValueError("Denominator cannot be zero")
-    return round(numerator / denominator * 100, 2)
+    return finite_percentage(numerator, denominator)
 
 
 def validate_financials(data, reported_metrics):
     calculated = {
         "revenue_growth": percentage(
-            data.revenue_current - data.revenue_previous,
+            finite_difference(data.revenue_current, data.revenue_previous),
             data.revenue_previous,
         ),
         "gross_margin": percentage(
@@ -41,18 +40,27 @@ def validate_financials(data, reported_metrics):
     for metric, actual in calculated.items():
         reported = reported_metrics.get(metric)
 
-        if reported is None:
+        reason = None
+        if actual is None:
+            status = "UNAVAILABLE"
+            reason = "Calculation requires finite inputs and a positive revenue denominator."
+        elif reported is None:
             status = "MISSING"
+        elif not finite_number(reported):
+            status = "INVALID"
+            reason = "Reported percentage must be a finite number."
         elif abs(actual - reported) <= 0.05:
             status = "PASS"
         else:
             status = "FAIL"
 
         results[metric] = {
-            "reported": reported,
+            "reported": reported if finite_number(reported) else None,
             "calculated": actual,
             "status": status,
         }
+        if reason:
+            results[metric]["reason"] = reason
 
     return results
 

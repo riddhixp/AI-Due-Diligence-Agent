@@ -218,7 +218,8 @@ def check_report_quality(report):
     source_pattern = re.compile(
         r"(?i)\b(?:pdf\s*p(?:ages?|\.)?\s*\.?\s*\d+|"
         r"pdf\s*pp\.\s*\d+|"
-        r"source\s*:\s*page\s*\d+)\b"
+        r"source\s*:\s*page\s*\d+|"
+        r"(?:\bpage\s+\d+\b))"
     )
 
     numeric_claim_pattern = re.compile(
