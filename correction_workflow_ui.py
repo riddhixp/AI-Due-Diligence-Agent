@@ -162,9 +162,7 @@ def render_correction_workflow(st, pdf_bytes):
                     or type(checkpoint.get('submission_count')) is not int
                     or checkpoint['submission_count'] < 0
                     or not isinstance(preview, dict)
-                    or not isinstance(preview.get('request_sha256'), str)
-                    or not preview['request_sha256'].strip()
-                    or len(preview['request_sha256']) > 128
+                    or not _valid_approval_fingerprint(preview.get('request_sha256'))
                     or not _valid_preview_metadata(preview.get('metadata'))
                     or (checkpoint['submission_count'] > 0
                         and not _valid_preview_metadata(preview.get('previous_metadata')))):
@@ -176,6 +174,10 @@ def render_correction_workflow(st, pdf_bytes):
             _render_discard(st)
             return
         shown_fingerprint = session.get('displayed_request_sha256')
+        if (shown_fingerprint is not None
+                and not _valid_approval_fingerprint(shown_fingerprint)):
+            session.pop('displayed_request_sha256', None)
+            shown_fingerprint = None  # An invalid receipt cannot authorize a click.
         st.warning('Financial submission awaiting your decision. Compare the proposed figures with the PDF.')
         st.write('Submission:', preview['metadata'])
         if handoff['checkpoint']['submission_count']:
@@ -320,3 +322,9 @@ def _valid_preview_metadata(metadata):
                 or any(ord(char) < 32 or ord(char) == 127 for char in value)):
             return False
     return True
+
+
+def _valid_approval_fingerprint(value):
+    """Accept only bounded, printable receipt tokens; never arbitrary session text."""
+    return (isinstance(value, str) and 1 <= len(value) <= 128
+            and all(char in '0123456789abcdefABCDEF-_' for char in value))
