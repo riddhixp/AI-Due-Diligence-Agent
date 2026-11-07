@@ -605,6 +605,33 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.assertNotIn('result', session)
         st.download_button.assert_not_called()
 
+    def test_preview_rejects_unsafe_financial_values_before_display(self):
+        from correction_workflow_ui import _validated_cited_pages
+        invalid_rows = (
+            {'Proposed': float('nan')},
+            {'Previous': float('inf')},
+            {'Proposed': True},
+            {'Previous': {'private': 'data'}},
+            {'PDF page': 0},
+            {'PDF page': False},
+            {'Metric': 'Revenue' + chr(10) + 'secret'},
+            {'unexpected_field': 'private data'},
+        )
+        for invalid in invalid_rows:
+            with self.subTest(row=repr(invalid)):
+                row = {'PDF pages': [2], 'Previous PDF pages': []}
+                row.update(invalid)
+                with self.assertRaises(ValueError):
+                    _validated_cited_pages([row])
+
+    def test_preview_accepts_finite_proposed_and_previous_figures(self):
+        from correction_workflow_ui import _validated_cited_pages
+        row = {'Metric': 'Revenue current', 'Previous': 130,
+               'Proposed': 120.0, 'PDF page': 2,
+               'PDF pages': [2], 'Previous PDF pages': [1],
+               'Change': 'Changed', 'Evidence': 'Statement figure'}
+        self.assertEqual(_validated_cited_pages([row]), [1, 2])
+
     def test_valid_citation_list_is_deduplicated_and_sorted(self):
         from correction_workflow_ui import _validated_cited_pages
         self.assertEqual(_validated_cited_pages([
