@@ -539,7 +539,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         from unittest.mock import MagicMock
         invalid_metadata = (
             {'company': ['private company']},
-            {'company': 'private\\nmetadata'},
+            {'company': 'private' + chr(10) + 'metadata'},
             {'company': 'x' * 257},
             {'company': True},
             {'company': object()},
