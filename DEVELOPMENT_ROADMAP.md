@@ -1,3 +1,24 @@
+## Current checkpoint: Stage 3 of 5 (offline prototype)
+
+As of 7 November 2026, the branch contains a Streamlit PDF workflow,
+financial arithmetic and source-page validation, scripted SDK human approval,
+correction, rejection, source-read recovery, and failed-progress safeguards.
+GitHub Actions run #599 passed all three jobs for commit `31a0d6f`;
+subsequent commits require their own CI verification.
+
+**Verified:** deterministic synthetic-data workflows and automated Streamlit
+AppTests, offline full-engine evaluations, and network-blocked acceptance.
+A scripted rehearsal is **not** proof of autonomous financial reasoning.
+
+**Outstanding:** human click-through of the real local Streamlit browser UI,
+live autonomous-model evaluation, explicit paid-test authorization, durable
+resumption across restarts and servers, and production-grade privacy/deployment.
+Do not trigger **Analyse Company** as part of the free rehearsal.
+
+**Development boundaries:** keep PR #1 unmerged; retain the
+`feature/controlled-financial-corrections` branch; make no paid API calls.
+For a reproducible manual demo use `OFFLINE_DEMO.md`.
+
 # Remaining work toward a portfolio demonstration
 
 The PDF app, financial/source checks, approval controls and scripted SDK
