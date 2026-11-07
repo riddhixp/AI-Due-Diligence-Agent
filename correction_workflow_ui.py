@@ -361,6 +361,9 @@ def _valid_failure_progress(progress):
     if not isinstance(data, dict):
         return False
     revenue = data.get('revenue_current')
+    # A financial figure cannot be described as accepted before any submission.
+    if count == 0 and revenue is not None:
+        return False
     if revenue is not None and (type(revenue) not in (int, float)
                                 or not math.isfinite(revenue) or revenue < 0):
         return False
