@@ -420,6 +420,41 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.assertTrue(any(c.kwargs.get('key') == 'app_workflow_discard'
                             for c in st.button.call_args_list))
 
+    def test_finished_result_rejects_unsafe_evidence_status(self):
+        from correction_workflow_ui import _valid_evidence_status
+        for status in ('', '   ', 'NEEDS_REVIEW' + chr(10) + 'private',
+                       'x' * 129, 'bad' + chr(0) + 'value', ['NEEDS_REVIEW']):
+            with self.subTest(status=repr(status)):
+                self.assertFalse(_valid_evidence_status(status))
+        self.assertTrue(_valid_evidence_status('NEEDS_REVIEW'))
+        self.assertTrue(_valid_evidence_status('PRELIMINARY_CHECKS_PASSED'))
+
+    def test_corrupt_evidence_status_cannot_be_displayed_or_exported(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        session = {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'},
+            'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': False,
+                               'financial_evidence': 'NEEDS_REVIEW' + chr(10) + 'private'},
+                'financial': {'revenue_current': 120},
+            },
+        }
+        st.session_state = {SESSION_KEY: session}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        self.assertFalse(any(c.args and c.args[0] == 'Evidence check:'
+                             for c in st.write.call_args_list))
+        st.download_button.assert_not_called()
+
     def test_missing_completed_evidence_cannot_claim_success(self):
         from unittest.mock import MagicMock
         st = MagicMock()
