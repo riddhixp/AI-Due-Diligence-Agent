@@ -54,11 +54,11 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
 
     def test_approval_step_guidance_tracks_correction(self):
         self.click('app_workflow_start')
-        self.assertTrue(any('Approval step 1' in item.value for item in self.app.get('markdown')))
+        self.assertTrue(any('Approval step 1' in item.value for item in self.app.caption))
         self.click('app_workflow_approve')
-        self.assertTrue(any('Approval step 2' in item.value for item in self.app.get('markdown')))
+        self.assertTrue(any('Approval step 2' in item.value for item in self.app.caption))
         self.assertTrue(any('Acceptance does not mean' in item.value
-                            for item in self.app.get('markdown')))
+                            for item in self.app.caption))
         self.assertFalse(self.app.exception)
         self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
 
