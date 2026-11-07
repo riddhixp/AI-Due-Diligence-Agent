@@ -465,10 +465,45 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                     render_correction_workflow(st, b'%PDF-synthetic')
                 self.assertNotIn('displayed_request_sha256', session)
                 st.error.assert_any_call(
-                    'Financial approval citations are invalid. Discard and restart the free rehearsal.')
+                    'Financial approval preview data is invalid. Discard and restart the free rehearsal.')
                 resume.assert_not_called()
                 review.assert_not_called()
                 st.dataframe.assert_not_called()
+                self.assertFalse(any(c.kwargs.get('key') in (
+                    'app_workflow_approve', 'app_workflow_reject')
+                    for c in st.button.call_args_list))
+
+    def test_malformed_preview_receipt_or_metadata_blocks_approval(self):
+        from unittest.mock import MagicMock
+        for bad_preview in (
+            {'metadata': {}, 'metrics': [], 'request_sha256': None},
+            {'metadata': {}, 'metrics': [], 'request_sha256': ''},
+            {'metadata': {}, 'metrics': [], 'request_sha256': 'x' * 129},
+            {'metadata': 'invalid', 'metrics': [], 'request_sha256': 'request-a'},
+        ):
+            with self.subTest(preview=bad_preview):
+                st = MagicMock()
+                session = {
+                    'document_sha256': 'document-a',
+                    'handoff': {'status': 'AWAITING_APPROVAL',
+                                'checkpoint': {'submission_count': 0},
+                                'sdk_state': object()},
+                    'model': object(),
+                    'displayed_request_sha256': 'old-request',
+                }
+                st.session_state = {SESSION_KEY: session}
+                st.button.return_value = False
+                with patch('correction_workflow_ui.document_fingerprint',
+                           return_value='document-a'), \
+                     patch('correction_workflow_ui.financial_approval_preview',
+                           return_value=bad_preview), \
+                     patch('correction_workflow_ui.decide_and_resume_offline') as resume:
+                    render_correction_workflow(st, b'%PDF-synthetic')
+                self.assertNotIn('displayed_request_sha256', session)
+                st.error.assert_any_call(
+                    'Financial approval preview data is invalid. Discard and restart the free rehearsal.')
+                st.dataframe.assert_not_called()
+                resume.assert_not_called()
                 self.assertFalse(any(c.kwargs.get('key') in (
                     'app_workflow_approve', 'app_workflow_reject')
                     for c in st.button.call_args_list))
