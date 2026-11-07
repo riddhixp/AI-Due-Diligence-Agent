@@ -64,6 +64,8 @@ def main(argv=()):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workflow", action="store_true",
                         help="Also run network-guarded scripted approval/correction checks")
+    parser.add_argument("--output", type=Path,
+                        help="Save the synthetic PASS summary as a new JSON file (never overwrite)")
     args = parser.parse_args(argv)
     stage = "fixture"
     try:
@@ -77,6 +79,17 @@ def main(argv=()):
         print(json.dumps({"status": "FAIL", "failed_stage": stage,
                           "error_type": type(error).__name__}))
         return 1
+    if args.output is not None:
+        try:
+            # Exclusive creation avoids silently replacing a prior audit snapshot.
+            # This report contains fixed synthetic test outcomes, never PDF text.
+            with args.output.open("x", encoding="utf-8") as handle:
+                json.dump(result, handle, indent=2)
+                handle.write("\\n")
+        except (OSError, ValueError, TypeError) as error:
+            print(json.dumps({"status": "FAIL", "failed_stage": "output",
+                              "error_type": type(error).__name__}))
+            return 1
     print(json.dumps(result, indent=2))
     return 0
 
