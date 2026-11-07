@@ -327,4 +327,4 @@ def _valid_preview_metadata(metadata):
 def _valid_approval_fingerprint(value):
     """Accept only bounded, printable receipt tokens; never arbitrary session text."""
     return (isinstance(value, str) and 1 <= len(value) <= 128
-            and all(char in '0123456789abcdefABCDEF-_' for char in value))
+            and all(char.isascii() and (char.isalnum() or char in '-_') for char in value))
