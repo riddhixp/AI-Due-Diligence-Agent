@@ -350,6 +350,24 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
             'submission_count': 2, 'financial_data': {'revenue_current': 120},
             'review_status': None}))
 
+    def test_zero_accepted_submissions_cannot_show_saved_revenue(self):
+        from correction_workflow_ui import _valid_failure_progress
+        self.assertFalse(_valid_failure_progress({
+            'submission_count': 0,
+            'financial_data': {'revenue_current': 120},
+            'review_status': None,
+        }))
+        self.assertTrue(_valid_failure_progress({
+            'submission_count': 0,
+            'financial_data': {},
+            'review_status': None,
+        }))
+        self.assertTrue(_valid_failure_progress({
+            'submission_count': 1,
+            'financial_data': {'revenue_current': 120},
+            'review_status': None,
+        }))
+
     def test_invalid_failure_checkpoint_does_not_resume_or_export(self):
         from unittest.mock import MagicMock
         st = MagicMock()
