@@ -54,6 +54,8 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
 
     def test_approval_step_guidance_tracks_correction(self):
         self.click('app_workflow_start')
+        self.assertTrue(any('PDF evidence available for' in item.value
+                            for item in self.app.caption))
         self.assertTrue(any('Approval step 1' in item.value for item in self.app.caption))
         self.click('app_workflow_approve')
         self.assertTrue(any('Approval step 2' in item.value for item in self.app.caption))
@@ -423,6 +425,7 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
         session.pop('displayed_request_sha256', None)
         self.app.run()
         self.assertTrue(any('page 3 is unavailable' in item.value for item in self.app.warning))
+        self.assertTrue(any('Approval will be refused' in item.value for item in self.app.warning))
         self.app.button(key='app_workflow_approve').click().run()
         self.assertFalse(self.app.exception)
         self.assertTrue(any('Offline approval could not continue.' in item.value for item in self.app.error))
