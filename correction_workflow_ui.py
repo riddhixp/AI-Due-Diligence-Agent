@@ -129,8 +129,7 @@ def render_correction_workflow(st, pdf_bytes):
                 or type(result['evaluation'].get('final_eligible')) is not bool
                 or (result['evaluation']['final_eligible'] is True
                     and result['evaluation'].get('financial_evidence') != 'PRELIMINARY_CHECKS_PASSED')
-                or not isinstance(result['evaluation'].get('financial_evidence'), str)
-                or not result['evaluation']['financial_evidence']):
+                or not _valid_evidence_status(result['evaluation'].get('financial_evidence'))):
             st.error('The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
             _render_discard(st)
             return
@@ -386,3 +385,10 @@ def _valid_offline_evidence_pages(pages):
             and 1 <= len(pages) <= 100
             and all(type(page) is str and 0 < len(page.strip()) <= 100000
                     and len(page) <= 100000 for page in pages))
+
+
+def _valid_evidence_status(value):
+    """Allow concise, single-line offline evidence statuses, never arbitrary text."""
+    return (isinstance(value, str) and 0 < len(value) <= 128
+            and bool(value.strip())
+            and all(32 <= ord(char) < 127 for char in value))
