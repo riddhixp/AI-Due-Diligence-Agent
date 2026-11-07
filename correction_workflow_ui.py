@@ -157,13 +157,17 @@ def render_correction_workflow(st, pdf_bytes):
             _render_discard(st)
             return
         try:
-            if (not isinstance(preview, dict)
+            checkpoint = handoff.get('checkpoint')
+            if (not isinstance(checkpoint, dict)
+                    or type(checkpoint.get('submission_count')) is not int
+                    or checkpoint['submission_count'] < 0
+                    or not isinstance(preview, dict)
                     or not isinstance(preview.get('request_sha256'), str)
-                    or not preview['request_sha256']
+                    or not preview['request_sha256'].strip()
                     or len(preview['request_sha256']) > 128
-                    or not isinstance(preview.get('metadata'), dict)
-                    or (handoff['checkpoint']['submission_count']
-                        and not isinstance(preview.get('previous_metadata'), dict))):
+                    or not _valid_preview_metadata(preview.get('metadata'))
+                    or (checkpoint['submission_count'] > 0
+                        and not _valid_preview_metadata(preview.get('previous_metadata')))):
                 raise ValueError('INVALID_APPROVAL_PREVIEW')
             cited_pages = _validated_cited_pages(preview['metrics'])
         except (TypeError, ValueError, KeyError):
@@ -299,3 +303,20 @@ def _validated_cited_pages(metrics):
                 if len(pages) > 128:
                     raise ValueError('TOO_MANY_PREVIEW_CITATIONS')
     return sorted(pages)
+
+
+def _valid_preview_metadata(metadata):
+    """Permit only concise display-safe scalar metadata from a stored preview."""
+    if not isinstance(metadata, dict) or len(metadata) > 16:
+        return False
+    for key, value in metadata.items():
+        if not isinstance(key, str) or not key or len(key) > 64:
+            return False
+        if value is None:
+            continue
+        if type(value) is int:
+            continue
+        if (not isinstance(value, str) or len(value) > 256
+                or any(ord(char) < 32 or ord(char) == 127 for char in value)):
+            return False
+    return True
