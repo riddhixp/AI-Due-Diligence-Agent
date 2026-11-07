@@ -720,6 +720,22 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                                      'Previous PDF pages': [1]}]),
             [1, 2])
 
+    def test_stopped_rehearsal_explains_next_step(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'FAILED'},
+            'model': object(),
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.info.assert_any_call(
+            'Rehearsal stopped. Inspect read-only progress or start a new free rehearsal.')
+        st.download_button.assert_not_called()
+
     def test_failed_workflow_does_not_offer_approval_controls(self):
         from unittest.mock import MagicMock
         st = MagicMock()
