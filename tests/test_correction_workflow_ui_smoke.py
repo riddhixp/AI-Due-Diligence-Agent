@@ -307,6 +307,49 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         st.rerun.assert_called_once()
         st.download_button.assert_not_called()
 
+    def test_corrupted_failure_progress_values_are_not_displayed(self):
+        from unittest.mock import MagicMock
+        invalid = (
+            float('nan'), float('inf'), -1, True,
+            'private contents', {'unexpected': 'object'},
+        )
+        for revenue in invalid:
+            with self.subTest(revenue=repr(revenue)):
+                st = MagicMock()
+                st.session_state = {SESSION_KEY: {
+                    'document_sha256': 'document-a',
+                    'handoff': {'status': 'FAILED',
+                                'failure_checkpoint': {
+                                    'submission_count': 1,
+                                    'review_status': None,
+                                    'financial_data': {'revenue_current': revenue}}},
+                    'model': object(),
+                }}
+                st.button.return_value = False
+                with patch('correction_workflow_ui.document_fingerprint',
+                           return_value='document-a'):
+                    render_correction_workflow(st, b'%PDF-synthetic')
+                st.warning.assert_any_call(
+                    'Saved failure progress is incomplete. Discard this rehearsal to reset it.')
+                self.assertFalse(any(c.args and c.args[0] == 'Last accepted synthetic revenue:'
+                                     for c in st.write.call_args_list))
+                st.download_button.assert_not_called()
+
+    def test_corrupted_failure_status_and_count_are_not_displayed(self):
+        from correction_workflow_ui import _valid_failure_progress
+        for progress in (
+            {'submission_count': True, 'financial_data': {}, 'review_status': None},
+            {'submission_count': 10001, 'financial_data': {}, 'review_status': None},
+            {'submission_count': 1, 'financial_data': {},
+             'review_status': 'private' + chr(10) + 'details'},
+            {'submission_count': 1, 'financial_data': {}, 'review_status': 'x' * 129},
+        ):
+            with self.subTest(progress=progress):
+                self.assertFalse(_valid_failure_progress(progress))
+        self.assertTrue(_valid_failure_progress({
+            'submission_count': 2, 'financial_data': {'revenue_current': 120},
+            'review_status': None}))
+
     def test_invalid_failure_checkpoint_does_not_resume_or_export(self):
         from unittest.mock import MagicMock
         st = MagicMock()
