@@ -427,7 +427,10 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
             with self.subTest(status=repr(status)):
                 self.assertFalse(_valid_evidence_status(status))
         self.assertTrue(_valid_evidence_status('NEEDS_REVIEW'))
+        self.assertTrue(_valid_evidence_status('REVIEW_UNAVAILABLE'))
         self.assertTrue(_valid_evidence_status('PRELIMINARY_CHECKS_PASSED'))
+        self.assertFalse(_valid_evidence_status('PASS'))
+        self.assertFalse(_valid_evidence_status('PRELIMINARY_CHECKS_PASSED '))
 
     def test_corrupt_evidence_status_cannot_be_displayed_or_exported(self):
         from unittest.mock import MagicMock
