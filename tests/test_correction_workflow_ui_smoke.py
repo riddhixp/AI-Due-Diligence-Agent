@@ -831,6 +831,9 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
                 self.assertNotIn('displayed_request_sha256', session)
                 self.assertFalse(any('Reviewer action needed' in str(c)
                                      for c in st.info.call_args_list))
+                st.dataframe.assert_not_called()
+                self.assertFalse(any(c.args and c.args[0] == 'Submission:'
+                                     for c in st.write.call_args_list))
                 resume.assert_not_called()
                 self.assertFalse(any(c.kwargs.get('key') in
                                      ('app_workflow_approve', 'app_workflow_reject')
