@@ -160,7 +160,7 @@ def render_correction_workflow(st, pdf_bytes):
             checkpoint = handoff.get('checkpoint')
             if (not isinstance(checkpoint, dict)
                     or type(checkpoint.get('submission_count')) is not int
-                    or checkpoint['submission_count'] < 0
+                    or not 0 <= checkpoint['submission_count'] <= 10000
                     or not isinstance(preview, dict)
                     or not _valid_approval_fingerprint(preview.get('request_sha256'))
                     or not _valid_preview_metadata(preview.get('metadata'))
@@ -397,7 +397,7 @@ def _valid_evidence_status(value):
 
 def _approval_step_summary(accepted_count):
     """Explain the decision sequence without implying financial verification."""
-    if type(accepted_count) is not int or accepted_count < 0:
+    if type(accepted_count) is not int or not 0 <= accepted_count <= 10000:
         raise ValueError('INVALID_APPROVAL_STEP')
     if accepted_count == 0:
         return ('Approval step 1: no financial submission has been accepted yet. '
