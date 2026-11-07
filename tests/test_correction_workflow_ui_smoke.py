@@ -432,6 +432,31 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.assertFalse(_valid_evidence_status('PASS'))
         self.assertFalse(_valid_evidence_status('PRELIMINARY_CHECKS_PASSED '))
 
+    def test_unsupported_printable_evidence_status_is_not_trusted(self):
+        from unittest.mock import MagicMock
+        st = MagicMock()
+        st.session_state = {SESSION_KEY: {
+            'document_sha256': 'document-a',
+            'handoff': {'status': 'COMPLETED_OFFLINE'},
+            'model': object(),
+            'result': {
+                'status': 'COMPLETED_OFFLINE', 'scripted': True,
+                'external_api_calls': 0,
+                'evaluation': {'simulation': True, 'final_eligible': False,
+                               'financial_evidence': 'INTERNALLY_APPROVED'},
+                'financial': {'revenue_current': 120},
+            },
+        }}
+        st.button.return_value = False
+        with patch('correction_workflow_ui.document_fingerprint',
+                   return_value='document-a'):
+            render_correction_workflow(st, b'%PDF-synthetic')
+        st.error.assert_any_call(
+            'The stored rehearsal result is invalid. Discard it and start a new free rehearsal.')
+        self.assertFalse(any('INTERNALLY_APPROVED' in str(call)
+                             for call in st.write.call_args_list))
+        st.download_button.assert_not_called()
+
     def test_corrupt_evidence_status_cannot_be_displayed_or_exported(self):
         from unittest.mock import MagicMock
         st = MagicMock()
