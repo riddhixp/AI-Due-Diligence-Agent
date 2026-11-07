@@ -65,6 +65,45 @@ class OfflineDemoPreflightTests(unittest.TestCase):
         report = json.loads(output.getvalue())
         self.assertEqual(report["workflow"]["status"], "PASS")
 
+    def test_cli_can_save_a_synthetic_acceptance_snapshot_without_overwriting(self):
+        import contextlib
+        import io
+        import json
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "demo-check.json"
+            with patch("offline_demo_preflight.check_demo_fixture",
+                       return_value={"status": "PASS", "model_calls": 0,
+                                     "manual_streamlit_acceptance": "NOT_RUN"}), \\
+                 patch("offline_demo_preflight.check_demo_workflow",
+                       return_value={"status": "PASS", "external_api_calls": 0}), \\
+                 contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(main(["--workflow", "--output", str(path)]), 0)
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(saved["status"], "PASS")
+            self.assertEqual(saved["workflow"]["external_api_calls"], 0)
+            self.assertEqual(saved["manual_streamlit_acceptance"], "NOT_RUN")
+            self.assertEqual(json.loads(output.getvalue()), saved)
+            with contextlib.redirect_stdout(io.StringIO()) as second:
+                self.assertEqual(main(["--output", str(path)]), 1)
+            self.assertEqual(json.loads(second.getvalue())["failed_stage"], "output")
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), saved)
+
+    def test_failed_preflight_does_not_create_snapshot(self):
+        import contextlib
+        import io
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "should-not-exist.json"
+            with patch("offline_demo_preflight.check_demo_fixture",
+                       side_effect=ValueError("private extracted text")), \\
+                 contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(main(["--output", str(path)]), 1)
+            self.assertFalse(path.exists())
+            self.assertNotIn("private extracted text", output.getvalue())
+
     def test_workflow_preflight_rejects_empty_or_misleading_summary(self):
         from offline_demo_preflight import check_demo_workflow
         for summary in ("", "Offline acceptance: PASS but unverified",
