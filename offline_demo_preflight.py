@@ -85,7 +85,7 @@ def main(argv=()):
             # This report contains fixed synthetic test outcomes, never PDF text.
             with args.output.open("x", encoding="utf-8") as handle:
                 json.dump(result, handle, indent=2)
-                handle.write("\\n")
+                handle.write("\n")
         except (OSError, ValueError, TypeError) as error:
             print(json.dumps({"status": "FAIL", "failed_stage": "output",
                               "error_type": type(error).__name__}))
