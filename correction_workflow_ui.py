@@ -388,7 +388,7 @@ def _valid_offline_evidence_pages(pages):
 
 
 def _valid_evidence_status(value):
-    """Allow concise, single-line offline evidence statuses, never arbitrary text."""
-    return (isinstance(value, str) and 0 < len(value) <= 128
-            and bool(value.strip())
-            and all(32 <= ord(char) < 127 for char in value))
+    """Use only statuses produced by the deterministic financial reviewer."""
+    return type(value) is str and value in (
+        'REVIEW_UNAVAILABLE', 'NEEDS_REVIEW', 'PRELIMINARY_CHECKS_PASSED',
+    )
