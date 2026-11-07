@@ -31,6 +31,22 @@ python -m streamlit run app.py
 The optional `--workflow` flag additionally runs network-guarded scripted approval, correction, rejection and failure-practice checks. The demo preflight should report PASS, two synthetic pages, authoritative revenue 120 on page 2, zero external API calls, and manual Streamlit acceptance NOT_RUN. The acceptance command should report PASS for both suites and zero blocked
 network attempts. An API key is not needed for these scripted exercises.
 
+### Optional evidence snapshot for a portfolio walkthrough
+
+To save a **synthetic, machine-readable** record of the preflight checks:
+
+```bash
+python -m offline_demo_preflight --workflow --output demo-preflight.json
+```
+
+The JSON records the fixture's expected source page and revenue, zero scripted
+external API calls, and the number of offline workflow and failure checks. It
+**does not** include source document text, personal data, AI output, or a final
+investment recommendation. The manual Streamlit acceptance field remains
+`NOT_RUN` until completed separately. The command refuses to overwrite an
+existing file; choose a new filename for each run. Do not treat this snapshot
+as proof of autonomous model accuracy or completed browser acceptance.
+
 For current GitHub verification, check all three jobs in the PR's **Python tests**
 workflow: `unit-tests`, `offline-integration`, and `offline-network-acceptance`.
 A green integration job alone is not sufficient to claim the whole pipeline
