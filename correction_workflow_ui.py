@@ -179,11 +179,6 @@ def render_correction_workflow(st, pdf_bytes):
                 and not _valid_approval_fingerprint(shown_fingerprint)):
             session.pop('displayed_request_sha256', None)
             shown_fingerprint = None  # An invalid receipt cannot authorize a click.
-        st.warning('Financial submission awaiting your decision. Compare the proposed figures with the PDF.')
-        st.write('Submission:', preview['metadata'])
-        if handoff['checkpoint']['submission_count']:
-            st.write('Previously accepted metadata:', preview['previous_metadata'])
-        st.dataframe(preview['metrics'], hide_index=True)
         try:
             pages = read_synthetic_conflict_pages(pdf_bytes)
             if not _valid_offline_evidence_pages(pages):
@@ -194,6 +189,11 @@ def render_correction_workflow(st, pdf_bytes):
             _render_discard(st)
             return
         st.info('Reviewer action needed: compare proposed figures against their cited PDF pages.')
+        st.warning('Financial submission awaiting your decision. Compare the proposed figures with the PDF.')
+        st.write('Submission:', preview['metadata'])
+        if handoff['checkpoint']['submission_count']:
+            st.write('Previously accepted metadata:', preview['previous_metadata'])
+        st.dataframe(preview['metrics'], hide_index=True)
         with st.expander('Source evidence for pending figures'):
             st.caption('Compare the proposed amounts, row labels and fiscal-year columns '
                        'with the proposed and previous PDF citations. Percentages cite their input '
