@@ -189,6 +189,13 @@ def render_correction_workflow(st, pdf_bytes):
             return
         st.info('Reviewer action needed: compare proposed figures against their cited PDF pages.')
         st.caption(_approval_step_summary(checkpoint['submission_count']))
+        missing_pages = [page for page in cited_pages if page > len(pages)]
+        if missing_pages:
+            st.warning('One or more cited PDF pages are unavailable. Approval will be refused; '
+                       'you can reject this proposal or restart the free rehearsal.')
+        elif cited_pages:
+            st.caption(f'PDF evidence available for {len(cited_pages)} cited page(s). '
+                       'Availability does not establish that financial figures are correct.')
         st.warning('Financial submission awaiting your decision. Compare the proposed figures with the PDF.')
         st.write('Submission:', preview['metadata'])
         if handoff['checkpoint']['submission_count']:
