@@ -174,7 +174,6 @@ def render_correction_workflow(st, pdf_bytes):
             st.error('Financial approval preview data is invalid. Discard and restart the free rehearsal.')
             _render_discard(st)
             return
-        st.info('Reviewer action needed: compare proposed figures against their cited PDF pages.')
         shown_fingerprint = session.get('displayed_request_sha256')
         if (shown_fingerprint is not None
                 and not _valid_approval_fingerprint(shown_fingerprint)):
@@ -192,6 +191,7 @@ def render_correction_workflow(st, pdf_bytes):
             st.error('PDF evidence could not be read. Discard this rehearsal or retry displaying the preview.')
             _render_discard(st)
             return
+        st.info('Reviewer action needed: compare proposed figures against their cited PDF pages.')
         with st.expander('Source evidence for pending figures'):
             st.caption('Compare the proposed amounts, row labels and fiscal-year columns '
                        'with the proposed and previous PDF citations. Percentages cite their input '
