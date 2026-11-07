@@ -635,7 +635,8 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
     def test_invalid_pending_checkpoint_blocks_approval_before_rendering(self):
         from unittest.mock import MagicMock
         for checkpoint in (None, {}, {'submission_count': True},
-                           {'submission_count': -1}, {'submission_count': '1'}):
+                           {'submission_count': -1}, {'submission_count': 10001},
+                           {'submission_count': '1'}):
             with self.subTest(checkpoint=checkpoint):
                 st = MagicMock()
                 session = {'document_sha256': 'document-a',
@@ -913,7 +914,7 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         third = _approval_step_summary(2)
         self.assertIn('Approval step 3', third)
         self.assertIn('2 earlier financial submission(s)', third)
-        for bad_count in (None, -1, True, '1', 1.5):
+        for bad_count in (None, -1, 10001, True, '1', 1.5):
             with self.subTest(bad_count=bad_count):
                 with self.assertRaises(ValueError):
                     _approval_step_summary(bad_count)
