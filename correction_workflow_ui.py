@@ -188,6 +188,7 @@ def render_correction_workflow(st, pdf_bytes):
             _render_discard(st)
             return
         st.info('Reviewer action needed: compare proposed figures against their cited PDF pages.')
+        st.caption(_approval_step_summary(checkpoint['submission_count']))
         st.warning('Financial submission awaiting your decision. Compare the proposed figures with the PDF.')
         st.write('Submission:', preview['metadata'])
         if handoff['checkpoint']['submission_count']:
@@ -392,3 +393,15 @@ def _valid_evidence_status(value):
     return type(value) is str and value in (
         'REVIEW_UNAVAILABLE', 'NEEDS_REVIEW', 'PRELIMINARY_CHECKS_PASSED',
     )
+
+
+def _approval_step_summary(accepted_count):
+    """Explain the decision sequence without implying financial verification."""
+    if type(accepted_count) is not int or accepted_count < 0:
+        raise ValueError('INVALID_APPROVAL_STEP')
+    if accepted_count == 0:
+        return ('Approval step 1: no financial submission has been accepted yet. '
+                'The proposed figures are unverified.')
+    return (f'Approval step {accepted_count + 1}: {accepted_count} earlier '
+            f'financial submission(s) accepted for the scripted rehearsal. '
+            'Acceptance does not mean the figures passed evidence review.')
