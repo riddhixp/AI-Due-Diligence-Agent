@@ -168,7 +168,7 @@ def render_correction_workflow(st, pdf_bytes):
                         and not _valid_preview_metadata(preview.get('previous_metadata')))):
                 raise ValueError('INVALID_APPROVAL_PREVIEW')
             cited_pages = _validated_cited_pages(
-                preview['metrics'], preview['metadata'], preview['previous_metadata'])
+                preview['metrics'], preview['metadata'], preview.get('previous_metadata'))
         except (TypeError, ValueError, KeyError):
             session.pop('displayed_request_sha256', None)
             st.error('Financial approval preview data is invalid. Discard and restart the free rehearsal.')
