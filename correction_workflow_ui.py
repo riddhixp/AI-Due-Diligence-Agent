@@ -167,7 +167,8 @@ def render_correction_workflow(st, pdf_bytes):
                     or (checkpoint['submission_count'] > 0
                         and not _valid_preview_metadata(preview.get('previous_metadata')))):
                 raise ValueError('INVALID_APPROVAL_PREVIEW')
-            cited_pages = _validated_cited_pages(preview['metrics'])
+            cited_pages = _validated_cited_pages(
+                preview['metrics'], preview['metadata'], preview['previous_metadata'])
         except (TypeError, ValueError, KeyError):
             session.pop('displayed_request_sha256', None)
             st.error('Financial approval preview data is invalid. Discard and restart the free rehearsal.')
@@ -287,7 +288,7 @@ def _render_discard(st):
         st.rerun()
 
 
-def _validated_cited_pages(metrics):
+def _validated_cited_pages(metrics, metadata=None, previous_metadata=None):
     """Only allow integer PDF citations from well-formed preview rows.
 
     An unavailable (out-of-range) positive page can still be shown as a warning.
@@ -313,6 +314,20 @@ def _validated_cited_pages(metrics):
                 pages.add(page)
                 if len(pages) > 128:
                     raise ValueError('TOO_MANY_PREVIEW_CITATIONS')
+    # The primary source page may differ from each metric's citation.
+    # Display it alongside metric evidence so conflicting figures are visible.
+    for source in (metadata, previous_metadata):
+        if source is None:
+            continue
+        if not _valid_preview_metadata(source):
+            raise ValueError('INVALID_PREVIEW_SOURCE_METADATA')
+        page = source.get('source_page')
+        if page is not None:
+            if type(page) is not int or page < 1:
+                raise ValueError('INVALID_PREVIEW_SOURCE_PAGE')
+            pages.add(page)
+    if len(pages) > 128:
+        raise ValueError('TOO_MANY_PREVIEW_CITATIONS')
     return sorted(pages)
 
 
