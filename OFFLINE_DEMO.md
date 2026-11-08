@@ -108,7 +108,7 @@ model; they are not token counts, billing caps or a durable production budget.
 
 ## Manual Streamlit acceptance checklist
 
-The automated CI tests do not click through the Streamlit interface. Before
+Automated Streamlit AppTests exercise UI controls but do not replace a human\nclick-through in a real browser. Before
 showing this to an interviewer, complete this checklist with the synthetic PDF:
 
 - [ ] **Standard correction:** initial proposed revenue 130 is visible with its
