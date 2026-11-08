@@ -90,6 +90,66 @@ class OfflineDemoPreflightTests(unittest.TestCase):
             self.assertEqual(json.loads(second.getvalue())["failed_stage"], "output")
             self.assertEqual(json.loads(path.read_text(encoding="utf-8")), saved)
 
+    def test_snapshot_serialization_error_leaves_no_file(self):
+        import contextlib
+        import io
+        import json
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "not-created.json"
+            real_dumps = json.dumps
+
+            def fail_snapshot_dumps(value, *args, **kwargs):
+                if isinstance(value, dict) and value.get("status") == "PASS":
+                    raise TypeError("sensitive formatting exception")
+                return real_dumps(value, *args, **kwargs)
+
+            with patch("offline_demo_preflight.check_demo_fixture",
+                       return_value={"status": "PASS"}), \
+                 patch("offline_demo_preflight.json.dumps",
+                       side_effect=fail_snapshot_dumps), \
+                 contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(main(["--output", str(target)]), 1)
+            self.assertFalse(target.exists())
+            self.assertEqual(json.loads(output.getvalue())["failed_stage"], "output")
+            self.assertNotIn("sensitive formatting exception", output.getvalue())
+
+    def test_snapshot_partial_write_is_removed(self):
+        import contextlib
+        import io
+        import json
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "partial.json"
+            original_open = Path.open
+
+            class InterruptedFile:
+                def __init__(self, path, *args, **kwargs):
+                    self.handle = original_open(path, *args, **kwargs)
+
+                def __enter__(self):
+                    self.handle.__enter__()
+                    return self
+
+                def write(self, content):
+                    self.handle.write(content[:8])
+                    raise OSError("private disk failure")
+
+                def __exit__(self, *args):
+                    return self.handle.__exit__(*args)
+
+            with patch("offline_demo_preflight.check_demo_fixture",
+                       return_value={"status": "PASS"}), \
+                 patch("offline_demo_preflight.Path.open",
+                       side_effect=lambda path, *a, **kw: InterruptedFile(path, *a, **kw)), \
+                 contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(main(["--output", str(target)]), 1)
+            self.assertFalse(target.exists())
+            self.assertEqual(json.loads(output.getvalue())["failed_stage"], "output")
+            self.assertNotIn("private disk failure", output.getvalue())
+
     def test_failed_preflight_does_not_create_snapshot(self):
         import contextlib
         import io
