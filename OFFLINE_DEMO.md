@@ -47,6 +47,23 @@ investment recommendation. The manual Streamlit acceptance field remains
 existing file; choose a new filename for each run. Do not treat this snapshot
 as proof of autonomous model accuracy or completed browser acceptance.
 
+### Human-readable portfolio verification card
+
+To produce a short Markdown briefing from the **same network-guarded synthetic
+checks**, run:
+
+```bash
+python -m portfolio_demo_card --output demo-card.md
+```
+
+The generated card shows the provisional 130-million and authoritative
+120-million synthetic revenue figures, completed scripted-check counts, and
+the remaining manual and live-model validation gates. It deliberately marks
+human browser acceptance and autonomous model evaluation as **NOT RUN**.
+It includes no uploaded PDF contents, credentials, or investment
+recommendation. The command refuses to overwrite a previous card and does not
+use an API key.
+
 For current GitHub verification, check all three jobs in the PR's **Python tests**
 workflow: `unit-tests`, `offline-integration`, and `offline-network-acceptance`.
 A green integration job alone is not sufficient to claim the whole pipeline
