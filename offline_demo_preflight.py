@@ -79,18 +79,30 @@ def main(argv=()):
         print(json.dumps({"status": "FAIL", "failed_stage": stage,
                           "error_type": type(error).__name__}))
         return 1
+    try:
+        # Serialize first, before creating a file that could otherwise be partial.
+        snapshot = json.dumps(result, indent=2) + "\n"
+    except (ValueError, TypeError, OverflowError) as error:
+        print(json.dumps({"status": "FAIL", "failed_stage": "output",
+                          "error_type": type(error).__name__}))
+        return 1
     if args.output is not None:
+        created = False
         try:
-            # Exclusive creation avoids silently replacing a prior audit snapshot.
-            # This report contains fixed synthetic test outcomes, never PDF text.
+            # Exclusive creation ensures an earlier snapshot is never overwritten.
             with args.output.open("x", encoding="utf-8") as handle:
-                json.dump(result, handle, indent=2)
-                handle.write("\n")
-        except (OSError, ValueError, TypeError) as error:
+                created = True
+                handle.write(snapshot)
+        except OSError as error:
+            if created:
+                try:
+                    args.output.unlink()
+                except OSError:
+                    pass  # Still report failure; cleanup may be blocked by the OS.
             print(json.dumps({"status": "FAIL", "failed_stage": "output",
                               "error_type": type(error).__name__}))
             return 1
-    print(json.dumps(result, indent=2))
+    print(snapshot, end="")
     return 0
 
 
