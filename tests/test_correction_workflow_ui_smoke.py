@@ -764,6 +764,24 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
             {'PDF pages': [], 'Previous PDF pages': [1, 3]},
         ]), [1, 2, 3])
 
+    def test_primary_source_pages_are_included_in_evidence(self):
+        from correction_workflow_ui import _validated_cited_pages
+        metrics = [{'PDF pages': [2], 'Previous PDF pages': [3]}]
+        pages = _validated_cited_pages(
+            metrics, {'source_page': 1}, {'source_page': 4})
+        self.assertEqual(pages, [1, 2, 3, 4])
+        self.assertEqual(_validated_cited_pages(
+            metrics, {'source_page': 2}, {'source_page': None}), [2, 3])
+
+    def test_invalid_primary_source_pages_fail_closed(self):
+        from correction_workflow_ui import _validated_cited_pages
+        for page in (0, -1, True, 1.5, '1'):
+            with self.subTest(page=page):
+                with self.assertRaises(ValueError):
+                    _validated_cited_pages(
+                        [{'PDF pages': [2], 'Previous PDF pages': []}],
+                        {'source_page': page}, {'source_page': None})
+
     def test_oversized_citation_preview_is_rejected(self):
         from correction_workflow_ui import _validated_cited_pages
         for metrics in (
