@@ -75,6 +75,24 @@ Open the local URL printed by Streamlit and upload `synthetic_conflict_test.pdf`
 Use **FREE application correction workflow**. **Analyse Company** invokes a
 separate analysis path and is outside this free walkthrough.
 
+## One-command demo preparation
+
+To create both the synthetic PDF and the evidence card in a **new, existing
+empty folder**, run:
+
+```bash
+mkdir -p demo-run
+python -m prepare_portfolio_demo --directory demo-run
+```
+
+This command first runs the fixture preflight and network-guarded scripted
+acceptance, then writes `demo-run/synthetic_conflict_test.pdf` and
+`demo-run/demo-card.md`. It does not open Streamlit, use an API key, or invoke
+the paid analysis path. The command refuses to overwrite either output and
+attempts to remove both newly created outputs if writing fails. Run
+`python -m streamlit run app.py` separately, upload the generated PDF, and
+follow the steps below. For a second run, use another empty folder.
+
 ## Five-minute demonstration
 
 1. Select **Standard correction** and start the free workflow. The initial
