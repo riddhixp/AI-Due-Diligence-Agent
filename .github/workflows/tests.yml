@@ -65,3 +65,16 @@ jobs:
       - name: Run network-blocked offline acceptance
         run: |
           timeout --signal=INT --kill-after=15s 300s python -u -m offline_acceptance --summary
+      - name: Prepare and verify portfolio demo package end-to-end
+        run: |
+          set -eu
+          demo_dir="$(mktemp -d)"
+          trap 'rm -rf "$demo_dir"' EXIT
+          timeout --signal=INT --kill-after=15s 300s python -m prepare_portfolio_demo --directory "$demo_dir"
+          python -m verify_portfolio_demo --directory "$demo_dir"
+          # Verify that modifying an asset causes a nonzero integrity result.
+          printf '\\nTAMPERED\\n' >> "$demo_dir/demo-card.md"
+          if python -m verify_portfolio_demo --directory "$demo_dir"; then
+            echo "Demo integrity check accepted modified content" >&2
+            exit 1
+          fi
