@@ -87,12 +87,27 @@ python -m prepare_portfolio_demo --directory demo-run
 
 This command first runs the fixture preflight and network-guarded scripted
 acceptance, then independently verifies the newly generated PDF contains both
-expected statement pages and the 130-versus-120 conflict before writing. It then writes `demo-run/synthetic_conflict_test.pdf` and
-`demo-run/demo-card.md`. It does not open Streamlit, use an API key, or invoke
+expected statement pages and the 130-versus-120 conflict before writing. It then writes `demo-run/synthetic_conflict_test.pdf`,
+`demo-run/demo-card.md`, and `demo-run/demo-manifest.json`. It does not open Streamlit, use an API key, or invoke
 the paid analysis path. The command refuses to overwrite either output and
 attempts to remove both newly created outputs if writing fails. Run
 `python -m streamlit run app.py` separately, upload the generated PDF, and
 follow the steps below. For a second run, use another empty folder.
+
+To check that neither demo asset has changed since preparation, run:
+
+```bash
+python -m verify_portfolio_demo --directory demo-run
+```
+
+The verifier compares SHA-256 hashes with the local manifest and rechecks the
+synthetic PDF evidence and the card's outstanding-validation disclosures. This
+is a **local integrity check**, not a digital signature or proof the package
+came from a trusted third party. Verification uses no provider API, does not
+rerun the workflow, and refuses modified or missing assets. The manifest is
+synthetic and must not be interpreted as real-browser or autonomous-model
+acceptance.
+
 
 ## Five-minute demonstration
 
