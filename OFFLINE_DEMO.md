@@ -100,6 +100,11 @@ To check that neither demo asset has changed since preparation, run:
 python -m verify_portfolio_demo --directory demo-run
 ```
 
+The GitHub Actions `offline-network-acceptance` job also builds a fresh
+package in a temporary directory, verifies it, and confirms that tampering
+with the generated Markdown card causes verification to fail. This checks the
+actual CLI-to-CLI handoff rather than relying only on mocked unit tests.
+
 The verifier compares SHA-256 hashes with the local manifest and rechecks the
 synthetic PDF evidence and the card's outstanding-validation disclosures. This
 is a **local integrity check**, not a digital signature or proof the package
