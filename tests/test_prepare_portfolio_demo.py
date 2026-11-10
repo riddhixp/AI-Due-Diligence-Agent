@@ -52,7 +52,7 @@ class PreparePortfolioDemoTests(unittest.TestCase):
                     raise OSError("private write failure")
                 return original_open(path, *args, **kwargs)
 
-            with patch("prepare_portfolio_demo.Path.open", side_effect=guarded_open):
+            with patch("prepare_portfolio_demo.Path.open", new=guarded_open):
                 with self.assertRaises(OSError):
                     prepare_demo(folder)
             self.assertFalse(pdf.exists())
