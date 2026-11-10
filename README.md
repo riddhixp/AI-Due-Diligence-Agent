@@ -4,6 +4,8 @@ A Python and Streamlit prototype that turns company annual-report PDFs into a **
 
 > **Status:** Working local prototype, tested with Adobe and Microsoft FY2025 annual reports. Outputs are decision-support material, **not** a substitute for professional financial, legal, commercial, or technical due diligence.
 
+**Portfolio overview:** [Read the short case study](PORTFOLIO_CASE_STUDY.md) for the problem, architecture, synthetic revenue-correction example, tested controls, and outstanding validation. [Run the zero-credit demonstration](OFFLINE_DEMO.md) for hands-on steps and a Markdown verification card.
+
 ## Why I built it
 
 Reviewing a target company's public filings can be time-consuming. This project explores how an AI-assisted workflow can accelerate the first pass while making underlying assumptions, calculations, and source limitations visible to an analyst.
