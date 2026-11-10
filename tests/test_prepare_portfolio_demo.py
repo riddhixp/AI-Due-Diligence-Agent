@@ -41,6 +41,30 @@ class PreparePortfolioDemoTests(unittest.TestCase):
                     prepare_demo(folder)
             self.assertEqual(list(Path(folder).iterdir()), [])
 
+    def test_generated_pdf_with_header_but_wrong_statements_is_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with patch("prepare_portfolio_demo.create_conflict_fixture") as create:
+                def make_misleading_pdf(destination):
+                    destination = Path(destination)
+                    destination.write_bytes(b"%PDF-1.4\\nnot a valid PDF")
+                    return destination
+                create.side_effect = make_misleading_pdf
+                with self.assertRaisesRegex(ValueError, "INVALID_SYNTHETIC_DEMO_PDF"):
+                    prepare_demo(folder)
+            self.assertEqual(list(Path(folder).iterdir()), [])
+
+    def test_swapped_or_missing_generated_page_content_is_rejected(self):
+        from scripts.create_conflict_test_fixture import PAGE_ONE, PAGE_TWO
+        with tempfile.TemporaryDirectory() as folder:
+            for pages in (["\\n".join(PAGE_TWO), "\\n".join(PAGE_ONE)],
+                          ["\\n".join(PAGE_ONE), "Total revenue 120 100 90"]):
+                with self.subTest(pages=pages), \
+                     patch("prepare_portfolio_demo.read_synthetic_conflict_pages",
+                           return_value=pages):
+                    with self.assertRaisesRegex(ValueError, "INVALID_SYNTHETIC_DEMO_PDF"):
+                        prepare_demo(folder)
+                    self.assertEqual(list(Path(folder).iterdir()), [])
+
     def test_second_write_failure_rolls_back_created_pdf(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = Path(folder) / "synthetic_conflict_test.pdf"
