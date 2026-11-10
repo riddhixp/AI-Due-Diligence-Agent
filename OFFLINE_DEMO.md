@@ -86,7 +86,8 @@ python -m prepare_portfolio_demo --directory demo-run
 ```
 
 This command first runs the fixture preflight and network-guarded scripted
-acceptance, then writes `demo-run/synthetic_conflict_test.pdf` and
+acceptance, then independently verifies the newly generated PDF contains both
+expected statement pages and the 130-versus-120 conflict before writing. It then writes `demo-run/synthetic_conflict_test.pdf` and
 `demo-run/demo-card.md`. It does not open Streamlit, use an API key, or invoke
 the paid analysis path. The command refuses to overwrite either output and
 attempts to remove both newly created outputs if writing fails. Run
