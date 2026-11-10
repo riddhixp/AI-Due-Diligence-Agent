@@ -7,8 +7,6 @@ verification card; never overwrites existing files or calls a paid provider.
 """
 import argparse
 import json
-import shutil
-import sys
 import tempfile
 from pathlib import Path
 
