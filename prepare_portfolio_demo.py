@@ -12,7 +12,8 @@ from pathlib import Path
 
 from offline_demo_preflight import check_demo_fixture, check_demo_workflow
 from portfolio_demo_card import render_demo_card
-from scripts.create_conflict_test_fixture import create_conflict_fixture
+from scripts.create_conflict_test_fixture import create_conflict_fixture, PAGE_ONE, PAGE_TWO
+from synthetic_conflict_document import read_synthetic_conflict_pages
 
 
 def prepare_demo(directory):
@@ -33,7 +34,18 @@ def prepare_demo(directory):
     with tempfile.TemporaryDirectory() as folder:
         staged_pdf = create_conflict_fixture(Path(folder) / "synthetic_conflict_test.pdf")
         pdf_bytes = staged_pdf.read_bytes()
-    if not pdf_bytes.startswith(b"%PDF-"):
+    # Verify the exact staged asset, not only the separately tested fixture.
+    # A valid PDF header alone cannot prove the conflicting statements exist.
+    try:
+        pages = read_synthetic_conflict_pages(pdf_bytes)
+        valid_pages = (
+            len(pages) == 2
+            and all(line in pages[0] for line in PAGE_ONE)
+            and all(line in pages[1] for line in PAGE_TWO)
+        )
+    except Exception:
+        valid_pages = False
+    if not pdf_bytes.startswith(b"%PDF-") or not valid_pages:
         raise ValueError("INVALID_SYNTHETIC_DEMO_PDF")
 
     created = []
