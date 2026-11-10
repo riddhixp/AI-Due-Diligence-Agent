@@ -6,9 +6,14 @@ Requires an existing directory. Generates a fresh synthetic PDF and Markdown
 verification card; never overwrites existing files or calls a paid provider.
 """
 import argparse
+import hashlib
 import json
 import tempfile
 from pathlib import Path
+
+PDF_NAME = 'synthetic_conflict_test.pdf'
+CARD_NAME = 'demo-card.md'
+MANIFEST_NAME = 'demo-manifest.json'
 
 from offline_demo_preflight import check_demo_fixture, check_demo_workflow
 from portfolio_demo_card import render_demo_card
@@ -21,10 +26,11 @@ def prepare_demo(directory):
     directory = Path(directory)
     if not directory.is_dir():
         raise ValueError("OUTPUT_DIRECTORY_REQUIRED")
-    pdf_target = directory / "synthetic_conflict_test.pdf"
-    card_target = directory / "demo-card.md"
+    pdf_target = directory / PDF_NAME
+    card_target = directory / CARD_NAME
+    manifest_target = directory / MANIFEST_NAME
     # Do not overwrite either file; validate both targets before the costly checks.
-    if pdf_target.exists() or card_target.exists():
+    if any(path.exists() or path.is_symlink() for path in (pdf_target, card_target, manifest_target)):
         raise FileExistsError("DEMO_OUTPUT_ALREADY_EXISTS")
 
     fixture = check_demo_fixture()
@@ -48,6 +54,18 @@ def prepare_demo(directory):
     if not pdf_bytes.startswith(b"%PDF-") or not valid_pages:
         raise ValueError("INVALID_SYNTHETIC_DEMO_PDF")
 
+    manifest = {
+        "version": 1,
+        "scope": "SYNTHETIC_OFFLINE_DEMO_ONLY",
+        "files": {
+            PDF_NAME: hashlib.sha256(pdf_bytes).hexdigest(),
+            CARD_NAME: hashlib.sha256(card.encode("utf-8")).hexdigest(),
+        },
+        "manual_streamlit_acceptance": "NOT_RUN",
+        "autonomous_model_validation": "NOT_RUN",
+        "external_api_calls": 0,
+    }
+    manifest_json = json.dumps(manifest, indent=2) + "\n"
     created = []
     try:
         # Exclusive creation ensures concurrent invocations do not silently
@@ -58,6 +76,9 @@ def prepare_demo(directory):
         with card_target.open("x", encoding="utf-8") as handle:
             created.append(card_target)
             handle.write(card)
+        with manifest_target.open("x", encoding="utf-8") as handle:
+            created.append(manifest_target)
+            handle.write(manifest_json)
     except OSError:
         for path in reversed(created):
             try:
@@ -70,6 +91,7 @@ def prepare_demo(directory):
         "status": "PASS",
         "synthetic_pdf": pdf_target.name,
         "verification_card": card_target.name,
+        "integrity_manifest": manifest_target.name,
         "external_api_calls": 0,
         "manual_streamlit_acceptance": "NOT_RUN",
     }
