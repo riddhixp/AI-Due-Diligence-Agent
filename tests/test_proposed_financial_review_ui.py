@@ -24,7 +24,9 @@ class ProposedFinancialReviewUITests(unittest.TestCase):
             "request_sha256": self.expected,
             "status": "PRELIMINARY_CHECKS_PASSED",
             "arithmetic": {"growth": {"status": "PASS"}},
+            "sources": [{"Result": "NUMBER_FOUND"}],
             "statement_checks": [{"status": "ROW_YEAR_MATCH"}],
+            "metadata_issues": [], "optional_issues": [], "citation_issues": [],
         })
         self.st.info.assert_called_once()
         self.assertIn("not been accepted or executed", self.st.info.call_args.args[0])
@@ -36,6 +38,35 @@ class ProposedFinancialReviewUITests(unittest.TestCase):
         )
         self.st.dataframe.assert_called_once()
         self.st.warning.assert_not_called()
+
+    def test_preliminary_pass_requires_complete_positive_evidence(self):
+        good = {
+            "request_sha256": self.expected,
+            "status": "PRELIMINARY_CHECKS_PASSED",
+            "arithmetic": {"growth": {"status": "PASS"}},
+            "sources": [{"Result": "NUMBER_FOUND"}],
+            "statement_checks": [{"status": "ROW_YEAR_MATCH"}],
+            "metadata_issues": [], "optional_issues": [], "citation_issues": [],
+        }
+        bad_cases = (
+            ("missing arithmetic", {"arithmetic": {}}),
+            ("failed arithmetic", {"arithmetic": {"growth": {"status": "FAIL"}}}),
+            ("missing sources", {"sources": []}),
+            ("failed source", {"sources": [{"Result": "NOT_FOUND"}]}),
+            ("missing statements", {"statement_checks": []}),
+            ("failed statement", {"statement_checks": [{"status": "NEEDS_REVIEW"}]}),
+            ("unconfirmed optional issues", {"optional_issues": None}),
+            ("actual citation issue", {"citation_issues": ["private source text"]}),
+        )
+        for label, delta in bad_cases:
+            with self.subTest(label=label):
+                self.st.reset_mock()
+                self.render(dict(good, **delta))
+                self.st.info.assert_not_called()
+                self.st.expander.assert_not_called()
+                self.st.warning.assert_called_once_with(
+                    "Local checks are unavailable. Inspect the PDF evidence before recording a decision.")
+                self.assertNotIn("private source text", str(self.st.mock_calls))
 
     def test_incorrect_proposal_is_flagged_before_details(self):
         self.render({
