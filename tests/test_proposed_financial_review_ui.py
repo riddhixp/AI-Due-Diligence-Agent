@@ -230,7 +230,7 @@ class ProposedFinancialReviewUITests(unittest.TestCase):
     def test_malformed_diagnostics_are_never_sent_to_streamlit(self):
         cases = (
             {"metadata_issues": [object()]},
-            {"metadata_issues": ["unsafe\\nPDF content"]},
+            {"metadata_issues": ["unsafe\nPDF content"]},
             {"citation_issues": ["x" * 1025]},
             {"optional_issues": [""]},
             {"statement_checks": [{"status": "NEEDS_REVIEW"}] * 101},
