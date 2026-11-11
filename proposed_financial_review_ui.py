@@ -13,6 +13,8 @@ def render_proposed_financial_review(st, state, pages, expected_fingerprint):
         review = review_proposed_financial_request(state, pages)
         if review['request_sha256'] != expected_fingerprint:
             raise ValueError('FINANCIAL_APPROVAL_REQUEST_CHANGED')
+        if not _valid_diagnostic_shape(review):
+            raise ValueError('INVALID_FINANCIAL_DIAGNOSTIC_SHAPE')
         status = review['status']
         if type(status) is not str or status not in (
                 'PRELIMINARY_CHECKS_PASSED', 'REVIEW_UNAVAILABLE', 'NEEDS_REVIEW'):
@@ -122,5 +124,41 @@ def _has_complete_passing_evidence(review):
         return False
     for key in ('metadata_issues', 'optional_issues', 'citation_issues'):
         if review.get(key) != []:
+            return False
+    return True
+
+
+def _valid_diagnostic_shape(review):
+    """Bound read-only diagnostics before sending them to Streamlit.
+
+    A malformed warning or oversized collection must not render arbitrary
+    objects or massive raw PDF text. Missing optional groups are allowed for
+    the documented unavailable / review-needed paths.
+    """
+    if not isinstance(review, dict):
+        return False
+    for key in ('metadata_issues', 'optional_issues', 'citation_issues'):
+        if key not in review:
+            continue
+        issues = review[key]
+        if (not isinstance(issues, list) or len(issues) > 100
+                or any(type(issue) is not str or not issue.strip()
+                       or len(issue) > 1024
+                       or any(ord(char) < 32 or ord(char) == 127 for char in issue)
+                       for issue in issues)):
+            return False
+    arithmetic = review.get('arithmetic')
+    if arithmetic is not None and (
+            not isinstance(arithmetic, dict) or len(arithmetic) > 100
+            or any(type(name) is not str or len(name) > 100
+                   or not isinstance(value, dict) or len(value) > 16
+                   for name, value in arithmetic.items())):
+        return False
+    for key in ('statement_checks', 'sources'):
+        rows = review.get(key)
+        if rows is not None and (
+                not isinstance(rows, list) or len(rows) > 100
+                or any(not isinstance(row, dict) or len(row) > 16
+                       for row in rows)):
             return False
     return True
