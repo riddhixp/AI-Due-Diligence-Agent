@@ -24,6 +24,21 @@ class PreparePortfolioDemoTests(unittest.TestCase):
             self.assertIn("USD 120 million (page 2)", card.read_text(encoding="utf-8"))
             self.assertIn("Human browser click-through | NOT RUN", card.read_text(encoding="utf-8"))
 
+    def test_documented_module_cli_runs_in_fresh_python_process(self):
+        import subprocess
+        import sys
+        with tempfile.TemporaryDirectory() as folder:
+            completed = subprocess.run(
+                [sys.executable, "-m", "prepare_portfolio_demo",
+                 "--directory", folder],
+                capture_output=True, text=True, timeout=60,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            report = json.loads(completed.stdout)
+            self.assertEqual(report["status"], "PASS")
+            self.assertEqual(report["external_api_calls"], 0)
+            self.assertTrue((Path(folder) / "demo-manifest.json").is_file())
+
     def test_existing_output_is_never_overwritten(self):
         with tempfile.TemporaryDirectory() as folder:
             pdf = Path(folder) / "synthetic_conflict_test.pdf"
