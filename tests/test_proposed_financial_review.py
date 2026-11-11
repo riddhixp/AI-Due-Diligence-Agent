@@ -36,6 +36,14 @@ class ProposedFinancialReviewTests(unittest.TestCase):
         self.assertEqual(values, original)
         self.assertEqual(len(result['request_sha256']), 64)
 
+    def test_real_supported_proposal_meets_visible_pass_evidence_gate(self):
+        from proposed_financial_review_ui import _has_complete_passing_evidence
+        supported = self.review(conflict_submission_arguments())
+        self.assertEqual(supported['status'], 'PRELIMINARY_CHECKS_PASSED')
+        self.assertTrue(_has_complete_passing_evidence(supported))
+        incorrect = self.review(conflict_submission_arguments(revenue_current=130))
+        self.assertFalse(_has_complete_passing_evidence(incorrect))
+
     def test_incorrect_revenue_fails_statement_review(self):
         result = self.review(conflict_submission_arguments(revenue_current=130))
         self.assertEqual(result['status'], 'NEEDS_REVIEW')
