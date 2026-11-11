@@ -19,6 +19,8 @@ def render_proposed_financial_review(st, state, pages, expected_fingerprint):
             st.warning('Local checks are unavailable: the proposal is incomplete.')
         else:
             st.warning('Proposed figures need review. Inspect the findings before recording a decision.')
+            for finding in _review_attention_summary(review):
+                st.caption(finding)
     except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
         st.warning('Local checks are unavailable. Inspect the PDF evidence before recording a decision.')
         return
@@ -34,3 +36,36 @@ def render_proposed_financial_review(st, state, pages, expected_fingerprint):
                 st.warning(issue)
         except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
             st.warning('Detailed local checks could not be displayed. Inspect the PDF evidence.')
+
+
+def _review_attention_summary(review):
+    """Count review findings without displaying raw statement or PDF content.
+
+    Only count well-formed results and use generic fixed phrases. The full
+    detailed evidence stays in the expandable panel.
+    """
+    groups = (
+        ('arithmetic', 'status', 'PASS', 'Arithmetic discrepancies'),
+        ('sources', 'Result', 'NUMBER_FOUND', 'Source-number concerns'),
+        ('statement_checks', 'status', 'ROW_YEAR_MATCH', 'Statement row/year concerns'),
+    )
+    summary = []
+    for key, status_key, passing, label in groups:
+        rows = review.get(key)
+        if key == 'arithmetic' and isinstance(rows, dict):
+            rows = list(rows.values())
+        if not isinstance(rows, list) or len(rows) > 100:
+            continue
+        count = sum(isinstance(row, dict) and row.get(status_key) != passing
+                    for row in rows)
+        if count:
+            summary.append(f'{label}: {count}')
+    for key, label in (
+        ('metadata_issues', 'Financial metadata concerns'),
+        ('optional_issues', 'Optional metric concerns'),
+        ('citation_issues', 'Citation concerns'),
+    ):
+        issues = review.get(key)
+        if isinstance(issues, list) and 0 < len(issues) <= 100:
+            summary.append(f'{label}: {len(issues)}')
+    return summary
