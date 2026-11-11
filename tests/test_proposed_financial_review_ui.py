@@ -53,6 +53,43 @@ class ProposedFinancialReviewUITests(unittest.TestCase):
         )
         self.st.warning.assert_any_call("source page mismatch")
 
+    def test_attention_summary_precedes_expandable_details(self):
+        self.render({
+            "request_sha256": self.expected, "status": "NEEDS_REVIEW",
+            "arithmetic": {"growth": {"status": "FAIL"}},
+            "sources": [{"Result": "NOT_FOUND"}],
+            "statement_checks": [
+                {"status": "NEEDS_REVIEW"}, {"status": "ROW_YEAR_MATCH"}],
+            "metadata_issues": ["private company text"],
+            "optional_issues": ["unsupported cash flow"],
+            "citation_issues": ["missing page"],
+        })
+        summaries = [call.args[0] for call in self.st.caption.call_args_list]
+        self.assertIn("Arithmetic discrepancies: 1", summaries)
+        self.assertIn("Source-number concerns: 1", summaries)
+        self.assertIn("Statement row/year concerns: 1", summaries)
+        self.assertIn("Financial metadata concerns: 1", summaries)
+        self.assertIn("Optional metric concerns: 1", summaries)
+        self.assertIn("Citation concerns: 1", summaries)
+        self.assertFalse(any("private company text" in line for line in summaries))
+        first_caption = next(i for i, call in enumerate(self.st.mock_calls)
+                             if str(call).startswith("call.caption("))
+        expander = next(i for i, call in enumerate(self.st.mock_calls)
+                        if str(call).startswith("call.expander("))
+        self.assertLess(first_caption, expander)
+
+    def test_attention_summary_skips_malformed_or_large_details(self):
+        from proposed_financial_review_ui import _review_attention_summary
+        summary = _review_attention_summary({
+            "arithmetic": "invalid",
+            "statement_checks": [{}] * 101,
+            "sources": None,
+            "metadata_issues": "not a list",
+            "citation_issues": [object()] * 101,
+            "optional_issues": ["one"],
+        })
+        self.assertEqual(summary, ["Optional metric concerns: 1"])
+
     def test_stale_request_never_claims_preliminary_pass(self):
         self.render({"request_sha256": "stale", "status": "PRELIMINARY_CHECKS_PASSED"})
         self.st.info.assert_not_called()
