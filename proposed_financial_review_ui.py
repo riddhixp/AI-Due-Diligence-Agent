@@ -17,6 +17,8 @@ def render_proposed_financial_review(st, state, pages, expected_fingerprint):
                 'PRELIMINARY_CHECKS_PASSED', 'REVIEW_UNAVAILABLE', 'NEEDS_REVIEW'):
             raise ValueError('UNRECOGNIZED_FINANCIAL_REVIEW_STATUS')
         if status == 'PRELIMINARY_CHECKS_PASSED':
+            if not _has_complete_passing_evidence(review):
+                raise ValueError('UNSUPPORTED_PRELIMINARY_PASS')
             st.info('Proposed figures passed local preliminary checks. They have not been accepted or executed.')
         elif status == 'REVIEW_UNAVAILABLE':
             st.warning('Local checks are unavailable: the proposal is incomplete.')
@@ -72,3 +74,31 @@ def _review_attention_summary(review):
         if isinstance(issues, list) and 0 < len(issues) <= 100:
             summary.append(f'{label}: {len(issues)}')
     return summary
+
+
+def _has_complete_passing_evidence(review):
+    """Require underlying financial tests to corroborate a preliminary PASS.
+
+    An empty or partial check collection is not proof of success. The underlying
+    reviewer owns financial interpretation; this guards presentation only.
+    """
+    arithmetic = review.get('arithmetic')
+    sources = review.get('sources')
+    statements = review.get('statement_checks')
+    if (not isinstance(arithmetic, dict) or not 1 <= len(arithmetic) <= 100
+            or not isinstance(sources, list) or not 1 <= len(sources) <= 100
+            or not isinstance(statements, list) or not 1 <= len(statements) <= 100):
+        return False
+    if not all(isinstance(row, dict) and row.get('status') == 'PASS'
+               for row in arithmetic.values()):
+        return False
+    if not all(isinstance(row, dict) and row.get('Result') == 'NUMBER_FOUND'
+               for row in sources):
+        return False
+    if not all(isinstance(row, dict) and row.get('status') == 'ROW_YEAR_MATCH'
+               for row in statements):
+        return False
+    for key in ('metadata_issues', 'optional_issues', 'citation_issues'):
+        if review.get(key) != []:
+            return False
+    return True
