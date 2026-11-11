@@ -13,6 +13,9 @@ def render_proposed_financial_review(st, state, pages, expected_fingerprint):
         if review['request_sha256'] != expected_fingerprint:
             raise ValueError('FINANCIAL_APPROVAL_REQUEST_CHANGED')
         status = review['status']
+        if type(status) is not str or status not in (
+                'PRELIMINARY_CHECKS_PASSED', 'REVIEW_UNAVAILABLE', 'NEEDS_REVIEW'):
+            raise ValueError('UNRECOGNIZED_FINANCIAL_REVIEW_STATUS')
         if status == 'PRELIMINARY_CHECKS_PASSED':
             st.info('Proposed figures passed local preliminary checks. They have not been accepted or executed.')
         elif status == 'REVIEW_UNAVAILABLE':
