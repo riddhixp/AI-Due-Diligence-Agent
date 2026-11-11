@@ -23,9 +23,21 @@ class ProposedFinancialReviewUITests(unittest.TestCase):
         self.render({
             "request_sha256": self.expected,
             "status": "PRELIMINARY_CHECKS_PASSED",
-            "arithmetic": {"growth": {"status": "PASS"}},
-            "sources": [{"Result": "NUMBER_FOUND"}],
-            "statement_checks": [{"status": "ROW_YEAR_MATCH"}],
+            "arithmetic": {
+                "revenue_growth": {"status": "PASS"},
+                "gross_margin": {"status": "PASS"},
+                "net_margin": {"status": "PASS"},
+            },
+            "sources": [
+                {"Financial figure": name, "Result": "NUMBER_FOUND"}
+                for name in ("Current-year revenue", "Previous-year revenue",
+                             "Gross profit", "Net income")
+            ],
+            "statement_checks": [
+                {"metric": name, "status": "ROW_YEAR_MATCH"}
+                for name in ("Current-year revenue", "Previous-year revenue",
+                             "Gross profit", "Net income")
+            ],
             "metadata_issues": [], "optional_issues": [], "citation_issues": [],
         })
         self.st.info.assert_called_once()
@@ -43,17 +55,34 @@ class ProposedFinancialReviewUITests(unittest.TestCase):
         good = {
             "request_sha256": self.expected,
             "status": "PRELIMINARY_CHECKS_PASSED",
-            "arithmetic": {"growth": {"status": "PASS"}},
-            "sources": [{"Result": "NUMBER_FOUND"}],
-            "statement_checks": [{"status": "ROW_YEAR_MATCH"}],
+            "arithmetic": {
+                "revenue_growth": {"status": "PASS"},
+                "gross_margin": {"status": "PASS"},
+                "net_margin": {"status": "PASS"},
+            },
+            "sources": [
+                {"Financial figure": name, "Result": "NUMBER_FOUND"}
+                for name in ("Current-year revenue", "Previous-year revenue",
+                             "Gross profit", "Net income")
+            ],
+            "statement_checks": [
+                {"metric": name, "status": "ROW_YEAR_MATCH"}
+                for name in ("Current-year revenue", "Previous-year revenue",
+                             "Gross profit", "Net income")
+            ],
             "metadata_issues": [], "optional_issues": [], "citation_issues": [],
         }
         bad_cases = (
             ("missing arithmetic", {"arithmetic": {}}),
+            ("partial arithmetic", {"arithmetic": {"revenue_growth": {"status": "PASS"}}}),
             ("failed arithmetic", {"arithmetic": {"growth": {"status": "FAIL"}}}),
             ("missing sources", {"sources": []}),
+            ("missing core source", {"sources": [
+                {"Financial figure": "Current-year revenue", "Result": "NUMBER_FOUND"}] * 4}),
             ("failed source", {"sources": [{"Result": "NOT_FOUND"}]}),
             ("missing statements", {"statement_checks": []}),
+            ("duplicated statement", {"statement_checks": [
+                {"metric": "Current-year revenue", "status": "ROW_YEAR_MATCH"}] * 4}),
             ("failed statement", {"statement_checks": [{"status": "NEEDS_REVIEW"}]}),
             ("unconfirmed optional issues", {"optional_issues": None}),
             ("actual citation issue", {"citation_issues": ["private source text"]}),
