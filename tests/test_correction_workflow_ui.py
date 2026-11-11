@@ -52,6 +52,19 @@ render_correction_workflow(st, Path({str(path)!r}).read_bytes())
                 self.assertNotIn('offline_application_workflow', self.app.session_state)
                 self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
 
+    def test_synthetic_wrong_revenue_is_labelled_test_only_before_approval(self):
+        self.click('app_workflow_start')
+        self.assertTrue(any('ONLY a deliberate exercise' in item.value
+                            for item in self.app.warning))
+        self.assertTrue(any('USD 120 million' in item.value
+                            for item in self.app.warning))
+        self.click('app_workflow_approve')
+        self.assertTrue(any('Synthetic correction:' in item.value
+                            for item in self.app.warning))
+        self.assertFalse(any('ONLY a deliberate exercise' in item.value
+                             for item in self.app.warning))
+        self.assertEqual(self.app.session_state['report'], 'Existing real analysis')
+
     def test_approval_step_guidance_tracks_correction(self):
         self.click('app_workflow_start')
         self.assertTrue(any('PDF evidence available for' in item.value
