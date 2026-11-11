@@ -227,6 +227,34 @@ class ProposedFinancialReviewUITests(unittest.TestCase):
                     "Local checks are unavailable. Inspect the PDF evidence before recording a decision.")
                 self.assertNotIn("private company content", str(self.st.mock_calls))
 
+    def test_malformed_diagnostics_are_never_sent_to_streamlit(self):
+        cases = (
+            {"metadata_issues": [object()]},
+            {"metadata_issues": ["unsafe\\nPDF content"]},
+            {"citation_issues": ["x" * 1025]},
+            {"optional_issues": [""]},
+            {"statement_checks": [{"status": "NEEDS_REVIEW"}] * 101},
+            {"arithmetic": {"growth": object()}},
+            {"sources": ["not a structured row"]},
+        )
+        for bad in cases:
+            with self.subTest(bad=list(bad)):
+                self.st.reset_mock()
+                self.render({"request_sha256": self.expected, "status": "NEEDS_REVIEW",
+                             **bad})
+                self.st.warning.assert_called_once_with(
+                    "Local checks are unavailable. Inspect the PDF evidence before recording a decision.")
+                self.st.info.assert_not_called()
+                self.st.expander.assert_not_called()
+                self.st.dataframe.assert_not_called()
+                self.assertNotIn("unsafe", str(self.st.mock_calls))
+
+    def test_normal_diagnostic_issue_remains_visible(self):
+        self.render({"request_sha256": self.expected, "status": "NEEDS_REVIEW",
+                     "metadata_issues": ["Currency is not established."]})
+        self.st.warning.assert_any_call("Currency is not established.")
+        self.st.expander.assert_called_once()
+
     def test_review_errors_never_look_like_pass(self):
         with patch("proposed_financial_review_ui.review_proposed_financial_request",
                    side_effect=ValueError("private PDF contents")):
