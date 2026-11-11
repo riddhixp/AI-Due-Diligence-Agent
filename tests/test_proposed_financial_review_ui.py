@@ -29,7 +29,8 @@ class ProposedFinancialReviewUITests(unittest.TestCase):
         self.st.info.assert_called_once()
         self.assertIn("not been accepted or executed", self.st.info.call_args.args[0])
         self.assertLess(
-            self.st.mock_calls.index(self.st.info.call_args),
+            next(i for i, call in enumerate(self.st.mock_calls)
+                 if str(call).startswith('call.info(')),
             next(i for i, call in enumerate(self.st.mock_calls)
                  if str(call).startswith("call.expander(")),
         )
