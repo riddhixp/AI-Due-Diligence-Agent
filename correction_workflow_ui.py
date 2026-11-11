@@ -190,6 +190,13 @@ def render_correction_workflow(st, pdf_bytes):
             return
         st.info('Reviewer action needed: compare proposed figures against their cited PDF pages.')
         st.caption(_approval_step_summary(checkpoint['submission_count']))
+        # The fixture deliberately starts with a false provisional headline.
+        # Explain the exercise before users reach the approval controls.
+        guidance = _scripted_decision_guidance(
+            session.get('scenario'), checkpoint['submission_count'],
+            preview['metrics'])
+        if guidance:
+            st.warning(guidance)
         missing_pages = [page for page in cited_pages if page > len(pages)]
         if missing_pages:
             st.warning('One or more cited PDF pages are unavailable. Approval will be refused; '
@@ -427,3 +434,36 @@ def _approval_step_summary(accepted_count):
     return (f'Approval step {accepted_count + 1}: {accepted_count} earlier '
             f'financial submission(s) accepted for the scripted rehearsal. '
             'Acceptance does not mean the figures passed evidence review.')
+
+
+def _scripted_decision_guidance(scenario, accepted_count, metrics):
+    """Explain a synthetic test decision without endorsing unsupported approval."""
+    if scenario not in ('standard', 'source_recovery', 'optional_removal'):
+        return None
+    if type(accepted_count) is not int or accepted_count < 0:
+        return None
+    if not isinstance(metrics, list):
+        return None
+    revenue_rows = [row for row in metrics if isinstance(row, dict)
+                    and row.get('Metric') == 'Revenue current']
+    if len(revenue_rows) != 1:
+        return None
+    proposed = revenue_rows[0].get('Proposed')
+    if type(proposed) not in (int, float):
+        return None
+    if proposed == 130 and accepted_count == 0:
+        return ('Synthetic test: USD 130 million is the misleading provisional '
+                'headline. The authoritative statement on PDF page 2 shows '
+                'USD 120 million. Approving this incorrect proposal is ONLY '
+                'a deliberate exercise of the correction controls, not a '
+                'recommended decision for real financial due diligence.')
+    if proposed == 120 and accepted_count > 0:
+        return ('Synthetic correction: the proposed USD 120 million now matches '
+                'the authoritative statement on PDF page 2. Compare the local '
+                'financial checks before approving; an earlier acceptance '
+                'did not establish that the figures were verified.')
+    if scenario == 'optional_removal' and accepted_count == 0:
+        return ('Synthetic optional-metric exercise: review the unsupported '
+                'cash-flow amount and its source citation. The next proposal '
+                'removes unsupported data rather than replacing it with zero.')
+    return None
