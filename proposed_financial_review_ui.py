@@ -1,5 +1,6 @@
 """Shared read-only proposal diagnostics for live decisions and free rehearsals."""
 from proposed_financial_review import review_proposed_financial_request
+from optional_statement_metrics import OPTIONAL_STATEMENT_METRICS
 
 
 def render_proposed_financial_review(st, state, pages, expected_fingerprint):
@@ -97,11 +98,18 @@ def _has_complete_passing_evidence(review):
                      for row in sources]
     statement_labels = [row.get('metric') if isinstance(row, dict) else None
                         for row in statements]
+    allowed_statement_labels = required_figures | {
+        label for _, label, _, _ in OPTIONAL_STATEMENT_METRICS
+    }
+    # The numeric page verifier currently produces exactly four core rows.
+    # Unexpected additional rows or unsupported statement names cannot be
+    # counted as corroborating evidence, even if they claim a passing status.
     if (any(type(label) is not str for label in source_labels + statement_labels)
-            or len(set(source_labels)) != len(source_labels)
-            or not required_figures.issubset(source_labels)
+            or set(source_labels) != required_figures
+            or len(source_labels) != len(required_figures)
             or len(set(statement_labels)) != len(statement_labels)
-            or not required_figures.issubset(statement_labels)):
+            or not required_figures.issubset(statement_labels)
+            or not set(statement_labels).issubset(allowed_statement_labels)):
         return False
     if not all(isinstance(row, dict) and row.get('status') == 'PASS'
                for row in arithmetic.values()):
