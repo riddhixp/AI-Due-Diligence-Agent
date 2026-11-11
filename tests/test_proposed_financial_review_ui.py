@@ -103,6 +103,20 @@ class ProposedFinancialReviewUITests(unittest.TestCase):
         self.st.warning.assert_called_once_with(
             "Local checks are unavailable: the proposal is incomplete.")
 
+    def test_unknown_review_verdict_fails_closed_without_detail_panel(self):
+        for invalid in ("APPROVED", "PASS", None, True, 1, {}):
+            with self.subTest(invalid=invalid):
+                self.st.reset_mock()
+                self.render({"request_sha256": self.expected,
+                             "status": invalid,
+                             "citation_issues": ["private company content"]})
+                self.st.info.assert_not_called()
+                self.st.caption.assert_not_called()
+                self.st.expander.assert_not_called()
+                self.st.warning.assert_called_once_with(
+                    "Local checks are unavailable. Inspect the PDF evidence before recording a decision.")
+                self.assertNotIn("private company content", str(self.st.mock_calls))
+
     def test_review_errors_never_look_like_pass(self):
         with patch("proposed_financial_review_ui.review_proposed_financial_request",
                    side_effect=ValueError("private PDF contents")):
