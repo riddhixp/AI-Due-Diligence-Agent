@@ -24,10 +24,13 @@ def render_proposed_financial_review(st, state, pages, expected_fingerprint):
         return
 
     with st.expander('Local checks of proposed figures'):
-        if review.get('arithmetic'):
-            st.write('Arithmetic checks:', review['arithmetic'])
-        if review.get('statement_checks'):
-            st.dataframe(review['statement_checks'], hide_index=True)
-        for issue in (review.get('metadata_issues', []) + review.get('optional_issues', [])
-                      + review.get('citation_issues', [])):
-            st.warning(issue)
+        try:
+            if review.get('arithmetic'):
+                st.write('Arithmetic checks:', review['arithmetic'])
+            if review.get('statement_checks'):
+                st.dataframe(review['statement_checks'], hide_index=True)
+            for issue in (review.get('metadata_issues', []) + review.get('optional_issues', [])
+                          + review.get('citation_issues', [])):
+                st.warning(issue)
+        except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+            st.warning('Detailed local checks could not be displayed. Inspect the PDF evidence.')
