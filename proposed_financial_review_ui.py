@@ -85,9 +85,22 @@ def _has_complete_passing_evidence(review):
     arithmetic = review.get('arithmetic')
     sources = review.get('sources')
     statements = review.get('statement_checks')
-    if (not isinstance(arithmetic, dict) or not 1 <= len(arithmetic) <= 100
-            or not isinstance(sources, list) or not 1 <= len(sources) <= 100
-            or not isinstance(statements, list) or not 1 <= len(statements) <= 100):
+    required_arithmetic = {'revenue_growth', 'gross_margin', 'net_margin'}
+    required_figures = {'Current-year revenue', 'Previous-year revenue',
+                        'Gross profit', 'Net income'}
+    if (not isinstance(arithmetic, dict)
+            or set(arithmetic) != required_arithmetic
+            or not isinstance(sources, list) or not 4 <= len(sources) <= 100
+            or not isinstance(statements, list) or not 4 <= len(statements) <= 100):
+        return False
+    source_labels = [row.get('Financial figure') if isinstance(row, dict) else None
+                     for row in sources]
+    statement_labels = [row.get('metric') if isinstance(row, dict) else None
+                        for row in statements]
+    if (len(set(source_labels)) != len(source_labels)
+            or not required_figures.issubset(source_labels)
+            or len(set(statement_labels)) != len(statement_labels)
+            or not required_figures.issubset(statement_labels)):
         return False
     if not all(isinstance(row, dict) and row.get('status') == 'PASS'
                for row in arithmetic.values()):
