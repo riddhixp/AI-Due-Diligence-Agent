@@ -97,6 +97,29 @@ class ProposedFinancialReviewUITests(unittest.TestCase):
                     "Local checks are unavailable. Inspect the PDF evidence before recording a decision.")
                 self.assertNotIn("private source text", str(self.st.mock_calls))
 
+    def test_non_text_metric_labels_cannot_support_preliminary_pass(self):
+        from proposed_financial_review_ui import _has_complete_passing_evidence
+        good = {
+            "arithmetic": {
+                name: {"status": "PASS"}
+                for name in ("revenue_growth", "gross_margin", "net_margin")
+            },
+            "sources": [
+                {"Financial figure": name, "Result": "NUMBER_FOUND"}
+                for name in ("Current-year revenue", "Previous-year revenue",
+                             "Gross profit", "Net income")
+            ],
+            "statement_checks": [
+                {"metric": name, "status": "ROW_YEAR_MATCH"}
+                for name in ("Current-year revenue", "Previous-year revenue",
+                             "Gross profit", "Net income")
+            ],
+            "metadata_issues": [], "optional_issues": [], "citation_issues": [],
+        }
+        self.assertTrue(_has_complete_passing_evidence(good))
+        good["sources"][0]["Financial figure"] = {"unhashable": "value"}
+        self.assertFalse(_has_complete_passing_evidence(good))
+
     def test_incorrect_proposal_is_flagged_before_details(self):
         self.render({
             "request_sha256": self.expected,
