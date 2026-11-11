@@ -120,7 +120,7 @@ acceptance.
    proposal is revenue 130, while the authoritative statement shows 120. Point
    out the proposed figures, source text and local evidence findings.
 2. Approve the first proposal to deliberately exercise correction handling.
-   This is a synthetic test choice, not advice to approve unsupported real data.
+   The interface labels this as a deliberate synthetic test choice, not advice\n   to approve unsupported real data. The second preview identifies the corrected\n   revenue separately from the earlier acceptance.
    The next preview compares previously accepted revenue 130 with proposed 120.
    The first figures remain accepted until the second decision.
 3. Approve the correction. Show synthetic revenue 120, completed scripted checks
