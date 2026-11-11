@@ -119,6 +119,7 @@ acceptance.
 1. Select **Standard correction** and start the free workflow. The initial
    proposal is revenue 130, while the authoritative statement shows 120. Point
    out the proposed figures, source text and local evidence findings.
+   The preliminary evidence verdict appears directly above **Local checks of\n   proposed figures**; expand that panel for the calculation and citation\n   details. A preliminary pass does not approve or execute a proposal.
 2. Approve the first proposal to deliberately exercise correction handling.
    The interface labels this as a deliberate synthetic test choice, not advice\n   to approve unsupported real data. The second preview identifies the corrected\n   revenue separately from the earlier acceptance.
    The next preview compares previously accepted revenue 130 with proposed 120.
