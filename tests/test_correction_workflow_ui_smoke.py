@@ -12,6 +12,26 @@ class CorrectionWorkflowUiSmokeTests(unittest.TestCase):
         self.st.selectbox.return_value = 'Standard correction'
         self.st.button.return_value = False
 
+    def test_scripted_decision_guidance_does_not_endorse_real_world_bad_data(self):
+        from correction_workflow_ui import _scripted_decision_guidance
+        wrong = [{'Metric': 'Revenue current', 'Proposed': 130}]
+        corrected = [{'Metric': 'Revenue current', 'Proposed': 120}]
+        first = _scripted_decision_guidance('standard', 0, wrong)
+        self.assertIn('ONLY a deliberate exercise', first)
+        self.assertIn('not a recommended decision', first)
+        second = _scripted_decision_guidance('standard', 1, corrected)
+        self.assertIn('Synthetic correction', second)
+        self.assertIn('earlier acceptance', second)
+        optional = _scripted_decision_guidance('optional_removal', 0, corrected)
+        self.assertIn('removes unsupported data', optional)
+        for scenario, count, metrics in (
+            ('unknown', 0, wrong), ('standard', -1, wrong),
+            ('standard', 0, []), ('standard', 0, [{'Metric': 'Other', 'Proposed': 130}]),
+            ('standard', 0, [{'Metric': 'Revenue current', 'Proposed': '130'}]),
+            ('standard', 0, wrong + wrong)):
+            with self.subTest(scenario=scenario, count=count, metrics=metrics):
+                self.assertIsNone(_scripted_decision_guidance(scenario, count, metrics))
+
     def test_idle_interface_never_starts_model_or_exports_report(self):
         with patch('correction_workflow_ui.document_fingerprint', return_value='document-a'), \
              patch('correction_workflow_ui.start_offline_correction_workflow') as start:
