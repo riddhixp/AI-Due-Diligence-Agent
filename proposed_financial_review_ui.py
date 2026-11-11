@@ -97,7 +97,8 @@ def _has_complete_passing_evidence(review):
                      for row in sources]
     statement_labels = [row.get('metric') if isinstance(row, dict) else None
                         for row in statements]
-    if (len(set(source_labels)) != len(source_labels)
+    if (any(type(label) is not str for label in source_labels + statement_labels)
+            or len(set(source_labels)) != len(source_labels)
             or not required_figures.issubset(source_labels)
             or len(set(statement_labels)) != len(statement_labels)
             or not required_figures.issubset(statement_labels)):
