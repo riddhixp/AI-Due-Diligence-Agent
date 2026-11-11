@@ -120,6 +120,33 @@ class ProposedFinancialReviewUITests(unittest.TestCase):
         good["sources"][0]["Financial figure"] = {"unhashable": "value"}
         self.assertFalse(_has_complete_passing_evidence(good))
 
+    def test_unexpected_passing_rows_cannot_manufacture_a_preliminary_pass(self):
+        from proposed_financial_review_ui import _has_complete_passing_evidence
+        core = ("Current-year revenue", "Previous-year revenue",
+                "Gross profit", "Net income")
+        valid = {
+            "arithmetic": {key: {"status": "PASS"} for key in (
+                "revenue_growth", "gross_margin", "net_margin")},
+            "sources": [
+                {"Financial figure": label, "Result": "NUMBER_FOUND"} for label in core],
+            "statement_checks": [
+                {"metric": label, "status": "ROW_YEAR_MATCH"} for label in core],
+            "metadata_issues": [], "optional_issues": [], "citation_issues": [],
+        }
+        self.assertTrue(_has_complete_passing_evidence(valid))
+        with_extra_source = dict(valid, sources=valid["sources"] + [
+            {"Financial figure": "Invented AI revenue", "Result": "NUMBER_FOUND"}])
+        self.assertFalse(_has_complete_passing_evidence(with_extra_source))
+        with_unknown_statement = dict(valid, statement_checks=valid["statement_checks"] + [
+            {"metric": "Invented AI revenue", "status": "ROW_YEAR_MATCH"}])
+        self.assertFalse(_has_complete_passing_evidence(with_unknown_statement))
+        with_supported_optional = dict(valid, statement_checks=valid["statement_checks"] + [
+            {"metric": "Operating cash flow", "status": "ROW_YEAR_MATCH"}])
+        self.assertTrue(_has_complete_passing_evidence(with_supported_optional))
+        with_failed_optional = dict(valid, statement_checks=valid["statement_checks"] + [
+            {"metric": "Operating cash flow", "status": "NEEDS_REVIEW"}])
+        self.assertFalse(_has_complete_passing_evidence(with_failed_optional))
+
     def test_incorrect_proposal_is_flagged_before_details(self):
         self.render({
             "request_sha256": self.expected,
