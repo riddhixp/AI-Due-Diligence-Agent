@@ -105,6 +105,23 @@ package in a temporary directory, verifies it, and confirms that tampering
 with the generated Markdown card causes verification to fail. This checks the
 actual CLI-to-CLI handoff rather than relying only on mocked unit tests.
 
+### Verify the complete offline rehearsal readiness
+
+After preparing the demo package, run:
+
+```bash
+python -m portfolio_readiness --directory demo-run
+```
+
+This command combines the existing network-guarded offline acceptance checks
+with an integrity verification of the packaged PDF, card and manifest.
+A successful run reports `OFFLINE_REHEARSAL_READY` and
+`demo_package_integrity: VERIFIED`. Without `--directory`, package
+integrity is explicitly `NOT_CHECKED`. A missing or changed demo file
+blocks readiness and returns a nonzero exit code. This does not perform
+the human browser walkthrough or enable paid AI analysis. Both manual
+and autonomous-model validation remain `NOT_RUN`.
+
 The verifier compares SHA-256 hashes with the local manifest and rechecks the
 synthetic PDF evidence and the card's outstanding-validation disclosures. This
 is a **local integrity check**, not a digital signature or proof the package
