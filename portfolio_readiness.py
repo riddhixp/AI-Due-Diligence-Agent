@@ -61,7 +61,7 @@ def main(argv=None):
     parser.add_argument(
         "--directory", type=Path,
         help="Verify an existing synthetic demo package and its manifest")
-    args = parser.parse_args(argv)
+    args = parser.parse_args([] if argv is None else argv)
     try:
         fixture = check_demo_fixture()
         workflow = check_demo_workflow()
@@ -82,4 +82,4 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))
