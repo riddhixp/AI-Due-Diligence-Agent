@@ -1,45 +1,53 @@
 
 import re
+import math
+
+_NUMBER_CORE = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+_NUMBER_PATTERN = re.compile(
+    r"(?<![\w,])(?:"
+    + r"(?:[$£€]\s*)?\(\s*[$£€]?\s*" + _NUMBER_CORE + r"\s*\)"
+    + r"|(?:[+\-−]\s*[$£€]?\s*|[$£€]\s*[+\-−]?\s*)?" + _NUMBER_CORE
+    + r")(?![\w,]|\.\d)"
+)
 
 
 def normalise_number(value):
     """Convert a financial number into a comparable format."""
-    text = str(value).strip()
-    text = text.replace(",", "").replace("$", "")
-    text = text.replace("£", "").replace("€", "")
-    text = text.replace(" ", "")
-
+    if isinstance(value, bool):
+        return None
+    text = str(value).strip().replace("−", "-")
+    text = re.sub(r"\s+", "", text)
+    for symbol in (",", "$", "£", "€"):
+        text = text.replace(symbol, "")
+    if text.startswith("(") and text.endswith(")"):
+        inner = text[1:-1]
+        if inner.startswith(("-", "+")):
+            return None  # Ambiguous double sign, rather than silently flipping it.
+        text = "-" + inner
     try:
-        return float(text)
+        number = float(text)
+        return number if math.isfinite(number) else None
     except ValueError:
         return None
 
 
+def _number_matches(text):
+    """Yield the same signed tokens for matching and evidence excerpts."""
+    for match in _NUMBER_PATTERN.finditer(text):
+        raw = match.group()
+        if "(" not in raw:
+            before = text[:match.start()].rstrip()
+            after = text[match.end():].lstrip()
+            if before.endswith("(") or after.startswith(")"):
+                continue  # Do not rescue unsigned digits from an incomplete bracket.
+        number = normalise_number(raw)
+        if number is not None:
+            yield match, number
 
 
 def extract_numbers(text):
-    """Find financial numbers, including comma-separated values."""
-
-    pattern = (
-        r"(?<![\w,])"
-        r"-?\$?"
-        r"(?:\d{1,3}(?:,\d{3})+|\d+)"
-        r"(?:\.\d+)?"
-        r"(?![\w,]|\.\d)"
-    )
-
-    matches = re.findall(pattern, text)
-
-    numbers = []
-
-    for match in matches:
-        number = normalise_number(match)
-
-        if number is not None:
-            numbers.append(number)
-
-    return numbers
-
+    """Find monetary numbers while preserving minus and accounting signs."""
+    return [number for _, number in _number_matches(text)]
 
 
 
@@ -51,10 +59,16 @@ def verify_figure(pages, value, page_number):
     page numbers inside the annual report.
     """
 
-    if not isinstance(page_number, int):
+    if type(page_number) is not int:
         return {
             "status": "NEEDS_REVIEW",
             "reason": "Page number must be an integer.",
+        }
+
+    if not isinstance(pages, (list, tuple)):
+        return {
+            "status": "NEEDS_REVIEW",
+            "reason": "PDF pages are unavailable.",
         }
 
     if page_number < 1 or page_number > len(pages):
@@ -72,6 +86,11 @@ def verify_figure(pages, value, page_number):
         }
 
     page_text = pages[page_number - 1]
+    if not isinstance(page_text, str):
+        return {
+            "status": "NEEDS_REVIEW",
+            "reason": "PDF page text is unavailable.",
+        }
     numbers = extract_numbers(page_text)
 
     if any(abs(number - target) < 0.0001 for number in numbers):
@@ -100,6 +119,24 @@ def verify_financial_data(pages, financial_data):
     It does not prove the metric, year or unit is correct.
     """
 
+    if financial_data is None:
+        return []
+
+    if not isinstance(financial_data, dict):
+        return [
+            {
+                "Financial figure": label,
+                "Value": None,
+                "PDF page": None,
+                "Result": "NEEDS_REVIEW",
+                "Explanation": "Financial data must be a dictionary.",
+            }
+            for label in (
+                "Current-year revenue", "Previous-year revenue",
+                "Gross profit", "Net income",
+            )
+        ]
+
     if not financial_data:
         return []
 
@@ -110,7 +147,13 @@ def verify_financial_data(pages, financial_data):
         ("Net income", "net_income"),
     ]
 
-    source_pages = financial_data.get("source_pages") or {}
+    source_pages = financial_data.get("source_pages")
+    invalid_source_pages = (
+        "source_pages" in financial_data
+        and (not isinstance(source_pages, dict) or not source_pages)
+    )
+    if not isinstance(source_pages, dict):
+        source_pages = {}
 
     results = []
 
@@ -119,8 +162,13 @@ def verify_financial_data(pages, financial_data):
 
         # Prefer the figure-specific page reference.
         # Fall back to the previous single-page format.
-        page_number = source_pages.get(field)
-        if page_number is None:
+        # An explicitly supplied figure page must be checked as-is.
+        # Only absent entries may use the legacy shared source page.
+        if invalid_source_pages:
+            page_number = None
+        elif field in source_pages:
+            page_number = source_pages[field]
+        else:
             page_number = financial_data.get("source_page")
 
         if value is None or page_number is None:
@@ -156,33 +204,22 @@ def extract_evidence_context(
     This does not verify the metric or fiscal year.
     """
 
-    if not isinstance(page_number, int):
+    if type(page_number) is not int:
         return None
 
     if not 1 <= page_number <= len(pages):
         return None
 
     page_text = pages[page_number - 1]
-
-    pattern = (
-        r"(?<![\w,])"
-        r"-?\$?"
-        r"(?:\d{1,3}(?:,\d{3})+|\d+)"
-        r"(?:\.\d+)?"
-        r"(?![\w,]|\.\d)"
-    )
+    if not isinstance(page_text, str):
+        return None
 
     target = normalise_number(value)
 
     if target is None:
         return None
 
-    for match in re.finditer(pattern, page_text):
-        number = normalise_number(match.group())
-
-        if number is None:
-            continue
-
+    for match, number in _number_matches(page_text):
         if abs(number - target) < 0.0001:
             start = max(0, match.start() - context_chars)
             end = min(
@@ -249,7 +286,11 @@ def check_statement_row_and_year(
     column_index starts at 0 for the first year column.
     """
 
-    if not isinstance(page_number, int):
+    if not isinstance(row_label, str) or not row_label.strip():
+        return {"status": "NEEDS_REVIEW",
+                "reason": "Invalid financial row label."}
+
+    if type(page_number) is not int:
         return {"status": "NEEDS_REVIEW",
                 "reason": "Invalid PDF page."}
 
@@ -257,31 +298,51 @@ def check_statement_row_and_year(
         return {"status": "NEEDS_REVIEW",
                 "reason": "Page outside PDF."}
 
-    if not isinstance(column_index, int) or column_index < 0:
+    if type(column_index) is not int or column_index < 0:
         return {"status": "NEEDS_REVIEW",
                 "reason": "Invalid column index."}
 
+    if type(fiscal_year) is not int or not 1 <= fiscal_year <= 9999:
+        return {"status": "NEEDS_REVIEW", "reason": "Invalid fiscal year."}
+
     text = pages[page_number - 1]
+    if not isinstance(text, str):
+        return {"status": "NEEDS_REVIEW", "reason": "PDF page text is unavailable."}
 
-    # Look for a year heading in the statement.
-    heading = text.split(row_label, 1)[0]
-
-    years = re.findall(r"\b20\d{2}\b", heading)
-    distinct_years = list(dict.fromkeys(years))
-
-    # Find the specified financial row.
-    matching_rows = [
-        line for line in text.splitlines()
-        if line.strip().lower().startswith(row_label.lower())
-    ]
-
+    # Require the full approved label followed by monetary data. A label
+    # prefix alone must not accept "Net income per share" or a margin row.
+    lines = text.splitlines()
+    matching_rows = []
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped.lower().startswith(row_label.lower()):
+            continue
+        suffix = stripped[len(row_label):]
+        # A longer metric name is not the requested financial statement row.
+        if suffix and suffix[0] not in " .:…\t":
+            continue
+        if _NUMBER_PATTERN.match(suffix.lstrip(" .:…\t")):
+            matching_rows.append((index, line))
     if len(matching_rows) != 1:
         return {
             "status": "NEEDS_REVIEW",
             "reason": "Expected financial row not uniquely found.",
         }
+    row_index, row = matching_rows[0]
+    if "%" in row:
+        return {"status": "NEEDS_REVIEW",
+                "reason": "A percentage row cannot verify a monetary amount."}
+    # Use only text before the actual matched row, independent of label case.
+    # Later notes or statements cannot supply this row's year heading.
+    # Use the nearest year-bearing line, rather than unrelated earlier page text.
+    heading = next((line for line in reversed(lines[:row_index])
+                    if re.search(r"(?<![\w])(?:19|20)\d{2}(?![\w])", line)), "")
+    years = re.findall(r"(?<![\w])(?:19|20)\d{2}(?![\w])", heading)
+    distinct_years = list(dict.fromkeys(years))
+    if len(years) != len(distinct_years):
+        return {"status": "NEEDS_REVIEW",
+                "reason": "Repeated fiscal-year headings prevent reliable column alignment."}
 
-    row = matching_rows[0]
     values = extract_numbers(row)
 
     if column_index >= len(values):
@@ -295,6 +356,10 @@ def check_statement_row_and_year(
             "status": "NEEDS_REVIEW",
             "reason": "Fiscal-year column cannot be established.",
         }
+
+    if len(values) != len(distinct_years):
+        return {"status": "NEEDS_REVIEW",
+                "reason": "Statement values and fiscal-year columns are not aligned."}
 
     extracted_year = int(distinct_years[column_index])
     extracted_value = values[column_index]
