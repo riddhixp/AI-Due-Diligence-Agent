@@ -75,3 +75,73 @@ class PortfolioReadinessTests(unittest.TestCase):
         self.assertEqual(report["status"], "BLOCKED")
         self.assertFalse(report["production_ready"])
         self.assertNotIn("private client PDF text", output.getvalue())
+
+    def test_verified_package_is_explicit_but_not_a_live_validation(self):
+        package = {
+            "status": "PASS",
+            "integrity": "VERIFIED",
+            "scope": "SYNTHETIC_OFFLINE_DEMO_ONLY",
+            "external_api_calls": 0,
+            "manual_streamlit_acceptance": "NOT_RUN",
+            "autonomous_model_validation": "NOT_RUN",
+        }
+        report = assess_readiness(self.fixture, self.workflow, package)
+        self.assertEqual(report["demo_package_integrity"], "VERIFIED")
+        self.assertFalse(report["portfolio_demo_fully_validated"])
+        self.assertEqual(report["manual_browser_acceptance"], "NOT_RUN")
+        self.assertEqual(report["paid_continuation"], "DISABLED")
+
+    def test_package_evidence_must_match_all_offline_safeguards(self):
+        package = {
+            "status": "PASS",
+            "integrity": "VERIFIED",
+            "scope": "SYNTHETIC_OFFLINE_DEMO_ONLY",
+            "external_api_calls": 0,
+            "manual_streamlit_acceptance": "NOT_RUN",
+            "autonomous_model_validation": "NOT_RUN",
+        }
+        for name, replacement in (
+            ("status", "FAIL"),
+            ("integrity", "NOT_CHECKED"),
+            ("scope", "PRODUCTION"),
+            ("external_api_calls", True),
+            ("external_api_calls", 1),
+            ("manual_streamlit_acceptance", "PASS"),
+            ("autonomous_model_validation", "PASS"),
+        ):
+            with self.subTest(name=name, replacement=replacement):
+                candidate = dict(package, **{name: replacement})
+                with self.assertRaisesRegex(ValueError, "INVALID_PORTFOLIO_PACKAGE_EVIDENCE"):
+                    assess_readiness(self.fixture, self.workflow, candidate)
+        self.assertEqual(
+            assess_readiness(self.fixture, self.workflow)["demo_package_integrity"],
+            "NOT_CHECKED",
+        )
+
+    def test_cli_verifies_package_when_directory_provided(self):
+        package = {
+            "status": "PASS", "integrity": "VERIFIED",
+            "scope": "SYNTHETIC_OFFLINE_DEMO_ONLY",
+            "external_api_calls": 0,
+            "manual_streamlit_acceptance": "NOT_RUN",
+            "autonomous_model_validation": "NOT_RUN",
+        }
+        with patch("portfolio_readiness.check_demo_fixture", return_value=self.fixture), \
+             patch("portfolio_readiness.check_demo_workflow", return_value=self.workflow), \
+             patch("portfolio_readiness.verify_demo", return_value=package) as verify, \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(main(["--directory", "demo-run"]), 0)
+        self.assertEqual(str(verify.call_args.args[0]), "demo-run")
+        self.assertEqual(
+            json.loads(output.getvalue())["demo_package_integrity"], "VERIFIED")
+
+    def test_cli_refuses_tampered_demo_package(self):
+        with patch("portfolio_readiness.check_demo_fixture", return_value=self.fixture), \
+             patch("portfolio_readiness.check_demo_workflow", return_value=self.workflow), \
+             patch("portfolio_readiness.verify_demo",
+                   side_effect=ValueError("private PDF text")), \
+             contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(main(["--directory", "tampered-demo"]), 1)
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertNotIn("private PDF text", output.getvalue())
